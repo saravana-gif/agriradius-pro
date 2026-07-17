@@ -1,17 +1,12 @@
 import streamlit as st
 
 from ui.sidebar import sidebar
+from ui.layer_manager import layer_manager
 from ui.mapview import mapview
 from ui.results import results
 
 
 def dashboard():
-
-    st.set_page_config(
-        page_title="AgriRadius Pro",
-        page_icon="🌾",
-        layout="wide"
-    )
 
     st.title("🌾 AgriRadius Pro")
     st.caption("Agricultural GIS Intelligence Platform")
@@ -20,6 +15,8 @@ def dashboard():
 
     with left:
         sidebar()
+        st.divider()
+        layer_manager()
 
     with right:
         mapview()

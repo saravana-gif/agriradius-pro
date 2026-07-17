@@ -37,14 +37,6 @@ def sidebar():
         index=0 if st.session_state.input_method == "Manual Coordinates" else 1
     )
 
-    st.session_state.basemap = st.selectbox(
-        "Basemap",
-        [
-            "OpenStreetMap",
-            "Satellite"
-        ]
-    )
-
     st.session_state.lat = st.number_input(
         "Latitude",
         value=float(st.session_state.lat),

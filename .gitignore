@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/
+
+# VS Code
+.vscode/
+
+# JetBrains
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+temp/
+*.tmp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# GIS cache
+data/cache/
+*.lock
+
+# Generated reports
+reports/*.pdf
+reports/*.png
+
+# Exports
+data/exports/
+
+# Earth Engine credentials (if stored locally)
+credentials.json

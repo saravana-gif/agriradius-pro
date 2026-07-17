@@ -14,17 +14,17 @@ def results():
     df = pd.DataFrame(st.session_state.results)
 
     # ---------- KPI ----------
-    total_area = df["Area (ha)"].sum()
-    agriculture = df.loc[df["Land Cover"] == "Agriculture", "Area (ha)"].sum()
-    trees = df.loc[df["Land Cover"] == "Trees", "Area (ha)"].sum()
-    built = df.loc[df["Land Cover"] == "Built-up", "Area (ha)"].sum()
+    total_area = df["Area (acres)"].sum()
+    agriculture = df.loc[df["Land Cover"] == "Agriculture", "Area (acres)"].sum()
+    trees = df.loc[df["Land Cover"] == "Trees", "Area (acres)"].sum()
+    built = df.loc[df["Land Cover"] == "Built-up", "Area (acres)"].sum()
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Total Area", f"{total_area:,.2f} ha")
-    c2.metric("Agriculture", f"{agriculture:,.2f} ha")
-    c3.metric("Trees", f"{trees:,.2f} ha")
-    c4.metric("Built-up", f"{built:,.2f} ha")
+    c1.metric("Total Area", f"{total_area:,.2f} ac")
+    c2.metric("Agriculture", f"{agriculture:,.2f} ac")
+    c3.metric("Trees", f"{trees:,.2f} ac")
+    c4.metric("Built-up", f"{built:,.2f} ac")
 
     st.divider()
 
@@ -46,7 +46,7 @@ def results():
 
         fig = px.pie(
             df,
-            values="Area (ha)",
+            values="Area (acres)",
             names="Land Cover",
             title="Land Cover Distribution"
         )
@@ -62,7 +62,7 @@ def results():
         fig2 = px.bar(
             df,
             x="Land Cover",
-            y="Area (ha)",
+            y="Area (acres)",
             title="Area by Land Cover"
         )
 
@@ -74,11 +74,11 @@ def results():
     st.divider()
 
     # ---------- Download ----------
-    excel = df.to_csv(index=False).encode("utf-8")
+    csv = df.to_csv(index=False).encode("utf-8")
 
     st.download_button(
         "📥 Download CSV",
-        excel,
+        csv,
         file_name="LandCover_Report.csv",
         mime="text/csv",
         use_container_width=True

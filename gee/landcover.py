@@ -2,6 +2,9 @@
 
 import ee
 
+# 1 acre = 4046.8564224 square metres
+SQM_PER_ACRE = 4046.8564224
+
 CLASSES = {
     0: "Water",
     1: "Trees",
@@ -15,7 +18,7 @@ CLASSES = {
 
 
 def get_landcover(buffer, start_date, end_date):
-    """Compute area (ha) per Dynamic World class inside the buffer."""
+    """Compute area (acres) per Dynamic World class inside the buffer."""
 
     dw = (
         ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
@@ -41,13 +44,13 @@ def get_landcover(buffer, start_date, end_date):
         )
 
         try:
-            hectares = ee.Number(area.get("area")).divide(10000).getInfo()
+            acres = ee.Number(area.get("area")).divide(SQM_PER_ACRE).getInfo()
         except Exception:
-            hectares = 0
+            acres = 0
 
         results.append({
             "Land Cover": name,
-            "Area (ha)": round(hectares or 0, 2),
+            "Area (acres)": round(acres or 0, 2),
         })
 
     return results

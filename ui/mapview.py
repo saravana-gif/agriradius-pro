@@ -31,7 +31,11 @@ def mapview():
                 st.session_state.lon,
                 st.session_state.radius
             )
-            engine.add_villages(gdf)
+            engine.add_villages(
+                gdf,
+                 popup_fields=["vilname11", "sdtname", "dtname", "stname"],
+                popup_aliases=["Village", "Taluk", "District", "State"],
+                )
         except Exception as e:
             st.warning(f"Could not load villages: {e}")
 

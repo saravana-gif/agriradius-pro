@@ -33,8 +33,10 @@ def load_boundaries(state="karnataka", layer="villages"):
 
     gdf = gdf.rename(columns=str.lower)
 
-    # Repair any invalid geometries
-    gdf["geometry"] = gdf.geometry.buffer(0)
+    # Repair only invalid geometries (much faster on large files)
+    invalid = ~gdf.geometry.is_valid
+    if invalid.any():
+        gdf.loc[invalid, "geometry"] = gdf.loc[invalid, "geometry"].buffer(0)
 
     _CACHE[key] = gdf
 

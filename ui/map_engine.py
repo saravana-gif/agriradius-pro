@@ -57,8 +57,14 @@ class MapEngine:
 
         return self
 
-    def add_villages(self, gdf, name_col=None):
-        """Draw village polygons from a GeoDataFrame (EPSG:4326)."""
+    def add_villages(self, gdf, name_col=None, popup_fields=None,
+                     popup_aliases=None):
+        """Draw village polygons with tooltip, popup and hover highlight.
+
+        popup_fields/popup_aliases: parallel lists of attribute columns
+        and display labels shown when a village is clicked. Fields not
+        present in the GeoDataFrame are dropped automatically.
+        """
 
         if gdf is None or gdf.empty:
             return self
@@ -70,7 +76,26 @@ class MapEngine:
                 None
             )
 
-        cols = ["geometry"] + ([name_col] if name_col else [])
+        popup = None
+
+        if popup_fields:
+
+            pairs = [
+                (f, a) for f, a in zip(
+                    popup_fields,
+                    popup_aliases or popup_fields
+                )
+                if f in gdf.columns
+            ]
+
+            if pairs:
+                popup = folium.GeoJsonPopup(
+                    fields=[p[0] for p in pairs],
+                    aliases=[p[1] for p in pairs],
+                )
+
+        keep = {name_col} | set(popup_fields or [])
+        cols = ["geometry"] + [c for c in keep if c and c in gdf.columns]
 
         folium.GeoJson(
             gdf[cols],
@@ -80,8 +105,14 @@ class MapEngine:
                 "weight": 1,
                 "fillOpacity": 0.05,
             },
+            highlight_function=lambda f: {
+                "color": "#ff7800",
+                "weight": 3,
+                "fillOpacity": 0.15,
+            },
             tooltip=folium.GeoJsonTooltip(fields=[name_col])
             if name_col else None,
+            popup=popup,
         ).add_to(self.map)
 
         return self

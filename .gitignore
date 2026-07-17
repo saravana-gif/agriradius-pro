@@ -46,3 +46,6 @@ data/exports/
 
 # Earth Engine credentials (if stored locally)
 credentials.json
+
+# Saved projects
+data/projects/

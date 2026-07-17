@@ -4,7 +4,7 @@ from ui.sidebar import sidebar
 from ui.layer_manager import layer_manager
 from ui.mapview import mapview
 from ui.results import results
-from ui.village_table import village_table
+from ui.project_panel import project_panel
 
 
 def dashboard():
@@ -18,14 +18,11 @@ def dashboard():
         sidebar()
         st.divider()
         layer_manager()
+        st.divider()
+        project_panel()
 
     with right:
         mapview()
 
     st.divider()
-
-    village_table()
-
-    st.divider()
-
     results()

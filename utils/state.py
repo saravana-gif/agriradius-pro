@@ -18,6 +18,7 @@ DEFAULTS = {
     "basemap": "OpenStreetMap",
     "analyze": False,
     "results": None,
+    "ndvi_series": None,
 }
 
 

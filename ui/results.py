@@ -6,6 +6,7 @@ import plotly.express as px
 
 from gis.village_search import get_villages
 from core.export import excel_report
+from core.crop_cycle import to_dataframe, analyze_series
 
 
 def _landcover_df():
@@ -146,14 +147,77 @@ def _downloads_tab(df):
         st.info("Run an analysis to enable downloads.")
 
 
+def _crop_cycle_tab():
+
+    st.caption(
+        "Monthly NDVI over cropland only (Dynamic World crop mask), "
+        "last 2 years ending with the selected year. Detects how many "
+        "crop cycles farmland in this buffer supports."
+    )
+
+    if st.button("🌱 Run Crop Cycle Analysis", use_container_width=True):
+
+        from gee.ndvi import ndvi_monthly_series
+
+        try:
+            series = ndvi_monthly_series(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year - 1,
+                st.session_state.year,
+            )
+            st.session_state.ndvi_series = series
+        except Exception as e:
+            st.error(f"NDVI analysis failed: {e}")
+            return
+
+    if st.session_state.get("ndvi_series") is None:
+        st.info("Run the analysis to see cropping cycles.")
+        return
+
+    df = to_dataframe(st.session_state.ndvi_series)
+
+    if df["NDVI"].isna().all():
+        st.warning("No usable NDVI data for this buffer/period.")
+        return
+
+    insight = analyze_series(df)
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Cropping Pattern", insight["pattern"])
+    c2.metric("Cycles / Year", insight["cycles_per_year"])
+    c3.metric("Mean NDVI (cropland)", insight["mean_ndvi"])
+
+    st.info(insight["detail"])
+
+    if insight["peak_months"]:
+        st.write(
+            "**Growth peaks:** " + ", ".join(insight["peak_months"])
+        )
+
+    fig = px.line(
+        df,
+        x="Month",
+        y=["NDVI", "Smoothed"],
+        title="NDVI Time Series - Cropland in Buffer",
+        markers=True,
+    )
+    fig.add_hline(y=0.4, line_dash="dot",
+                  annotation_text="crop peak threshold")
+    st.plotly_chart(fig, use_container_width=True)
+
+
 def results():
 
     st.subheader("🌾 Analysis Results")
 
     df = _landcover_df()
 
-    tab_summary, tab_villages, tab_charts, tab_downloads = st.tabs(
-        ["📊 Summary", "🏘️ Villages", "📈 Charts", "📥 Downloads"]
+    (tab_summary, tab_villages, tab_charts,
+     tab_crop, tab_downloads) = st.tabs(
+        ["📊 Summary", "🏘️ Villages", "📈 Charts",
+         "🌱 Crop Cycle", "📥 Downloads"]
     )
 
     with tab_summary:
@@ -164,6 +228,9 @@ def results():
 
     with tab_charts:
         _charts_tab(df)
+
+    with tab_crop:
+        _crop_cycle_tab()
 
     with tab_downloads:
         _downloads_tab(df)

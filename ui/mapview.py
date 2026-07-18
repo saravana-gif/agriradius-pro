@@ -70,6 +70,21 @@ def mapview():
         except Exception as e:
             st.warning(f"Could not load confidence layer: {e}")
 
+    if vis.get("paddy"):
+
+        from gee.paddy import paddy_tile_url
+
+        try:
+            url = paddy_tile_url(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year
+            )
+            engine.add_tile_overlay(url, "Paddy Fields", opacity=0.8)
+        except Exception as e:
+            st.warning(f"Could not load paddy layer: {e}")
+
     map_data = st_folium(
         engine.render(),
         width=None,

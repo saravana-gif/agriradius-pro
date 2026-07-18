@@ -47,9 +47,13 @@ def layer_manager():
 
 DW_LEGEND = [
     ("Water", "#419bdf"), ("Trees", "#397d49"), ("Grass", "#88b053"),
-    ("Flooded Veg", "#7a87c6"), ("Crops", "#e49635"),
+    ("Flooded Veg", "#7a87c6"), ("Crops", "#ff00ff"),
     ("Shrub/Scrub", "#dfc35a"), ("Built-up", "#c4281b"),
     ("Bare", "#a59b8f"), ("Snow/Ice", "#b39fe1"),
+]
+
+PADDY_LEGEND = [
+    ("Detected paddy (flooded + growth)", "#00e5ff"),
 ]
 
 CONFIDENCE_LEGEND = [
@@ -85,3 +89,6 @@ def legends():
 
     if vis.get("cropland_confidence"):
         _legend("Cropland Confidence", CONFIDENCE_LEGEND)
+
+    if vis.get("paddy"):
+        _legend("Paddy (radar)", PADDY_LEGEND)

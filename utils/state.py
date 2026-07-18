@@ -20,7 +20,7 @@ DEFAULTS = {
     "results": None,
     "ndvi_series": None,
     "crosscheck": None,
-    
+    "paddy_stats": None,
 }
 
 

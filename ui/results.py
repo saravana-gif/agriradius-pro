@@ -208,6 +208,44 @@ def _downloads_tab(df):
         st.info("Run an analysis to enable downloads.")
 
 
+def _paddy_check():
+
+    with st.expander("🌾 Paddy Detection (radar)", expanded=False):
+
+        st.caption(
+            "Sentinel-1 radar sees flooded fields through clouds. "
+            "Fields that flood then show strong canopy growth are "
+            "classified as paddy. Also enable the 'Paddy Fields "
+            "(radar)' map layer to see them in cyan."
+        )
+
+        if st.button("Detect Paddy", use_container_width=True):
+
+            from gee.paddy import paddy_stats
+
+            try:
+                st.session_state.paddy_stats = paddy_stats(
+                    st.session_state.lat,
+                    st.session_state.lon,
+                    st.session_state.radius,
+                    st.session_state.year,
+                )
+            except Exception as e:
+                st.error(f"Paddy detection failed: {e}")
+                return
+
+        r = st.session_state.get("paddy_stats")
+
+        if r is None:
+            return
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Paddy Area", f"{r['paddy_ac']:,.0f} ac")
+        c2.metric("Total Cropland", f"{r['cropland_ac']:,.0f} ac")
+        c3.metric("Paddy Share", f"{r['paddy_pct']}%")
+
+
 def _crop_cycle_tab():
 
     st.caption(
@@ -294,6 +332,8 @@ def results():
 
     with tab_crop:
         _crop_cycle_tab()
+        st.divider()
+        _paddy_check()
 
     with tab_downloads:
         _downloads_tab(df)

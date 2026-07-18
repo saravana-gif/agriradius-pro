@@ -18,9 +18,10 @@ PROB_BANDS = [
 
 CROPS_INDEX = 4
 
-# Official Dynamic World palette
+# (crops changed from official orange to magenta - orange was too
+# close to built-up red and shrub tan on the map)
 PALETTE = [
-    "419bdf", "397d49", "88b053", "7a87c6", "e49635",
+    "419bdf", "397d49", "88b053", "7a87c6", "ff00ff",
     "dfc35a", "c4281b", "a59b8f", "b39fe1",
 ]
 

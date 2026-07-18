@@ -14,7 +14,7 @@ def _mask_clouds(img):
     """Mask clouds/shadows/snow using the SCL band."""
     scl = img.select("SCL")
     bad = (
-        scl.eq(3)        # cloud shadow
+        scl.eq(3)      # cloud shadow
         .Or(scl.eq(8))   # cloud medium prob
         .Or(scl.eq(9))   # cloud high prob
         .Or(scl.eq(10))  # cirrus
@@ -23,12 +23,10 @@ def _mask_clouds(img):
     return img.updateMask(bad.Not())
 
 
-@st.cache_data(show_spinner="Computing NDVI time series (30-60s)...")
-def ndvi_monthly_series(lat, lon, radius_km, start_year, end_year):
-    """Return [(month 'YYYY-MM', mean NDVI over cropland), ...]."""
-
-    point = ee.Geometry.Point([lon, lat])
-    buffer = point.buffer(radius_km * 1000)
+def ndvi_monthly_stack(buffer, start_year, end_year):
+    """Build a multi-band image: one cropland-masked NDVI band per
+    month. Returns (stack, months) where months is a list of
+    (band_name, 'YYYY-MM') pairs."""
 
     # Cropland mask (probability-based Dynamic World classification)
     crops = dw_crops_mask(
@@ -75,7 +73,17 @@ def ndvi_monthly_series(lat, lon, radius_km, start_year, end_year):
             months.append((band, f"{y}-{m:02d}"))
             images.append(ndvi)
 
-    stack = ee.Image.cat(images)
+    return ee.Image.cat(images), months
+
+
+@st.cache_data(show_spinner="Computing NDVI time series (30-60s)...")
+def ndvi_monthly_series(lat, lon, radius_km, start_year, end_year):
+    """Return [(month 'YYYY-MM', mean NDVI over cropland), ...]."""
+
+    point = ee.Geometry.Point([lon, lat])
+    buffer = point.buffer(radius_km * 1000)
+
+    stack, months = ndvi_monthly_stack(buffer, start_year, end_year)
 
     stats = stack.reduceRegion(
         reducer=ee.Reducer.mean(),

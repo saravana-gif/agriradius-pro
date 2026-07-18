@@ -115,6 +115,65 @@ def _confidence_check():
             )
 
 
+def _village_insights_section():
+
+    st.divider()
+
+    st.caption(
+        "Per-village crop intelligence: cropland acres, cropping "
+        "pattern and cycles/year for every village in the buffer. "
+        "Slow (1-3 min) - best with radius <= 25 km."
+    )
+
+    if st.button("🧠 Compute Village Insights", use_container_width=True):
+
+        from gee.village_stats import village_insights
+
+        try:
+            st.session_state.village_insights = village_insights(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year,
+            )
+        except Exception as e:
+            st.error(f"Village insights failed: {e}")
+            return
+
+    vi = st.session_state.get("village_insights")
+
+    if vi is None:
+        return
+
+    if vi.empty:
+        st.info("No villages found.")
+        return
+
+    c1, c2, c3 = st.columns(3)
+
+    double = (vi["Pattern"] == "Double / Multiple Cropping").sum()
+    plantation = (vi["Pattern"] == "Perennial / Plantation").sum()
+
+    c1.metric("Villages Analyzed", len(vi))
+    c2.metric("Double-Crop Villages", int(double))
+    c3.metric("Plantation Villages", int(plantation))
+
+    st.dataframe(
+        vi,
+        use_container_width=True,
+        hide_index=True,
+        height=400
+    )
+
+    st.download_button(
+        "📥 Village Insights (CSV)",
+        vi.to_csv(index=False).encode("utf-8"),
+        file_name="Village_Crop_Insights.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+
+
 def _villages_tab():
 
     df = _villages_df()
@@ -326,6 +385,7 @@ def results():
 
     with tab_villages:
         _villages_tab()
+        _village_insights_section()
 
     with tab_charts:
         _charts_tab(df)

@@ -21,6 +21,7 @@ DEFAULTS = {
     "ndvi_series": None,
     "crosscheck": None,
     "paddy_stats": None,
+    "village_insights": None,
 }
 
 

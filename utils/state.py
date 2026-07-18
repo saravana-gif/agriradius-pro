@@ -25,6 +25,7 @@ DEFAULTS = {
     "rainfall_series": None,
     "stability": None,
     "report_pdf": None,
+    "report_path": None,
 }
 
 

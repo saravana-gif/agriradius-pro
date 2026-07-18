@@ -332,13 +332,33 @@ def _downloads_tab(df):
         type="primary",
     ):
         try:
-            st.session_state.report_pdf = _area_report_bytes(
-                df, villages)
+            pdf = _area_report_bytes(df, villages)
+            st.session_state.report_pdf = pdf
+
+            # Also save straight to disk - browser-proof
+            from datetime import datetime
+            from config import PROJECT_ROOT
+
+            reports_dir = PROJECT_ROOT / "reports"
+            reports_dir.mkdir(exist_ok=True)
+
+            stamp = datetime.now().strftime("%Y%m%d_%H%M")
+            path = reports_dir / f"AgriRadius_Report_{stamp}.pdf"
+            path.write_bytes(pdf)
+
+            st.session_state.report_path = str(path)
+
         except Exception as e:
             st.session_state.report_pdf = None
             st.error(f"Could not build PDF report: {e}")
 
     if st.session_state.get("report_pdf"):
+
+        if st.session_state.get("report_path"):
+            st.success(
+                f"Report saved to: {st.session_state.report_path}"
+            )
+
         st.download_button(
             "📥 Download Area Report (PDF)",
             st.session_state.report_pdf,

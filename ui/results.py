@@ -230,9 +230,66 @@ def _charts_tab(df):
         st.plotly_chart(fig2, use_container_width=True)
 
 
+def _area_report_bytes(df, villages):
+    """Assemble the PDF from whatever analyses have been run."""
+
+    from core.report import build_area_report
+
+    meta = {
+        "lat": st.session_state.lat,
+        "lon": st.session_state.lon,
+        "radius": st.session_state.radius,
+        "year": st.session_state.year,
+        "place": st.session_state.search_location or "",
+    }
+
+    crop_insight = None
+    if st.session_state.get("ndvi_series") is not None:
+        ndvi_df = to_dataframe(st.session_state.ndvi_series)
+        if not ndvi_df["NDVI"].isna().all():
+            crop_insight = analyze_series(ndvi_df)
+
+    rain = None
+    if st.session_state.get("rainfall_series") is not None:
+        from core.rain_insight import to_dataframe as rain_df
+        from core.rain_insight import analyze_rainfall
+        rain = analyze_rainfall(
+            rain_df(st.session_state.rainfall_series))
+
+    return build_area_report(
+        meta,
+        landcover_df=df,
+        crosscheck=st.session_state.get("crosscheck"),
+        crop_insight=crop_insight,
+        paddy=st.session_state.get("paddy_stats"),
+        rain=rain,
+        villages_df=villages,
+        insights_df=st.session_state.get("village_insights"),
+    )
+
+
 def _downloads_tab(df):
 
     villages = _villages_df()
+
+    try:
+        st.download_button(
+            "📄 Area Report (PDF)",
+            _area_report_bytes(df, villages),
+            file_name="AgriRadius_Area_Report.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+            type="primary",
+        )
+        st.caption(
+            "The report includes every analysis you have run in this "
+            "session (land cover, confidence, crop cycle, paddy, "
+            "rainfall, village insights). Run more analyses to enrich it."
+        )
+    except Exception as e:
+        st.warning(f"Could not build PDF report: {e}")
+
+    st.divider()
 
     if df is not None:
         st.download_button(
@@ -366,6 +423,82 @@ def _crop_cycle_tab():
     st.plotly_chart(fig, use_container_width=True)
 
 
+def _rainfall_tab():
+
+    st.caption(
+        "10 years of monthly rainfall for this buffer (CHIRPS "
+        "satellite-gauge dataset). Tells you whether this belt gets "
+        "dependable rain or swings between good and bad years."
+    )
+
+    if st.button("🌧️ Analyze Rainfall", use_container_width=True):
+
+        from gee.rainfall import rainfall_monthly
+
+        try:
+            st.session_state.rainfall_series = rainfall_monthly(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year,
+            )
+        except Exception as e:
+            st.error(f"Rainfall analysis failed: {e}")
+            return
+
+    if st.session_state.get("rainfall_series") is None:
+        st.info("Run the analysis to see rainfall history.")
+        return
+
+    from core.rain_insight import to_dataframe as rain_df
+    from core.rain_insight import analyze_rainfall
+
+    df = rain_df(st.session_state.rainfall_series)
+    r = analyze_rainfall(df)
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Reliability", r["verdict"])
+    c2.metric("Avg Annual", f"{r['mean_annual_mm']:,} mm")
+    c3.metric("Variability (CV)", f"{r['cv_pct']}%")
+    c4.metric("Monsoon Share", f"{r['monsoon_share_pct']}%")
+
+    st.info(r["detail"])
+
+    st.write(
+        f"**Wettest year:** {r['wettest_year']} "
+        f"({r['wettest_mm']:,} mm) | "
+        f"**Driest year:** {r['driest_year']} "
+        f"({r['driest_mm']:,} mm)"
+    )
+
+    annual_df = r["annual"].reset_index()
+    annual_df.columns = ["Year", "Rainfall (mm)"]
+
+    left, right = st.columns(2)
+
+    with left:
+        fig = px.bar(
+            annual_df,
+            x="Year",
+            y="Rainfall (mm)",
+            title="Annual Rainfall (10 years)",
+        )
+        fig.add_hline(y=r["mean_annual_mm"], line_dash="dot",
+                      annotation_text="average")
+        st.plotly_chart(fig, use_container_width=True)
+
+    with right:
+        recent = df.tail(36)
+        fig2 = px.bar(
+            recent,
+            x="Month",
+            y="Rainfall (mm)",
+            title="Monthly Rainfall (last 3 years)",
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+
+
 def results():
 
     st.subheader("🌾 Analysis Results")
@@ -373,9 +506,9 @@ def results():
     df = _landcover_df()
 
     (tab_summary, tab_villages, tab_charts,
-     tab_crop, tab_downloads) = st.tabs(
+     tab_crop, tab_rain, tab_downloads) = st.tabs(
         ["📊 Summary", "🏘️ Villages", "📈 Charts",
-         "🌱 Crop Cycle", "📥 Downloads"]
+         "🌱 Crop Cycle", "🌧️ Rainfall", "📥 Downloads"]
     )
 
     with tab_summary:
@@ -394,6 +527,9 @@ def results():
         _crop_cycle_tab()
         st.divider()
         _paddy_check()
+
+    with tab_rain:
+        _rainfall_tab()
 
     with tab_downloads:
         _downloads_tab(df)

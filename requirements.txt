@@ -8,4 +8,6 @@ pandas
 openpyxl
 matplotlib
 plotly
-rasteriogeopy
+rasterio
+geopy
+reportlab

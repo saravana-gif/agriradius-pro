@@ -22,6 +22,7 @@ DEFAULTS = {
     "crosscheck": None,
     "paddy_stats": None,
     "village_insights": None,
+    "rainfall_series": None,
 }
 
 

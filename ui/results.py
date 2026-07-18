@@ -7,6 +7,7 @@ import plotly.express as px
 from gis.village_search import get_villages
 from core.export import excel_report
 from core.crop_cycle import to_dataframe, analyze_series
+from gee.worldcover import cropland_crosscheck
 
 
 def _landcover_df():
@@ -52,6 +53,66 @@ def _summary_tab(df):
         use_container_width=True,
         hide_index=True
     )
+
+
+def _confidence_check():
+
+    with st.expander("🔍 Cropland Confidence Check", expanded=False):
+
+        st.caption(
+            "Compares cropland between two independent datasets: "
+            "Google Dynamic World (your selected year) and ESA "
+            "WorldCover (2021 baseline). High agreement means the "
+            "cropland estimate is trustworthy. Also enable the "
+            "'Cropland Confidence' map layer to see where they "
+            "agree (green) and disagree (yellow)."
+        )
+
+        if st.button("Run Cross-Check", use_container_width=True):
+
+            try:
+                st.session_state.crosscheck = cropland_crosscheck(
+                    st.session_state.lat,
+                    st.session_state.lon,
+                    st.session_state.radius,
+                    st.session_state.year,
+                )
+            except Exception as e:
+                st.error(f"Cross-check failed: {e}")
+                return
+
+        r = st.session_state.get("crosscheck")
+
+        if r is None:
+            return
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric("Agreement", f"{r['agreement_pct']}%")
+        c2.metric("Confirmed Cropland", f"{r['confirmed_ac']:,.0f} ac")
+        c3.metric("Only Dynamic World", f"{r['dw_only_ac']:,.0f} ac")
+        c4.metric("Only WorldCover", f"{r['wc_only_ac']:,.0f} ac")
+
+        pct = r["agreement_pct"]
+
+        if pct >= 70:
+            st.success(
+                "High agreement - the cropland estimate for this area "
+                "is reliable."
+            )
+        elif pct >= 45:
+            st.warning(
+                "Moderate agreement - treat exact acreage with caution; "
+                "check the yellow zones on the map against the "
+                "satellite basemap."
+            )
+        else:
+            st.error(
+                "Low agreement - the datasets disagree here (common in "
+                "plantation/orchard belts and mixed scrub). Verify "
+                "visually and with ground knowledge before trusting "
+                "the numbers."
+            )
 
 
 def _villages_tab():
@@ -222,6 +283,8 @@ def results():
 
     with tab_summary:
         _summary_tab(df)
+        st.divider()
+        _confidence_check()
 
     with tab_villages:
         _villages_tab()

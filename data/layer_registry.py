@@ -30,8 +30,8 @@ LAYERS = {
     "Analysis": [
         {"id": "marker", "label": "Location Marker", "default": True},
         {"id": "buffer", "label": "Buffer Zone", "default": True},
-        {"id": "dynamic_world", "label": "Dynamic World Land Cover",
-         "default": False},
+        {"id": "dynamic_world", "label": "Dynamic World Land Cover", "default": False},
+        {"id": "cropland_confidence", "label": "Cropland Confidence","default": False},
     ],
     "Administrative": [
         {"id": "villages", "label": "Villages (in buffer)", "default": False},

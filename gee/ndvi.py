@@ -7,6 +7,8 @@ farmland, not forests or built-up areas.
 import ee
 import streamlit as st
 
+from gee.dynamic_world import dw_crops_mask
+
 
 def _mask_clouds(img):
     """Mask clouds/shadows/snow using the SCL band."""
@@ -28,14 +30,9 @@ def ndvi_monthly_series(lat, lon, radius_km, start_year, end_year):
     point = ee.Geometry.Point([lon, lat])
     buffer = point.buffer(radius_km * 1000)
 
-    # Cropland mask from Dynamic World (label 4 = crops)
-    crops = (
-        ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
-        .filterBounds(buffer)
-        .filterDate(f"{start_year}-01-01", f"{end_year}-12-31")
-        .select("label")
-        .mode()
-        .eq(4)
+    # Cropland mask (probability-based Dynamic World classification)
+    crops = dw_crops_mask(
+        buffer, f"{start_year}-01-01", f"{end_year}-12-31"
     )
 
     months = []

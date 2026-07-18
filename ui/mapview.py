@@ -33,9 +33,9 @@ def mapview():
             )
             engine.add_villages(
                 gdf,
-                 popup_fields=["vilname11", "sdtname", "dtname", "stname"],
+                popup_fields=["vilname11", "sdtname", "dtname", "stname"],
                 popup_aliases=["Village", "Taluk", "District", "State"],
-                )
+            )
         except Exception as e:
             st.warning(f"Could not load villages: {e}")
 
@@ -53,6 +53,22 @@ def mapview():
             engine.add_tile_overlay(url, "Dynamic World")
         except Exception as e:
             st.warning(f"Could not load Dynamic World overlay: {e}")
+
+    if vis.get("cropland_confidence"):
+
+        from gee.worldcover import confidence_tile_url
+
+        try:
+            url = confidence_tile_url(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year
+            )
+            engine.add_tile_overlay(url, "Cropland Confidence",
+                                    opacity=0.7)
+        except Exception as e:
+            st.warning(f"Could not load confidence layer: {e}")
 
     map_data = st_folium(
         engine.render(),

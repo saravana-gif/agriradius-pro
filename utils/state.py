@@ -19,6 +19,8 @@ DEFAULTS = {
     "analyze": False,
     "results": None,
     "ndvi_series": None,
+    "crosscheck": None,
+    
 }
 
 

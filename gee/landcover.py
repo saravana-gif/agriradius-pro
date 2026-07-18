@@ -1,6 +1,8 @@
-"""Dynamic World land-cover statistics."""
+"""Dynamic World land-cover statistics (probability-based)."""
 
 import ee
+
+from gee.dynamic_world import dw_class_image
 
 # 1 acre = 4046.8564224 square metres
 SQM_PER_ACRE = 4046.8564224
@@ -20,13 +22,7 @@ CLASSES = {
 def get_landcover(buffer, start_date, end_date):
     """Compute area (acres) per Dynamic World class inside the buffer."""
 
-    dw = (
-        ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
-        .filterBounds(buffer)
-        .filterDate(start_date, end_date)
-        .select("label")
-        .mode()
-    )
+    dw = dw_class_image(buffer, start_date, end_date)
 
     results = []
 

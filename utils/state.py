@@ -23,6 +23,7 @@ DEFAULTS = {
     "paddy_stats": None,
     "village_insights": None,
     "rainfall_series": None,
+    "stability": None,
 }
 
 

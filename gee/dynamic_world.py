@@ -18,6 +18,20 @@ PROB_BANDS = [
 
 CROPS_INDEX = 4
 
+# A pixel counts as cropland if its crops probability reaches this
+# level during the season (90th percentile across the period), even
+# if another class wins on average. Raise to be stricter, lower to
+# catch more seasonal farmland.
+CROPS_PROB_THRESHOLD = 0.5
+
+# Cropland on slopes steeper than this is almost always a
+# misclassification (scrub hillsides); such pixels are reassigned
+# to shrub/scrub.
+MAX_CROP_SLOPE_DEG = 15
+
+SHRUB_INDEX = 5
+
+# Official Dynamic World palette
 # (crops changed from official orange to magenta - orange was too
 # close to built-up red and shrub tan on the map)
 PALETTE = [
@@ -27,22 +41,44 @@ PALETTE = [
 
 
 def dw_class_image(buffer, start_date, end_date):
-    """Most-probable-class image (values 0-8) for the period."""
+    """Classification image (values 0-8) for the period.
 
-    probs = (
+    Base: mean of per-class probabilities, argmax per pixel.
+    Cropland boost: pixels whose crops probability is sustained high
+    at some point in the season (90th percentile >= threshold) are
+    classified as crops even if another class wins on average -
+    seasonal farmland spends much of the year not looking like crops.
+    """
+
+    col = (
         ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
         .filterBounds(buffer)
         .filterDate(start_date, end_date)
-        .select(PROB_BANDS)
-        .mean()
     )
 
-    return (
+    probs = col.select(PROB_BANDS).mean()
+
+    base = (
         probs.toArray()
         .arrayArgmax()
         .arrayGet([0])
         .rename("label")
     )
+
+    seasonal_crops = (
+        col.select("crops")
+        .reduce(ee.Reducer.percentile([90]))
+        .gte(CROPS_PROB_THRESHOLD)
+    )
+
+    classified = base.where(seasonal_crops, CROPS_INDEX)
+
+    # Terrain filter: 'crops' on steep slopes -> shrub/scrub
+    slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
+    steep_crops = classified.eq(CROPS_INDEX).And(
+        slope.gt(MAX_CROP_SLOPE_DEG))
+
+    return classified.where(steep_crops, SHRUB_INDEX)
 
 
 def dw_crops_mask(buffer, start_date, end_date):

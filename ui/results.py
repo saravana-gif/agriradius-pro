@@ -93,6 +93,17 @@ def _confidence_check():
         c3.metric("Only Dynamic World", f"{r['dw_only_ac']:,.0f} ac")
         c4.metric("Only WorldCover", f"{r['wc_only_ac']:,.0f} ac")
 
+        low = r["confirmed_ac"]
+        high = r["confirmed_ac"] + r["dw_only_ac"] + r["wc_only_ac"]
+
+        st.markdown(
+            f"**Realistic cropland range: "
+            f"{low:,.0f} - {high:,.0f} acres.** "
+            f"The true figure is almost certainly inside this band: "
+            f"the low end is confirmed by both datasets, the high end "
+            f"counts everything either dataset calls cropland."
+        )
+
         pct = r["agreement_pct"]
 
         if pct >= 70:
@@ -172,6 +183,49 @@ def _village_insights_section():
         mime="text/csv",
         use_container_width=True
     )
+
+
+def _stability_check():
+
+    with st.expander("📅 3-Year Stability Check", expanded=False):
+
+        st.caption(
+            "Real cropland stays consistent year over year. If the "
+            "acreage swings wildly between years, the classification "
+            "is unreliable in this landscape - consistency is "
+            "evidence of correctness, no ground data needed."
+        )
+
+        if st.button("Check Stability", use_container_width=True):
+
+            from gee.stability import cropland_stability
+
+            try:
+                st.session_state.stability = cropland_stability(
+                    st.session_state.lat,
+                    st.session_state.lon,
+                    st.session_state.radius,
+                    st.session_state.year,
+                )
+            except Exception as e:
+                st.error(f"Stability check failed: {e}")
+                return
+
+        r = st.session_state.get("stability")
+
+        if r is None:
+            return
+
+        cols = st.columns(len(r["by_year"]) + 1)
+
+        cols[0].metric("Verdict", r["verdict"])
+
+        for i, (y, ac) in enumerate(sorted(r["by_year"].items())):
+            cols[i + 1].metric(str(y), f"{ac:,.0f} ac")
+
+        st.write(f"Year-to-year spread: **{r['spread_pct']}%**")
+
+        st.info(r["detail"])
 
 
 def _villages_tab():
@@ -515,6 +569,7 @@ def results():
         _summary_tab(df)
         st.divider()
         _confidence_check()
+        _stability_check()
 
     with tab_villages:
         _villages_tab()

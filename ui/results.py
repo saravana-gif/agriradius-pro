@@ -326,22 +326,33 @@ def _downloads_tab(df):
 
     villages = _villages_df()
 
-    try:
+    if st.button(
+        "📄 Build Area Report",
+        use_container_width=True,
+        type="primary",
+    ):
+        try:
+            st.session_state.report_pdf = _area_report_bytes(
+                df, villages)
+        except Exception as e:
+            st.session_state.report_pdf = None
+            st.error(f"Could not build PDF report: {e}")
+
+    if st.session_state.get("report_pdf"):
         st.download_button(
-            "📄 Area Report (PDF)",
-            _area_report_bytes(df, villages),
+            "📥 Download Area Report (PDF)",
+            st.session_state.report_pdf,
             file_name="AgriRadius_Area_Report.pdf",
             mime="application/pdf",
             use_container_width=True,
-            type="primary",
         )
-        st.caption(
-            "The report includes every analysis you have run in this "
-            "session (land cover, confidence, crop cycle, paddy, "
-            "rainfall, village insights). Run more analyses to enrich it."
-        )
-    except Exception as e:
-        st.warning(f"Could not build PDF report: {e}")
+
+    st.caption(
+        "The report includes every analysis you have run in this "
+        "session (land cover, confidence, crop cycle, paddy, "
+        "rainfall, village insights). Run more analyses, then "
+        "rebuild to enrich it."
+    )
 
     st.divider()
 

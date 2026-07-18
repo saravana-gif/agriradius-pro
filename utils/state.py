@@ -24,6 +24,7 @@ DEFAULTS = {
     "village_insights": None,
     "rainfall_series": None,
     "stability": None,
+    "report_pdf": None,
 }
 
 

@@ -70,7 +70,10 @@ def sidebar():
 
     st.divider()
 
-    if st.button("Analyze", use_container_width=True):
+    if st.button("🔍 Analyze This Area", use_container_width=True,
+                 type="primary",
+                 help="Compute land cover for the buffer around the "
+                      "selected point"):
 
         with st.spinner("Analyzing..."):
 

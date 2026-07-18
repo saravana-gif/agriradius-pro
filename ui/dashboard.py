@@ -25,17 +25,17 @@ def dashboard():
         st.title(f"🌾 {APP_NAME}")
         st.caption("Agricultural GIS Intelligence Platform")
 
-    left, right = st.columns([1, 3])
-
-    with left:
+    # All controls live in the collapsible sidebar - on mobile it
+    # folds into a hamburger menu and the map/results get the full
+    # screen width.
+    with st.sidebar:
         sidebar()
         st.divider()
         layer_manager()
         st.divider()
         project_panel()
 
-    with right:
-        mapview()
+    mapview()
 
     st.divider()
 

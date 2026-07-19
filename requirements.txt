@@ -11,3 +11,4 @@ plotly
 rasterio
 geopy
 reportlab
+requests

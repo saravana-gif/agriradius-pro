@@ -584,16 +584,83 @@ def _rainfall_tab():
         st.plotly_chart(fig2, use_container_width=True)
 
 
+def _forecast_tab():
+
+    st.caption(
+        "16-day forecast for the selected point (Open-Meteo). "
+        "Use the dry window for harvest and pickup planning."
+    )
+
+    from core.weather import get_forecast, analyze_forecast
+
+    try:
+        days = get_forecast(
+            st.session_state.lat, st.session_state.lon)
+    except Exception as e:
+        st.warning(f"Could not fetch forecast: {e}")
+        return
+
+    r = analyze_forecast(days)
+
+    if not r:
+        st.info("No forecast data available.")
+        return
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Rain Next 7 Days", f"{r['rain_7d_mm']} mm")
+    c2.metric("Rainy Days (7d)", r["rain_days_7d"])
+    c3.metric(
+        "Longest Dry Window",
+        f"{r['dry_window_days']} days",
+        help="Best stretch for harvest / transport",
+    )
+    c4.metric("Temp Range", f"{r['tmin']} - {r['tmax']} °C")
+
+    if r["dry_window_days"] >= 3 and r["dry_window_start"]:
+        st.success(
+            f"Dry window of {r['dry_window_days']} days starting "
+            f"{r['dry_window_start']} - good for harvest, drying "
+            f"and transport."
+        )
+    elif r["rain_7d_mm"] > 50:
+        st.warning(
+            "Heavy rain expected this week - plan pickups around it."
+        )
+
+    fdf = pd.DataFrame(days)
+
+    fig = px.bar(
+        fdf,
+        x="date",
+        y="rain_mm",
+        title="Daily Rainfall Forecast (mm)",
+        labels={"date": "", "rain_mm": "mm"},
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    fig2 = px.line(
+        fdf,
+        x="date",
+        y=["tmax", "tmin"],
+        title="Temperature Forecast (°C)",
+        labels={"date": "", "value": "°C"},
+        markers=True,
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+
 def results():
 
     st.subheader("🌾 Analysis Results")
 
     df = _landcover_df()
 
-    (tab_summary, tab_villages, tab_charts,
-     tab_crop, tab_rain, tab_downloads) = st.tabs(
+    (tab_summary, tab_villages, tab_charts, tab_crop,
+     tab_rain, tab_forecast, tab_downloads) = st.tabs(
         ["📊 Summary", "🏘️ Villages", "📈 Charts",
-         "🌱 Crop Cycle", "🌧️ Rainfall", "📥 Downloads"]
+         "🌱 Crop Cycle", "🌧️ Rainfall", "⛅ Forecast",
+         "📥 Downloads"]
     )
 
     with tab_summary:
@@ -616,6 +683,9 @@ def results():
 
     with tab_rain:
         _rainfall_tab()
+
+    with tab_forecast:
+        _forecast_tab()
 
     with tab_downloads:
         _downloads_tab(df)

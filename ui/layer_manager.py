@@ -46,41 +46,53 @@ def layer_manager():
 
 
 DW_LEGEND = [
-    ("Water", "#419bdf"), ("Trees", "#397d49"), ("Grass", "#88b053"),
-    ("Flooded Veg", "#7a87c6"), ("Crops", "#ff00ff"),
-    ("Shrub/Scrub", "#dfc35a"), ("Built-up", "#c4281b"),
-    ("Bare", "#a59b8f"), ("Snow/Ice", "#b39fe1"),
-]
-
-SOIL_PH_LEGEND = [
-    ("Acidic (pH ~5)", "#d7191c"),
-    ("Neutral (pH ~6.5-7)", "#ffffbf"),
-    ("Alkaline (pH ~8.5)", "#2c7bb6"),
-]
-
-SOIL_OC_LEGEND = [
-    ("Low organic carbon (~3 g/kg)", "#fff7bc"),
-    ("Moderate (~9 g/kg)", "#78c679"),
-    ("High (~15 g/kg)", "#004529"),
-]
-
-SOIL_N_LEGEND = [
-    ("Low nitrogen (~0.5 g/kg)", "#fee8c8"),
-    ("Moderate (~1.5 g/kg)", "#e34a33"),
-    ("High (~2.5 g/kg)", "#7f0000"),
-]
-
-PLANTATION_LEGEND = [
-    ("Likely plantation (flat, evergreen, small patch)", "#ff9800"),
-]
-
-PADDY_LEGEND = [
-    ("Detected paddy (flooded + growth)", "#00e5ff"),
+    ("Water", "#419bdf"),
+    ("Trees / Forest", "#397d49"),
+    ("Grass", "#88b053"),
+    ("Flooded Vegetation", "#7a87c6"),
+    ("Crops (farmland)", "#ff00ff"),
+    ("Shrub / Scrub", "#dfc35a"),
+    ("Built-up", "#c4281b"),
+    ("Bare Ground", "#a59b8f"),
+    ("Snow / Ice", "#b39fe1"),
 ]
 
 CONFIDENCE_LEGEND = [
-    ("Both datasets agree: cropland", "#1a9850"),
-    ("Only one dataset says cropland", "#f4c20d"),
+    ("High confidence - both datasets agree: cropland", "#1a9850"),
+    ("Uncertain - only one dataset says cropland", "#f4c20d"),
+]
+
+PADDY_LEGEND = [
+    ("Detected paddy (flooded, then strong growth)", "#00e5ff"),
+]
+
+PLANTATION_LEGEND = [
+    ("Likely coconut/arecanut (flat + evergreen + small patch)",
+     "#ff9800"),
+]
+
+SOIL_PH_LEGEND = [
+    ("pH ~5.0 - strongly acidic", "#d7191c"),
+    ("pH ~6.0 - mildly acidic", "#fdae61"),
+    ("pH ~6.5-7.0 - neutral (ideal)", "#ffffbf"),
+    ("pH ~7.5 - mildly alkaline", "#a6d96a"),
+    ("pH ~8.5 - strongly alkaline", "#2c7bb6"),
+]
+
+SOIL_OC_LEGEND = [
+    ("~3 g/kg - low (needs organic matter)", "#fff7bc"),
+    ("~6 g/kg - below average", "#d9f0a3"),
+    ("~9 g/kg - moderate", "#78c679"),
+    ("~12 g/kg - good", "#238443"),
+    ("~15 g/kg - very good", "#004529"),
+]
+
+SOIL_N_LEGEND = [
+    ("~0.5 g/kg - low nitrogen", "#fee8c8"),
+    ("~1.0 g/kg - below average", "#fdbb84"),
+    ("~1.5 g/kg - moderate", "#e34a33"),
+    ("~2.0 g/kg - good", "#b30000"),
+    ("~2.5 g/kg - high", "#7f0000"),
 ]
 
 
@@ -89,40 +101,36 @@ def _legend(title, items):
     rows = "".join(
         f'<div style="margin:1px 0">'
         f'<span style="display:inline-block;width:12px;height:12px;'
-        f'background:{color};margin-right:6px;border-radius:2px"></span>'
+        f'background:{color};margin-right:6px;border-radius:2px;'
+        f'border:1px solid #8884"></span>'
         f'<span style="font-size:0.8em">{label}</span></div>'
         for label, color in items
     )
 
     st.markdown(
-        f'<div style="margin-top:4px"><b style="font-size:0.8em">'
+        f'<div style="margin-top:4px"><b style="font-size:0.85em">'
         f'{title}</b>{rows}</div>',
         unsafe_allow_html=True
     )
 
 
+# Which legend belongs to which layer id
+LEGENDS = {
+    "dynamic_world": ("Dynamic World Land Cover", DW_LEGEND),
+    "cropland_confidence": ("Cropland Confidence", CONFIDENCE_LEGEND),
+    "paddy": ("Paddy (radar)", PADDY_LEGEND),
+    "plantation": ("Plantations", PLANTATION_LEGEND),
+    "soil_ph": ("Soil pH (0-30cm)", SOIL_PH_LEGEND),
+    "soil_oc": ("Soil Organic Carbon (0-30cm)", SOIL_OC_LEGEND),
+    "soil_n": ("Soil Total Nitrogen (0-30cm)", SOIL_N_LEGEND),
+}
+
+
 def legends():
-    """Show legends for any active raster overlays."""
+    """Show a clear legend for every active overlay layer."""
 
     vis = st.session_state.layer_visibility
 
-    if vis.get("dynamic_world"):
-        _legend("Dynamic World", DW_LEGEND)
-
-    if vis.get("cropland_confidence"):
-        _legend("Cropland Confidence", CONFIDENCE_LEGEND)
-
-    if vis.get("paddy"):
-        _legend("Paddy (radar)", PADDY_LEGEND)
-
-    if vis.get("plantation"):
-        _legend("Plantations", PLANTATION_LEGEND)
-
-    if vis.get("soil_ph"):
-        _legend("Soil pH", SOIL_PH_LEGEND)
-
-    if vis.get("soil_oc"):
-        _legend("Soil Organic Carbon", SOIL_OC_LEGEND)
-
-    if vis.get("soil_n"):
-        _legend("Soil Nitrogen", SOIL_N_LEGEND)
+    for layer_id, (title, items) in LEGENDS.items():
+        if vis.get(layer_id):
+            _legend(title, items)

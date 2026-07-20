@@ -1109,6 +1109,81 @@ def _soil_tab():
             st.warning("No soil climate data for this period.")
 
 
+def _mandi_tab():
+
+    from core.mandi import COMMODITIES, STATES, get_prices
+
+    st.caption(
+        "Live daily wholesale prices from APMC mandis (AGMARKNET / "
+        "data.gov.in). Prices are Rs per quintal; refreshed every "
+        "30 minutes."
+    )
+
+    # Default state guessed from the buffer's villages
+    default_state = "Karnataka"
+
+    villages = _villages_df()
+
+    if villages is not None and not villages.empty             and "State" in villages.columns:
+        top = villages["State"].mode()
+        if len(top):
+            guess = str(top.iloc[0]).title()
+            if guess in STATES:
+                default_state = guess
+
+    c1, c2 = st.columns(2)
+
+    with c1:
+        commodity_label = st.selectbox(
+            "Commodity", list(COMMODITIES.keys()))
+
+    with c2:
+        state = st.selectbox(
+            "State", STATES, index=STATES.index(default_state))
+
+    try:
+        df = get_prices(COMMODITIES[commodity_label], state)
+    except Exception as e:
+        st.error(f"Could not fetch prices: {e}")
+        return
+
+    if df.empty:
+        st.info(
+            f"No {commodity_label} prices reported "
+            f"{'in ' + state if state != 'All India' else 'today'} - "
+            "markets may not have traded it today. Try All India."
+        )
+        return
+
+    modal = df["Modal (Rs/qtl)"].dropna()
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Markets Reporting", len(df))
+    c2.metric("Best Modal Price", f"₹{modal.max():,.0f}/qtl")
+    c3.metric("Average Modal", f"₹{modal.mean():,.0f}/qtl")
+    c4.metric("Lowest Modal", f"₹{modal.min():,.0f}/qtl")
+
+    best = df.iloc[0]
+
+    st.success(
+        f"Best price: **₹{best['Modal (Rs/qtl)']:,.0f}/qtl** at "
+        f"**{best['Market']}** ({best['District']}, {best['State']}) "
+        f"on {best['Date']}"
+    )
+
+    st.dataframe(df, use_container_width=True, hide_index=True,
+                 height=400)
+
+    st.download_button(
+        "📥 Mandi Prices (CSV)",
+        df.to_csv(index=False).encode("utf-8"),
+        file_name=f"Mandi_{commodity_label.replace(' ', '_')}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+
 def results():
 
     st.subheader("🌾 Analysis Results")
@@ -1116,11 +1191,11 @@ def results():
     df = _landcover_df()
 
     (tab_summary, tab_villages, tab_charts, tab_crop,
-     tab_rain, tab_forecast, tab_soil, tab_gt,
+     tab_rain, tab_forecast, tab_soil, tab_mandi, tab_gt,
      tab_downloads) = st.tabs(
         ["📊 Summary", "🏘️ Villages", "📈 Charts",
          "🌱 Crop Cycle", "🌧️ Rainfall", "⛅ Forecast",
-         "🧪 Soil", "✅ Ground Truth", "📥 Downloads"]
+         "🧪 Soil", "💰 Mandi", "✅ Ground Truth", "📥 Downloads"]
     )
 
     with tab_summary:
@@ -1150,6 +1225,9 @@ def results():
 
     with tab_soil:
         _soil_tab()
+
+    with tab_mandi:
+        _mandi_tab()
 
     with tab_gt:
         _ground_truth_tab()

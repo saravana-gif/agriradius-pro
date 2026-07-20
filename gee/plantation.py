@@ -25,7 +25,7 @@ SQM_PER_ACRE = 4046.8564224
 
 # --- Tuning constants ---
 MAX_SLOPE_DEG = 15        # plantations sit on flat-ish land
-DRY_GREEN_NDVI = 0.35     # still green in dry season (Feb-Apr);
+DRY_GREEN_NDVI = 0.30     # still green in dry season (Feb-Apr);
                           # 10m palm pixels mix canopy with soil so
                           # the effective NDVI is lower than canopy
 FOREST_PATCH_PX = 1000    # ~10 ha at 10m; bigger patches = forest

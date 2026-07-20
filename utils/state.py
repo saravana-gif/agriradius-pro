@@ -29,6 +29,7 @@ DEFAULTS = {
     "plantation_stats": None,
     "village_soil": None,
     "soil_climate": None,
+    "sourcing_scores": None,
     "report_path": None,
 }
 

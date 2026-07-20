@@ -228,6 +228,77 @@ def _stability_check():
         st.info(r["detail"])
 
 
+def _sourcing_score_section():
+
+    st.divider()
+
+    st.write("**🏆 Village Sourcing Score**")
+
+    st.caption(
+        "One 0-100 score per village combining cropland size, "
+        "cropping intensity, soil quality, rainfall reliability and "
+        "field verification. Run Village Insights first; soil and "
+        "rainfall enrich the score if computed."
+    )
+
+    if st.session_state.get("village_insights") is None:
+        st.info("Run Village Insights above to enable scoring.")
+        return
+
+    if st.button("🏆 Rank Villages", use_container_width=True,
+                 type="primary"):
+
+        from core.scoring import score_villages
+        from core.ground_truth import load_records
+        from core.rain_insight import to_dataframe as _rdf
+        from core.rain_insight import analyze_rainfall
+
+        rain_verdict = None
+
+        if st.session_state.get("rainfall_series") is not None:
+            try:
+                rain_verdict = analyze_rainfall(
+                    _rdf(st.session_state.rainfall_series)
+                )["verdict"]
+            except Exception:
+                pass
+
+        try:
+            st.session_state.sourcing_scores = score_villages(
+                st.session_state.village_insights,
+                st.session_state.get("village_soil"),
+                rain_verdict,
+                load_records(),
+            )
+        except Exception as e:
+            st.error(f"Scoring failed: {e}")
+            return
+
+    scores = st.session_state.get("sourcing_scores")
+
+    if scores is None or scores.empty:
+        return
+
+    top = scores.iloc[0]
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric("Top Village", top["Village"], f"{top['Score']} pts")
+    c2.metric("Villages Ranked", len(scores))
+    c3.metric("Avg Score", f"{scores['Score'].mean():.1f}")
+
+    st.dataframe(scores, use_container_width=True, hide_index=True,
+                 height=400)
+
+    st.download_button(
+        "📥 Sourcing Scores (CSV)",
+        scores.to_csv(index=False).encode("utf-8"),
+        file_name="Village_Sourcing_Scores.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+
 def _villages_tab():
 
     df = _villages_df()
@@ -1207,6 +1278,7 @@ def results():
     with tab_villages:
         _villages_tab()
         _village_insights_section()
+        _sourcing_score_section()
 
     with tab_charts:
         _charts_tab(df)

@@ -65,7 +65,9 @@ def add_record(village, taluk, district, crops, cycles,
         "Observer": observer or "",
     }
 
-    df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+    new_row = pd.DataFrame([row])
+    df = new_row if df.empty else pd.concat(
+        [df, new_row], ignore_index=True)
     df.to_csv(GT_PATH, index=False)
 
     return row
@@ -129,3 +131,68 @@ def compare_with_predictions(gt_df, insights_df):
             "Predicted", "Cycles/Year", "Match"]
 
     return merged[[c for c in cols if c in merged.columns]], accuracy
+
+
+# ---------------------------------------------------------------
+# Soil Health Cards - lab-measured values from farmers' cards.
+# This is the only source of real P and K data (not measurable
+# from satellite). Stored beside crop observations.
+# ---------------------------------------------------------------
+
+SOIL_CARD_PATH = GT_DIR / "soil_cards.csv"
+
+SOIL_CARD_COLUMNS = [
+    "Date", "Village", "Taluk", "District", "Farmer",
+    "pH", "EC (dS/m)", "OC (%)",
+    "N (kg/ha)", "P (kg/ha)", "K (kg/ha)",
+    "Micronutrients", "Notes", "Observer",
+]
+
+
+def load_soil_cards():
+    """Return the soil card DataFrame (empty if none yet)."""
+
+    if not SOIL_CARD_PATH.exists():
+        return pd.DataFrame(columns=SOIL_CARD_COLUMNS)
+
+    return pd.read_csv(SOIL_CARD_PATH)
+
+
+def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
+                  n, p, k, micro, notes, observer):
+    """Append one soil health card record. Zero/blank = not recorded."""
+
+    GT_DIR.mkdir(parents=True, exist_ok=True)
+
+    def clean(v):
+        try:
+            v = float(v)
+            return v if v > 0 else ""
+        except (TypeError, ValueError):
+            return ""
+
+    df = load_soil_cards()
+
+    row = {
+        "Date": date.today().isoformat(),
+        "Village": village,
+        "Taluk": taluk,
+        "District": district,
+        "Farmer": farmer or "",
+        "pH": clean(ph),
+        "EC (dS/m)": clean(ec),
+        "OC (%)": clean(oc),
+        "N (kg/ha)": clean(n),
+        "P (kg/ha)": clean(p),
+        "K (kg/ha)": clean(k),
+        "Micronutrients": micro or "",
+        "Notes": notes or "",
+        "Observer": observer or "",
+    }
+
+    new_row = pd.DataFrame([row])
+    df = new_row if df.empty else pd.concat(
+        [df, new_row], ignore_index=True)
+    df.to_csv(SOIL_CARD_PATH, index=False)
+
+    return row

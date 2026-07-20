@@ -650,6 +650,104 @@ def _forecast_tab():
     st.plotly_chart(fig2, use_container_width=True)
 
 
+def _soil_card_section(villages):
+
+    from core.ground_truth import add_soil_card, load_soil_cards
+
+    st.caption(
+        "Enter lab-measured values from farmers' Soil Health Cards - "
+        "the only real source of P and K. Leave unknown fields at 0."
+    )
+
+    with st.form("shc_form", clear_on_submit=True):
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            if villages is not None and not villages.empty:
+                village = st.selectbox(
+                    "Village", villages["Village"].tolist(),
+                    key="shc_village")
+            else:
+                village = st.text_input("Village", key="shc_village")
+
+        with c2:
+            farmer = st.text_input("Farmer name (optional)")
+
+        c3, c4, c5 = st.columns(3)
+
+        with c3:
+            ph = st.number_input("pH", 0.0, 14.0, 0.0, step=0.1)
+        with c4:
+            ec = st.number_input("EC (dS/m)", 0.0, 20.0, 0.0,
+                                 step=0.1)
+        with c5:
+            oc = st.number_input("Organic Carbon (%)", 0.0, 5.0,
+                                 0.0, step=0.05)
+
+        c6, c7, c8 = st.columns(3)
+
+        with c6:
+            n = st.number_input("N (kg/ha)", 0.0, 1000.0, 0.0,
+                                step=5.0)
+        with c7:
+            p = st.number_input("P (kg/ha)", 0.0, 500.0, 0.0,
+                                step=1.0)
+        with c8:
+            k = st.number_input("K (kg/ha)", 0.0, 1000.0, 0.0,
+                                step=5.0)
+
+        micro = st.text_input(
+            "Micronutrient notes (e.g. 'Zn low, Fe ok')")
+
+        c9, c10 = st.columns(2)
+
+        with c9:
+            notes = st.text_input("Notes", key="shc_notes")
+        with c10:
+            observer = st.text_input("Observer", key="shc_observer")
+
+        submitted = st.form_submit_button(
+            "💾 Save Soil Card", use_container_width=True,
+            type="primary")
+
+    if submitted:
+
+        if not village:
+            st.error("Village is required.")
+        else:
+            taluk = district = ""
+
+            if villages is not None and not villages.empty:
+                row = villages[villages["Village"] == village]
+                if not row.empty:
+                    taluk = row.iloc[0].get("Taluk", "")
+                    district = row.iloc[0].get("District", "")
+
+            add_soil_card(village, taluk, district, farmer, ph, ec,
+                          oc, n, p, k, micro, notes, observer)
+            st.success(f"Soil card saved for {village}")
+
+    cards = load_soil_cards()
+
+    if cards.empty:
+        st.info("No soil cards recorded yet.")
+        return
+
+    st.write(f"**{len(cards)} soil cards recorded**")
+
+    st.dataframe(cards, use_container_width=True, hide_index=True,
+                 height=250)
+
+    st.download_button(
+        "📥 Soil Cards (CSV)",
+        cards.to_csv(index=False).encode("utf-8"),
+        file_name="Soil_Health_Cards.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+
 def _ground_truth_tab():
 
     from core.ground_truth import (
@@ -666,6 +764,25 @@ def _ground_truth_tab():
     )
 
     villages = _villages_df()
+
+    sub_crop, sub_soil = st.tabs(
+        ["🌾 Crop Observation", "🧾 Soil Health Card"])
+
+    with sub_soil:
+        _soil_card_section(villages)
+
+    with sub_crop:
+        _crop_observation_section(villages)
+
+
+def _crop_observation_section(villages):
+
+    from core.ground_truth import (
+        CROP_OPTIONS,
+        add_record,
+        load_records,
+        compare_with_predictions,
+    )
 
     # --- Entry form ---
     with st.form("gt_form", clear_on_submit=True):

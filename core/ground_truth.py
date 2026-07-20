@@ -145,6 +145,7 @@ SOIL_CARD_COLUMNS = [
     "Date", "Village", "Taluk", "District", "Farmer",
     "pH", "EC (dS/m)", "OC (%)",
     "N (kg/ha)", "P (kg/ha)", "K (kg/ha)",
+    "Water Level (ft)",
     "Micronutrients", "Notes", "Observer",
 ]
 
@@ -159,7 +160,7 @@ def load_soil_cards():
 
 
 def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
-                  n, p, k, micro, notes, observer):
+                  n, p, k, water_ft, micro, notes, observer):
     """Append one soil health card record. Zero/blank = not recorded."""
 
     GT_DIR.mkdir(parents=True, exist_ok=True)
@@ -185,6 +186,7 @@ def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
         "N (kg/ha)": clean(n),
         "P (kg/ha)": clean(p),
         "K (kg/ha)": clean(k),
+        "Water Level (ft)": clean(water_ft),
         "Micronutrients": micro or "",
         "Notes": notes or "",
         "Observer": observer or "",
@@ -196,3 +198,33 @@ def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
     df.to_csv(SOIL_CARD_PATH, index=False)
 
     return row
+
+
+def village_card_averages():
+    """Average measured values per village from soil cards.
+
+    Returns a DataFrame: Village, Cards, and mean of pH / N / P / K /
+    Water Level where recorded. Empty DataFrame if no cards yet.
+    """
+
+    df = load_soil_cards()
+
+    if df.empty:
+        return pd.DataFrame()
+
+    num_cols = ["pH", "N (kg/ha)", "P (kg/ha)", "K (kg/ha)",
+                "Water Level (ft)"]
+
+    for c in num_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    agg = df.groupby("Village").agg(
+        Cards=("Village", "size"),
+        **{f"Card {c}": (c, "mean") for c in num_cols},
+    ).reset_index()
+
+    for c in agg.columns:
+        if c.startswith("Card "):
+            agg[c] = agg[c].round(1)
+
+    return agg

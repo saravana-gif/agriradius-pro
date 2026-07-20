@@ -52,6 +52,28 @@ DW_LEGEND = [
     ("Bare", "#a59b8f"), ("Snow/Ice", "#b39fe1"),
 ]
 
+SOIL_PH_LEGEND = [
+    ("Acidic (pH ~5)", "#d7191c"),
+    ("Neutral (pH ~6.5-7)", "#ffffbf"),
+    ("Alkaline (pH ~8.5)", "#2c7bb6"),
+]
+
+SOIL_OC_LEGEND = [
+    ("Low organic carbon (~3 g/kg)", "#fff7bc"),
+    ("Moderate (~9 g/kg)", "#78c679"),
+    ("High (~15 g/kg)", "#004529"),
+]
+
+SOIL_N_LEGEND = [
+    ("Low nitrogen (~0.5 g/kg)", "#fee8c8"),
+    ("Moderate (~1.5 g/kg)", "#e34a33"),
+    ("High (~2.5 g/kg)", "#7f0000"),
+]
+
+PLANTATION_LEGEND = [
+    ("Likely plantation (flat, evergreen, small patch)", "#ff9800"),
+]
+
 PADDY_LEGEND = [
     ("Detected paddy (flooded + growth)", "#00e5ff"),
 ]
@@ -92,3 +114,15 @@ def legends():
 
     if vis.get("paddy"):
         _legend("Paddy (radar)", PADDY_LEGEND)
+
+    if vis.get("plantation"):
+        _legend("Plantations", PLANTATION_LEGEND)
+
+    if vis.get("soil_ph"):
+        _legend("Soil pH", SOIL_PH_LEGEND)
+
+    if vis.get("soil_oc"):
+        _legend("Soil Organic Carbon", SOIL_OC_LEGEND)
+
+    if vis.get("soil_n"):
+        _legend("Soil Nitrogen", SOIL_N_LEGEND)

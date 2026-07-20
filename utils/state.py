@@ -26,6 +26,9 @@ DEFAULTS = {
     "stability": None,
     "report_pdf": None,
     "soil": None,
+    "plantation_stats": None,
+    "village_soil": None,
+    "soil_climate": None,
     "report_path": None,
 }
 

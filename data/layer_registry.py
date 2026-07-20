@@ -36,6 +36,16 @@ LAYERS = {
          "default": False},
         {"id": "paddy", "label": "Paddy Fields (radar)",
          "default": False},
+        {"id": "plantation", "label": "Plantations (coconut/arecanut)",
+         "default": False},
+    ],
+    "Soil": [
+        {"id": "soil_ph", "label": "Soil pH (painted)",
+         "default": False},
+        {"id": "soil_oc", "label": "Soil Organic Carbon (painted)",
+         "default": False},
+        {"id": "soil_n", "label": "Soil Nitrogen (painted)",
+         "default": False},
     ],
     "Administrative": [
         {"id": "villages", "label": "Villages (in buffer)", "default": False},

@@ -85,6 +85,39 @@ def mapview():
         except Exception as e:
             st.warning(f"Could not load paddy layer: {e}")
 
+    if vis.get("plantation"):
+
+        from gee.plantation import plantation_tile_url
+
+        try:
+            url = plantation_tile_url(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year
+            )
+            engine.add_tile_overlay(url, "Plantations", opacity=0.8)
+        except Exception as e:
+            st.warning(f"Could not load plantation layer: {e}")
+
+    for soil_layer in ("soil_ph", "soil_oc", "soil_n"):
+
+        if vis.get(soil_layer):
+
+            from gee.soil import soil_tile_url
+
+            try:
+                url = soil_tile_url(
+                    st.session_state.lat,
+                    st.session_state.lon,
+                    st.session_state.radius,
+                    soil_layer
+                )
+                engine.add_tile_overlay(
+                    url, soil_layer, opacity=0.65)
+            except Exception as e:
+                st.warning(f"Could not load {soil_layer}: {e}")
+
     map_data = st_folium(
         engine.render(),
         width=None,

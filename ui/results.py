@@ -447,6 +447,53 @@ def _paddy_check():
         c3.metric("Paddy Share", f"{r['paddy_pct']}%")
 
 
+def _plantation_check():
+
+    with st.expander("🥥 Plantation Detection (coconut/arecanut)",
+                     expanded=False):
+
+        st.caption(
+            "Separates plantations from natural forest inside the "
+            "'Trees' class: flat land + still green in the dry "
+            "season (irrigated palms) + small patches. Enable the "
+            "'Plantations' map layer to see them in orange. "
+            "Banana usually appears under cropland, not here."
+        )
+
+        run = st.button("Detect Plantations",
+                        use_container_width=True)
+
+        # Auto-run when the map layer is switched on
+        layer_on = st.session_state.layer_visibility.get("plantation")
+
+        if run or (layer_on
+                   and st.session_state.plantation_stats is None):
+
+            from gee.plantation import plantation_stats
+
+            try:
+                st.session_state.plantation_stats = plantation_stats(
+                    st.session_state.lat,
+                    st.session_state.lon,
+                    st.session_state.radius,
+                    st.session_state.year,
+                )
+            except Exception as e:
+                st.error(f"Plantation detection failed: {e}")
+                return
+
+        r = st.session_state.get("plantation_stats")
+
+        if r is None:
+            return
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Plantation Area", f"{r['plantation_ac']:,.0f} ac")
+        c2.metric("Total Tree Cover", f"{r['trees_ac']:,.0f} ac")
+        c3.metric("Plantation Share", f"{r['plantation_pct']}%")
+
+
 def _crop_cycle_tab():
 
     st.caption(
@@ -697,6 +744,12 @@ def _soil_card_section(villages):
             k = st.number_input("K (kg/ha)", 0.0, 1000.0, 0.0,
                                 step=5.0)
 
+        water_ft = st.number_input(
+            "Borewell water level (ft, 0 if unknown)",
+            0.0, 2000.0, 0.0, step=10.0,
+            help="Depth at which water stands in nearby borewell - "
+                 "our only source for groundwater data")
+
         micro = st.text_input(
             "Micronutrient notes (e.g. 'Zn low, Fe ok')")
 
@@ -725,7 +778,8 @@ def _soil_card_section(villages):
                     district = row.iloc[0].get("District", "")
 
             add_soil_card(village, taluk, district, farmer, ph, ec,
-                          oc, n, p, k, micro, notes, observer)
+                          oc, n, p, k, water_ft, micro, notes,
+                          observer)
             st.success(f"Soil card saved for {village}")
 
     cards = load_soil_cards()
@@ -943,6 +997,117 @@ def _soil_tab():
     for label, verdict in verdicts.items():
         st.write(f"**{label}:** {verdict}")
 
+    st.divider()
+
+    st.write("**Per-Village Soil Profile**")
+
+    st.caption(
+        "Soil values averaged over each village polygon (250m "
+        "SoilGrids). Also tick the painted soil layers in the "
+        "Layers panel to see pH and organic carbon on the map."
+    )
+
+    if st.button("🏘️ Compute Per-Village Soil",
+                 use_container_width=True):
+
+        from gee.soil import village_soil
+
+        try:
+            st.session_state.village_soil = village_soil(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+            )
+        except Exception as e:
+            st.error(f"Per-village soil failed: {e}")
+
+    vsoil = st.session_state.get("village_soil")
+
+    if vsoil is not None and not vsoil.empty:
+
+        # Join measured values from soil health cards when available
+        from core.ground_truth import village_card_averages
+
+        cards = village_card_averages()
+
+        if not cards.empty:
+            vsoil = vsoil.merge(cards, on="Village", how="left")
+            st.caption(
+                "'Card ...' columns are field-measured values from "
+                "Soil Health Cards (averaged per village) - the only "
+                "real source of P, K and water level."
+            )
+
+        st.dataframe(vsoil, use_container_width=True,
+                     hide_index=True, height=350)
+
+        st.download_button(
+            "📥 Village Soil (CSV)",
+            vsoil.to_csv(index=False).encode("utf-8"),
+            file_name="Village_Soil_Profile.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    st.divider()
+
+    st.write("**🌡️ Soil Temperature & Moisture**")
+
+    st.caption(
+        "Monthly soil temperature (0-7 cm) and moisture from "
+        "ERA5-Land (~11 km grid - area-level, not per-village). "
+        "Groundwater depth has no satellite source: log borewell "
+        "levels in the Soil Health Card form instead."
+    )
+
+    if st.button("Read Soil Temperature & Moisture",
+                 use_container_width=True):
+
+        from gee.climate import soil_climate
+
+        try:
+            st.session_state.soil_climate = soil_climate(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year,
+            )
+        except Exception as e:
+            st.error(f"Soil climate failed: {e}")
+
+    sc = st.session_state.get("soil_climate")
+
+    if sc:
+
+        from gee.climate import summarize
+
+        summ = summarize(sc)
+
+        if summ:
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            c1.metric("Mean Soil Temp", f"{summ['mean_temp']} °C")
+            c2.metric("Hottest Month", f"{summ['max_temp']} °C")
+            c3.metric("Coolest Month", f"{summ['min_temp']} °C")
+
+            if summ["mean_moisture"] is not None:
+                c4.metric("Mean Soil Moisture",
+                          f"{summ['mean_moisture']}%")
+
+            scdf = pd.DataFrame(sc)
+
+            fig = px.line(
+                scdf,
+                x="Month",
+                y=["Soil Temp (°C)", "Soil Moisture (%)"],
+                title="Monthly Soil Temperature & Moisture",
+                markers=True,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No soil climate data for this period.")
+
 
 def results():
 
@@ -975,6 +1140,7 @@ def results():
         _crop_cycle_tab()
         st.divider()
         _paddy_check()
+        _plantation_check()
 
     with tab_rain:
         _rainfall_tab()

@@ -650,6 +650,183 @@ def _forecast_tab():
     st.plotly_chart(fig2, use_container_width=True)
 
 
+def _ground_truth_tab():
+
+    from core.ground_truth import (
+        CROP_OPTIONS,
+        add_record,
+        load_records,
+        compare_with_predictions,
+    )
+
+    st.caption(
+        "Record what your field team actually sees in each village. "
+        "Every observation scores the satellite predictions and "
+        "builds OneRoot's own labeled dataset for calibration."
+    )
+
+    villages = _villages_df()
+
+    # --- Entry form ---
+    with st.form("gt_form", clear_on_submit=True):
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            if villages is not None and not villages.empty:
+                village = st.selectbox(
+                    "Village", villages["Village"].tolist())
+            else:
+                village = st.text_input("Village")
+
+        with c2:
+            observer = st.text_input("Observer (your name)")
+
+        crops = st.multiselect("Main crops observed", CROP_OPTIONS)
+
+        c3, c4 = st.columns(2)
+
+        with c3:
+            cycles = st.selectbox("Crop cycles per year", [1, 2, 3])
+
+        with c4:
+            irrigated = st.toggle("Irrigated")
+
+        notes = st.text_input("Notes (optional)")
+
+        submitted = st.form_submit_button(
+            "💾 Save Observation", use_container_width=True,
+            type="primary")
+
+    if submitted:
+
+        if not village or not crops:
+            st.error("Village and at least one crop are required.")
+        else:
+            taluk = district = ""
+
+            if villages is not None and not villages.empty:
+                row = villages[villages["Village"] == village]
+                if not row.empty:
+                    taluk = row.iloc[0].get("Taluk", "")
+                    district = row.iloc[0].get("District", "")
+
+            add_record(village, taluk, district, crops, cycles,
+                       irrigated, notes, observer)
+            st.success(f"Saved: {village} - {', '.join(crops)}")
+
+    # --- Records + accuracy ---
+    gt = load_records()
+
+    if gt.empty:
+        st.info("No observations recorded yet.")
+        return
+
+    st.divider()
+
+    st.write(f"**{len(gt)} observations recorded**")
+
+    st.dataframe(gt, use_container_width=True, hide_index=True,
+                 height=250)
+
+    st.download_button(
+        "📥 Ground Truth (CSV)",
+        gt.to_csv(index=False).encode("utf-8"),
+        file_name="Ground_Truth.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+
+    insights = st.session_state.get("village_insights")
+
+    if insights is None or insights.empty:
+        st.caption(
+            "Run Village Insights (Villages tab) to score predictions "
+            "against these observations."
+        )
+        return
+
+    cmp, acc = compare_with_predictions(gt, insights)
+
+    if acc is None:
+        st.caption(
+            "No overlap yet between observed villages and the current "
+            "buffer's insights."
+        )
+        return
+
+    st.divider()
+
+    c1, c2, c3 = st.columns(3)
+
+    c1.metric("Prediction Accuracy", f"{acc}%")
+    c2.metric("Villages Scored", len(cmp))
+    c3.metric("Matches", int(cmp["Match"].sum()))
+
+    st.dataframe(cmp, use_container_width=True, hide_index=True)
+
+    if acc < 60 and len(cmp) >= 10:
+        st.warning(
+            "Accuracy below 60% with a decent sample - time to "
+            "recalibrate the detection thresholds for this region."
+        )
+
+
+def _soil_tab():
+
+    st.caption(
+        "Root-zone (0-30 cm) soil profile from SoilGrids (ISRIC) - "
+        "modeled 250m estimates built from lab-tested soil samples "
+        "worldwide. Indicative for area planning, not a substitute "
+        "for lab tests. Phosphorus and potassium cannot be measured "
+        "from satellite - collect Soil Health Cards for those."
+    )
+
+    if st.button("🧪 Read Soil Profile", use_container_width=True):
+
+        from gee.soil import soil_profile
+
+        try:
+            st.session_state.soil = soil_profile(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+            )
+        except Exception as e:
+            st.error(f"Soil profile failed: {e}")
+            return
+
+    profile = st.session_state.get("soil")
+
+    if profile is None:
+        st.info("Read the soil profile to see pH, organic carbon, "
+                "nitrogen and texture.")
+        return
+
+    from gee.soil import interpret
+
+    verdicts = interpret(profile)
+
+    if not verdicts:
+        st.warning("No soil data available for this area.")
+        return
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("pH", profile.get("phh2o", "-"))
+    c2.metric("Organic Carbon", f"{profile.get('soc', '-')} g/kg")
+    c3.metric("Total Nitrogen", f"{profile.get('nitrogen', '-')} g/kg")
+
+    from gee.soil import texture_class
+    c4.metric("Texture", texture_class(
+        profile.get("sand"), profile.get("clay")))
+
+    st.divider()
+
+    for label, verdict in verdicts.items():
+        st.write(f"**{label}:** {verdict}")
+
+
 def results():
 
     st.subheader("🌾 Analysis Results")
@@ -657,10 +834,11 @@ def results():
     df = _landcover_df()
 
     (tab_summary, tab_villages, tab_charts, tab_crop,
-     tab_rain, tab_forecast, tab_downloads) = st.tabs(
+     tab_rain, tab_forecast, tab_soil, tab_gt,
+     tab_downloads) = st.tabs(
         ["📊 Summary", "🏘️ Villages", "📈 Charts",
          "🌱 Crop Cycle", "🌧️ Rainfall", "⛅ Forecast",
-         "📥 Downloads"]
+         "🧪 Soil", "✅ Ground Truth", "📥 Downloads"]
     )
 
     with tab_summary:
@@ -686,6 +864,12 @@ def results():
 
     with tab_forecast:
         _forecast_tab()
+
+    with tab_soil:
+        _soil_tab()
+
+    with tab_gt:
+        _ground_truth_tab()
 
     with tab_downloads:
         _downloads_tab(df)

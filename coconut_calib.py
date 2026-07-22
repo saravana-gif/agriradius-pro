@@ -51,7 +51,7 @@ AMP_MAX = 0.45              # coconut vote
 VH_MIN = -18.0             # coconut vote
 
 BANDS = ["NDVI_p15", "NDVI_p90", "NDVI_amp", "VH",
-         "DW_trees", "DW_crops", "DW_built", "slope"]
+         "DW_trees", "DW_crops", "DW_built", "DW_bare", "slope"]
 
 
 def main():
@@ -95,6 +95,7 @@ def main():
             & (s["NDVI_p15"] >= EVERGREEN_MIN)
             & (s["NDVI_p90"] >= PLANTATION_PEAK_MIN)
             & (s["DW_trees"] >= PLANTATION_TREES_MIN)
+            & (s["DW_trees"] > s["DW_bare"])
             & (s["DW_built"] < DW_BUILT_MAX))
     v_tree = s["DW_trees"] > s["DW_crops"]
     v_peak = s["NDVI_p90"] < PEAK_MAX

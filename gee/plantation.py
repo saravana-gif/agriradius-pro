@@ -88,6 +88,7 @@ def crop_class_image(buffer, year):
     dw_trees = feats.select("DW_trees")
     dw_crops = feats.select("DW_crops")
     dw_built = feats.select("DW_built")
+    dw_bare = feats.select("DW_bare")
 
     slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
 
@@ -100,6 +101,7 @@ def crop_class_image(buffer, year):
             .And(p15.gte(EVERGREEN_MIN))
             .And(p90.gte(PLANTATION_PEAK_MIN))
             .And(dw_trees.gte(PLANTATION_TREES_MIN))
+            .And(dw_trees.gt(dw_bare))       # tree-dominant, not bare land
             .And(dw_built.lt(DW_BUILT_MAX)))
 
     v_tree = dw_trees.gt(dw_crops)

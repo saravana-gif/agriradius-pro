@@ -85,6 +85,8 @@ def dashboard():
     # folds into a hamburger menu and the map/results get the full
     # screen width.
     with st.sidebar:
+        from ui.help import help_button
+        help_button()
         sidebar()
         st.divider()
         layer_manager()

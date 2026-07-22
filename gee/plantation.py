@@ -42,14 +42,14 @@ PLANTATION_PEAK_MIN = 0.45
 # stays greener (p15 ~0.29+). Without it the layer spilled into empty
 # land and towns. Moderate (not the old strict 0.40) so open coconut
 # still passes.
-EVERGREEN_MIN = 0.25
-# Base gate: persistent tree canopy fraction (Dynamic World). Raised
-# from 0.05 - bare/built land reads ~0, so 0.05 leaked; 0.10 needs
-# real partial canopy.
-PLANTATION_TREES_MIN = 0.10
-# Base gate: reject built-up / water outright (never plantation).
+EVERGREEN_MIN = 0.22
+# Base gate: persistent tree canopy fraction (Dynamic World). 0.05 was
+# too loose (bare/built leaked in); real coconut sits ~0.08-0.66 while
+# bare/built read ~0, so 0.08 keeps the groves and drops empty land.
+PLANTATION_TREES_MIN = 0.08
+# Base gate: reject built-up outright (never plantation). (Water is
+# already excluded by the greenness gates - it has near-zero NDVI.)
 DW_BUILT_MAX = 0.30
-DW_WATER_MAX = 0.40
 
 # --- Coconut vs banana voting thresholds ---
 # Within the plantation base, a pixel is coconut if it wins >=2 of 4
@@ -88,7 +88,6 @@ def crop_class_image(buffer, year):
     dw_trees = feats.select("DW_trees")
     dw_crops = feats.select("DW_crops")
     dw_built = feats.select("DW_built")
-    dw_water = feats.select("DW_water")
 
     slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
 
@@ -101,8 +100,7 @@ def crop_class_image(buffer, year):
             .And(p15.gte(EVERGREEN_MIN))
             .And(p90.gte(PLANTATION_PEAK_MIN))
             .And(dw_trees.gte(PLANTATION_TREES_MIN))
-            .And(dw_built.lt(DW_BUILT_MAX))
-            .And(dw_water.lt(DW_WATER_MAX)))
+            .And(dw_built.lt(DW_BUILT_MAX)))
 
     v_tree = dw_trees.gt(dw_crops)
     v_peak = p90.lt(COCONUT_PEAK_NDVI_MAX)

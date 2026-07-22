@@ -171,6 +171,7 @@ def plantation_stats(lat, lon, radius_km, year):
     img = ee.Image.cat([
         ee.Image.pixelArea().updateMask(mask).rename("plantation"),
         ee.Image.pixelArea().updateMask(trees_class).rename("trees"),
+        ee.Image.pixelArea().rename("total"),
     ])
 
     from core import compute as _cq
@@ -188,10 +189,16 @@ def plantation_stats(lat, lon, radius_km, year):
 
     plant_ac = acres("plantation")
     trees_ac = acres("trees")
+    total_ac = acres("total")
 
+    # Share is of the SEARCHED AREA, not of Dynamic World "tree cover":
+    # open coconut is often labelled crops/grass by DW, so plantation
+    # can (correctly) exceed DW tree cover - making tree cover a wrong
+    # denominator (it produced >100% shares).
     return {
         "plantation_ac": plant_ac,
         "trees_ac": trees_ac,
-        "plantation_pct": round(100 * plant_ac / trees_ac, 1)
-        if trees_ac else 0.0,
+        "area_ac": total_ac,
+        "plantation_pct": round(100 * plant_ac / total_ac, 1)
+        if total_ac else 0.0,
     }

@@ -586,8 +586,11 @@ def _plantation_check():
         c1, c2, c3 = st.columns(3)
 
         c1.metric("Plantation Area", f"{r['plantation_ac']:,.0f} ac")
-        c2.metric("Total Tree Cover", f"{r['trees_ac']:,.0f} ac")
-        c3.metric("Plantation Share", f"{r['plantation_pct']}%")
+        c2.metric("% of Searched Area", f"{r['plantation_pct']}%")
+        c3.metric("DW Tree Cover (context)",
+                  f"{r['trees_ac']:,.0f} ac",
+                  help="Dynamic World 'trees' class - undercounts open "
+                       "coconut, so plantation can exceed it.")
 
 
 def _crop_cycle_tab():

@@ -43,10 +43,10 @@ PLANTATION_PEAK_MIN = 0.45
 # land and towns. Moderate (not the old strict 0.40) so open coconut
 # still passes.
 EVERGREEN_MIN = 0.22
-# Base gate: persistent tree canopy fraction (Dynamic World). 0.05 was
-# too loose (bare/built leaked in); real coconut sits ~0.08-0.66 while
-# bare/built read ~0, so 0.08 keeps the groves and drops empty land.
-PLANTATION_TREES_MIN = 0.08
+# Base gate: persistent tree canopy fraction (Dynamic World). Raised
+# to 0.12 for precision - fallow/scrub with only a hint of tree leaked
+# at 0.08. Trades some recall (sparse groves) for a cleaner map.
+PLANTATION_TREES_MIN = 0.12
 # Base gate: reject built-up outright (never plantation). (Water is
 # already excluded by the greenness gates - it has near-zero NDVI.)
 DW_BUILT_MAX = 0.30

@@ -42,14 +42,17 @@ YEAR = 2024
 
 # current detector thresholds (mirror gee/plantation.py)
 MAX_SLOPE_DEG = 12
-PLANTATION_PEAK_MIN = 0.40   # base: greens up at peak
-PLANTATION_TREES_MIN = 0.05  # base: persistent tree canopy
+EVERGREEN_MIN = 0.25         # base: dry-season greenness (p15)
+PLANTATION_PEAK_MIN = 0.45   # base: greens up at peak
+PLANTATION_TREES_MIN = 0.10  # base: persistent tree canopy
+DW_BUILT_MAX = 0.30          # base: not built-up
+DW_WATER_MAX = 0.40          # base: not water
 PEAK_MAX = 0.82              # coconut vote
 AMP_MAX = 0.45              # coconut vote
 VH_MIN = -18.0             # coconut vote
 
 BANDS = ["NDVI_p15", "NDVI_p90", "NDVI_amp", "VH",
-         "DW_trees", "DW_crops", "slope"]
+         "DW_trees", "DW_crops", "DW_built", "DW_water", "slope"]
 
 
 def main():
@@ -90,8 +93,11 @@ def main():
 
     # New logic (mirror gee/plantation.py)
     base = ((s["slope"] <= MAX_SLOPE_DEG)
+            & (s["NDVI_p15"] >= EVERGREEN_MIN)
             & (s["NDVI_p90"] >= PLANTATION_PEAK_MIN)
-            & (s["DW_trees"] >= PLANTATION_TREES_MIN))
+            & (s["DW_trees"] >= PLANTATION_TREES_MIN)
+            & (s["DW_built"] < DW_BUILT_MAX)
+            & (s["DW_water"] < DW_WATER_MAX))
     v_tree = s["DW_trees"] > s["DW_crops"]
     v_peak = s["NDVI_p90"] < PEAK_MAX
     v_stable = s["NDVI_amp"] <= AMP_MAX
@@ -102,9 +108,10 @@ def main():
 
     print("\n=== Gate pass-rates over known coconut (higher = better) ===")
     print(f"  base: slope<={MAX_SLOPE_DEG}              : {pct(s['slope']<=MAX_SLOPE_DEG)}")
+    print(f"  base: p15>={EVERGREEN_MIN} (dry-green)    : {pct(s['NDVI_p15']>=EVERGREEN_MIN)}")
     print(f"  base: p90>={PLANTATION_PEAK_MIN} (greens up)   : {pct(s['NDVI_p90']>=PLANTATION_PEAK_MIN)}")
     print(f"  base: DW_trees>={PLANTATION_TREES_MIN} (canopy) : {pct(s['DW_trees']>=PLANTATION_TREES_MIN)}")
-    print(f"  base (all three)               : {pct(base)}")
+    print(f"  base (all)                     : {pct(base)}")
     print(f"  vote tree (trees>crops)        : {pct(v_tree)}")
     print(f"  vote peak (p90<{PEAK_MAX})         : {pct(v_peak)}")
     print(f"  vote stable (amp<={AMP_MAX})        : {pct(v_stable)}")

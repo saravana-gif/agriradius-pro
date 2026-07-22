@@ -35,10 +35,21 @@ SQM_PER_ACRE = 4046.8564224
 #   peak-greenness floor to drop bare land, on flat ground.
 MAX_SLOPE_DEG = 12
 # Base gate: pixel greens up at peak (rejects permanently bare land).
-PLANTATION_PEAK_MIN = 0.40
-# Base gate: persistent tree canopy fraction (Dynamic World). Open
-# coconut still reads ~0.05-0.5 here; seasonal cropland reads ~0.
-PLANTATION_TREES_MIN = 0.05
+PLANTATION_PEAK_MIN = 0.45
+# Base gate: DRY-SEASON greenness (15th-pct NDVI). This is the key
+# "evergreen palm vs bare/built land" signal - bare land and built-up
+# brown down in the dry season (p15 ~0.1), irrigated/rain-fed coconut
+# stays greener (p15 ~0.29+). Without it the layer spilled into empty
+# land and towns. Moderate (not the old strict 0.40) so open coconut
+# still passes.
+EVERGREEN_MIN = 0.25
+# Base gate: persistent tree canopy fraction (Dynamic World). Raised
+# from 0.05 - bare/built land reads ~0, so 0.05 leaked; 0.10 needs
+# real partial canopy.
+PLANTATION_TREES_MIN = 0.10
+# Base gate: reject built-up / water outright (never plantation).
+DW_BUILT_MAX = 0.30
+DW_WATER_MAX = 0.40
 
 # --- Coconut vs banana voting thresholds ---
 # Within the plantation base, a pixel is coconut if it wins >=2 of 4
@@ -70,19 +81,28 @@ def crop_class_image(buffer, year):
     """
 
     feats = feature_stack(buffer, year)
+    p15 = feats.select("NDVI_p15")
     p90 = feats.select("NDVI_p90")
     amp = feats.select("NDVI_amp")
     vh = feats.select("VH")
     dw_trees = feats.select("DW_trees")
     dw_crops = feats.select("DW_crops")
+    dw_built = feats.select("DW_built")
+    dw_water = feats.select("DW_water")
 
     slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
 
-    # Plantation base: flat, greens up at peak, and shows persistent
-    # partial tree canopy (the open-coconut vs seasonal-crop signal).
+    # Plantation base: flat, GREEN THROUGH THE DRY SEASON (evergreen
+    # palm - excludes bare/built that brown down), greens to a real
+    # canopy at peak, has persistent tree canopy, and is not built-up
+    # or water. The dry-season gate (p15) is what stops the layer
+    # spilling into empty land and towns.
     base = (slope.lte(MAX_SLOPE_DEG)
+            .And(p15.gte(EVERGREEN_MIN))
             .And(p90.gte(PLANTATION_PEAK_MIN))
-            .And(dw_trees.gte(PLANTATION_TREES_MIN)))
+            .And(dw_trees.gte(PLANTATION_TREES_MIN))
+            .And(dw_built.lt(DW_BUILT_MAX))
+            .And(dw_water.lt(DW_WATER_MAX)))
 
     v_tree = dw_trees.gt(dw_crops)
     v_peak = p90.lt(COCONUT_PEAK_NDVI_MAX)

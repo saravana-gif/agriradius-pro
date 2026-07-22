@@ -16,3 +16,4 @@ shapely
 gspread
 google-auth
 google-cloud-monitoring
+streamlit-js-eval

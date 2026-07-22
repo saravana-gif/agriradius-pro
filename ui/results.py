@@ -1035,19 +1035,93 @@ def _ground_truth_tab():
         _classifier_section()
 
 
+CAPTURE_CROPS = [
+    "Coconut", "Arecanut", "Banana", "Maize", "Paddy", "Sugarcane",
+    "Turmeric", "Chilli", "Vegetables", "Fruits/Orchard", "Other tree",
+    "Empty / Fallow", "Not sure",
+]
+
+
+def _onsite_capture():
+    """Stand-on-the-spot capture: grab the phone's GPS + a quick form."""
+    import datetime
+    from core.ground_truth import add_labeled_points
+
+    st.markdown("##### 📍 Capture where you're standing")
+    st.caption(
+        "On a phone in the field: tap **Get my location**, allow the "
+        "location prompt, answer what you can (skip the rest), and save. "
+        "One tap per field.")
+
+    if st.button("📍 Get my location", use_container_width=True):
+        st.session_state.want_gps = True
+
+    lat = lon = acc = None
+    if st.session_state.get("want_gps"):
+        try:
+            from streamlit_js_eval import get_geolocation
+            loc = get_geolocation()
+            if loc and loc.get("coords"):
+                lat = loc["coords"].get("latitude")
+                lon = loc["coords"].get("longitude")
+                acc = loc["coords"].get("accuracy")
+        except Exception:
+            st.info("Couldn't read GPS automatically - enter it "
+                    "manually below.")
+
+    c1, c2 = st.columns(2)
+    lat = c1.number_input("Latitude", value=float(lat) if lat else 0.0,
+                          format="%.6f", key="cap_lat")
+    lon = c2.number_input("Longitude", value=float(lon) if lon else 0.0,
+                          format="%.6f", key="cap_lon")
+    if acc:
+        st.caption(f"GPS accuracy ~{acc:.0f} m. Adjust the numbers if "
+                   "needed.")
+
+    with st.form("onsite", clear_on_submit=True):
+        crop = st.selectbox("What is growing here?", CAPTURE_CROPS,
+                            help="Pick 'Not sure' to skip.")
+        c3, c4 = st.columns(2)
+        acreage = c3.text_input("Approx area (acres) - optional")
+        notes = c4.text_input("Notes / landmark - optional")
+        observer = st.text_input("Your name - optional")
+        saved = st.form_submit_button("💾 Save this point",
+                                      type="primary",
+                                      use_container_width=True)
+
+    if saved:
+        if not lat or not lon:
+            st.error("No location yet - tap 'Get my location' or type "
+                     "the coordinates.")
+        else:
+            try:
+                add_labeled_points([{
+                    "Date": datetime.date.today().isoformat(),
+                    "Latitude": lat, "Longitude": lon, "Crop": crop,
+                    "Village": "", "Acreage": acreage, "Notes": notes,
+                    "Observer": observer or "",
+                }])
+                st.success(f"Saved: {crop} at {lat:.5f}, {lon:.5f}. "
+                           "Walk to the next field and capture again.")
+            except Exception as e:
+                st.error(f"Could not save: {e}")
+
+
 def _upload_points_section():
-    """Bulk-upload labelled location data (lat, lon, crop, ...)."""
+    """On-site GPS capture + bulk file upload of labelled points."""
     import pandas as pd
     import re
     from core.ground_truth import (add_labeled_points, load_labeled_points,
                                     LABELED_COLUMNS)
 
+    _onsite_capture()
+    st.divider()
+
+    st.markdown("##### 📄 Or upload a file (many points at once)")
     st.caption(
-        "Upload a CSV or Excel of field points to build the ground-truth "
-        "dataset (used for calibration and the trained classifier). "
-        "Needs **latitude**, **longitude** and **crop** columns; "
-        "village, acreage and notes are optional. Column names are "
-        "auto-detected.")
+        "Upload a CSV or Excel of field points. Needs **latitude**, "
+        "**longitude** and **crop** columns; village, acreage and notes "
+        "are optional. Column names are auto-detected.")
 
     # Template download
     tmpl = pd.DataFrame([

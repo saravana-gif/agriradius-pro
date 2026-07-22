@@ -69,11 +69,13 @@ unless you ask.
   horticulture.
 - **Mandi** — today's prices, the **MSP floor** comparison, a multi-year
   **price trend**, and a **variety/grade** breakdown.
-- **Ground Truth** — log what a field grows (trains the app for your
-  area) + soil cards, **and a 📤 Upload Field Data tab** to bulk-upload
-  a CSV/Excel of points (latitude, longitude, crop; village/acreage/
-  notes optional). Download the template, fill it, upload — the points
-  are saved to the shared dataset for calibration and the classifier.
+- **Ground Truth** — log what a field grows (trains the app) + soil
+  cards. The **📤 Upload Field Data** tab lets you collect points two
+  ways: **📍 on-site on your phone** (tap *Get my location*, pick the
+  crop — or *Not sure* to skip — and Save, one tap per field), or
+  **📄 upload a CSV/Excel** of many points at once (lat, lon, crop;
+  village/acreage/notes optional; template provided). Everything saves
+  to the shared dataset for calibration and the classifier.
 - **Downloads** — build a full **PDF / Excel report** of everything.
 
 #### 6. How much to trust it

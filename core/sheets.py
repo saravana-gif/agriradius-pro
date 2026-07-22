@@ -78,6 +78,14 @@ def append_row(sheet_name, row_dict, columns):
                   value_input_option="USER_ENTERED")
 
 
+def append_rows(sheet_name, rows, columns):
+    """Append many records at once (one API call)."""
+    ws = _worksheet(sheet_name, columns)
+    ws.append_rows(
+        [[str(r.get(c, "")) for c in columns] for r in rows],
+        value_input_option="USER_ENTERED")
+
+
 def read_records(sheet_name, columns):
     """Return a worksheet as a DataFrame (empty if missing)."""
     try:

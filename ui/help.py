@@ -69,8 +69,11 @@ unless you ask.
   horticulture.
 - **Mandi** — today's prices, the **MSP floor** comparison, a multi-year
   **price trend**, and a **variety/grade** breakdown.
-- **Ground Truth** — log what a field actually grows (this trains the
-  app to be more accurate for your area) + soil cards.
+- **Ground Truth** — log what a field grows (trains the app for your
+  area) + soil cards, **and a 📤 Upload Field Data tab** to bulk-upload
+  a CSV/Excel of points (latitude, longitude, crop; village/acreage/
+  notes optional). Download the template, fill it, upload — the points
+  are saved to the shared dataset for calibration and the classifier.
 - **Downloads** — build a full **PDF / Excel report** of everything.
 
 #### 6. How much to trust it

@@ -233,6 +233,56 @@ def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
     return row
 
 
+# ---------------------------------------------------------------
+# Uploaded labelled POINTS (lat, lon, crop) - bulk field data that
+# users upload in the Ground Truth tab. Stored in the shared Google
+# Sheet ("LabeledPoints" tab) so it persists on the cloud (the local
+# filesystem is wiped on every restart), else a local CSV in dev.
+# These feed calibration and the trained classifier.
+# ---------------------------------------------------------------
+
+LABELED_SHEET = "LabeledPoints"
+LABELED_COLUMNS = ["Date", "Latitude", "Longitude", "Crop",
+                   "Village", "Acreage", "Notes", "Observer"]
+LABELED_CSV = GT_DIR / "labeled_points.csv"
+
+
+def load_labeled_points():
+    """Return all uploaded labelled points (empty if none)."""
+    from core import sheets
+
+    if sheets.is_enabled():
+        df = sheets.read_records(LABELED_SHEET, LABELED_COLUMNS)
+        return df if not df.empty else pd.DataFrame(
+            columns=LABELED_COLUMNS)
+
+    if LABELED_CSV.exists():
+        return pd.read_csv(LABELED_CSV)
+    return pd.DataFrame(columns=LABELED_COLUMNS)
+
+
+def add_labeled_points(rows):
+    """Append many labelled points. `rows` = list of dicts keyed by
+    LABELED_COLUMNS. Persists to the Sheet if configured, else CSV.
+    Returns the number added."""
+    from core import sheets
+
+    if not rows:
+        return 0
+
+    if sheets.is_enabled():
+        sheets.append_rows(LABELED_SHEET, rows, LABELED_COLUMNS)
+        return len(rows)
+
+    GT_DIR.mkdir(parents=True, exist_ok=True)
+    existing = load_labeled_points()
+    add = pd.DataFrame(rows)
+    out = add if existing.empty else pd.concat(
+        [existing, add], ignore_index=True)
+    out.to_csv(LABELED_CSV, index=False)
+    return len(rows)
+
+
 def village_card_averages():
     """Average measured values per village from soil cards.
 

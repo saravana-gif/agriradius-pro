@@ -1018,9 +1018,9 @@ def _ground_truth_tab():
 
     villages = _villages_df()
 
-    sub_crop, sub_soil, sub_ai = st.tabs(
+    sub_crop, sub_soil, sub_upload, sub_ai = st.tabs(
         ["🌾 Crop Observation", "🧾 Soil Health Card",
-         "🧠 Trained Crop Map"])
+         "📤 Upload Field Data", "🧠 Trained Crop Map"])
 
     with sub_soil:
         _soil_card_section(villages)
@@ -1028,8 +1028,123 @@ def _ground_truth_tab():
     with sub_crop:
         _crop_observation_section(villages)
 
+    with sub_upload:
+        _upload_points_section()
+
     with sub_ai:
         _classifier_section()
+
+
+def _upload_points_section():
+    """Bulk-upload labelled location data (lat, lon, crop, ...)."""
+    import pandas as pd
+    import re
+    from core.ground_truth import (add_labeled_points, load_labeled_points,
+                                    LABELED_COLUMNS)
+
+    st.caption(
+        "Upload a CSV or Excel of field points to build the ground-truth "
+        "dataset (used for calibration and the trained classifier). "
+        "Needs **latitude**, **longitude** and **crop** columns; "
+        "village, acreage and notes are optional. Column names are "
+        "auto-detected.")
+
+    # Template download
+    tmpl = pd.DataFrame([
+        {"latitude": 10.9880, "longitude": 76.9750, "crop": "Coconut",
+         "village": "Pollachi", "acreage": 3, "notes": "dense grove"},
+        {"latitude": 10.9910, "longitude": 76.9820, "crop": "Empty",
+         "village": "Pollachi", "acreage": "", "notes": "fallow / bare"},
+    ])
+    st.download_button(
+        "⬇️ Download a template CSV", tmpl.to_csv(index=False)
+        .encode("utf-8"), file_name="field_data_template.csv",
+        mime="text/csv")
+
+    up = st.file_uploader("Upload field data (CSV or Excel)",
+                          type=["csv", "xlsx", "xls"], key="gt_upload")
+
+    def _find(cols, variants):
+        for c in cols:
+            k = re.sub(r"[^a-z]", "", str(c).lower())
+            if k in variants:
+                return c
+        return None
+
+    def _num(v):
+        try:
+            return float(re.sub(r"[^0-9.\-]", "", str(v)))
+        except (TypeError, ValueError):
+            return None
+
+    if up is not None:
+        try:
+            df = (pd.read_csv(up) if up.name.lower().endswith("csv")
+                  else pd.read_excel(up))
+        except Exception as e:
+            st.error(f"Could not read the file: {e}")
+            return
+
+        cols = list(df.columns)
+        lat_c = _find(cols, {"latitude", "lat"})
+        lon_c = _find(cols, {"longitude", "lon", "long", "lng"})
+        crop_c = _find(cols, {"crop", "cropname", "label", "class",
+                              "landuse"})
+        vil_c = _find(cols, {"village", "villagelocation", "location",
+                             "place"})
+        acr_c = _find(cols, {"acreage", "acres", "area", "extent"})
+        note_c = _find(cols, {"notes", "note", "remark", "remarks"})
+
+        if not (lat_c and lon_c):
+            st.error("Couldn't find latitude/longitude columns. "
+                     f"Columns seen: {cols}")
+            return
+
+        out = pd.DataFrame()
+        out["Latitude"] = df[lat_c].map(_num)
+        out["Longitude"] = df[lon_c].map(_num)
+        out["Crop"] = (df[crop_c].astype(str) if crop_c
+                       else "Unlabelled")
+        out["Village"] = df[vil_c].astype(str) if vil_c else ""
+        out["Acreage"] = df[acr_c] if acr_c else ""
+        out["Notes"] = df[note_c].astype(str) if note_c else ""
+        out = out.dropna(subset=["Latitude", "Longitude"])
+
+        st.markdown(f"**Detected {len(out)} valid points** "
+                    f"(lat=`{lat_c}`, lon=`{lon_c}`, "
+                    f"crop=`{crop_c or 'none'}`):")
+        st.dataframe(out.head(50), use_container_width=True,
+                     hide_index=True)
+
+        observer = st.text_input("Your name (observer)",
+                                 key="gt_up_observer")
+        if st.button("💾 Save these points", type="primary",
+                     use_container_width=True, disabled=out.empty):
+            import datetime
+            today = datetime.date.today().isoformat()
+            rows = [{
+                "Date": today,
+                "Latitude": r.Latitude, "Longitude": r.Longitude,
+                "Crop": r.Crop, "Village": r.Village,
+                "Acreage": r.Acreage, "Notes": r.Notes,
+                "Observer": observer or "",
+            } for r in out.itertuples()]
+            try:
+                n = add_labeled_points(rows)
+                st.success(f"Saved {n} points to the shared dataset.")
+            except Exception as e:
+                st.error(f"Could not save: {e}")
+
+    st.divider()
+    stored = load_labeled_points()
+    st.caption(f"📚 {len(stored)} labelled points collected so far.")
+    if not stored.empty:
+        st.dataframe(stored.tail(50), use_container_width=True,
+                     hide_index=True)
+        st.download_button(
+            "⬇️ Download all labelled points (CSV)",
+            stored.to_csv(index=False).encode("utf-8"),
+            file_name="labeled_points.csv", mime="text/csv")
 
 
 def _classifier_section():

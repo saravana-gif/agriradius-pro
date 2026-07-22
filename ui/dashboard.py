@@ -10,7 +10,8 @@ from ui.project_panel import project_panel
 _CSS = """
 <style>
 /* --- OneRoot AgriRadius Pro - professional polish --- */
-.block-container {padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1400px;}
+.block-container {padding-top: 3rem; padding-bottom: 2rem; max-width: 1400px;}
+header[data-testid="stHeader"] {background: transparent;}
 h1, h2, h3 {color: #0E3D20; font-weight: 700; letter-spacing: -0.01em;}
 /* Metric cards */
 div[data-testid="stMetric"] {
@@ -73,6 +74,12 @@ def dashboard():
     else:
         st.title(f"🌾 {APP_NAME}")
         st.caption("Agricultural GIS Intelligence Platform")
+
+    st.caption(
+        "ℹ️ Free open-source build (Google Earth Engine) with a limited "
+        "shared monthly compute budget - please test mindfully: one "
+        "heavy layer at a time, avoid very large radii and rapid repeat "
+        "clicks. Live usage is in the sidebar's *Service health* panel.")
 
     # All controls live in the collapsible sidebar - on mobile it
     # folds into a hamburger menu and the map/results get the full

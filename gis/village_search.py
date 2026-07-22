@@ -29,3 +29,23 @@ def get_villages(lat, lon, radius):
         df = df.sort_values(sort_cols)
 
     return df.reset_index(drop=True)
+
+
+@st.cache_data(show_spinner="Locating villages...")
+def village_centroids(lat, lon, radius):
+    """Return {village_name: (lat, lon)} for villages in the buffer."""
+
+    gdf = villages_in_buffer(lat, lon, radius)
+
+    if gdf.empty or "vilname11" not in gdf.columns:
+        return {}
+
+    # Centroid in geographic coords (approximate is fine for points)
+    cent = gdf.geometry.centroid
+
+    out = {}
+    for name, pt in zip(gdf["vilname11"], cent):
+        if pt is not None and not pt.is_empty:
+            out[str(name)] = (pt.y, pt.x)
+
+    return out

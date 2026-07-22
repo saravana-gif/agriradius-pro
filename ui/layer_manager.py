@@ -25,6 +25,31 @@ def layer_manager():
         index=index
     )
 
+    # --- Overlay transparency (see imagery underneath) ---
+    # Bind purely by key (no value= + reassignment) so the slider
+    # doesn't jump while dragging.
+    if "overlay_opacity" not in st.session_state:
+        st.session_state["overlay_opacity"] = 0.5
+
+    st.slider(
+        "Overlay opacity",
+        min_value=0.1, max_value=1.0,
+        step=0.05,
+        key="overlay_opacity",
+        help="Lower = more see-through, so crops/imagery below show.",
+    )
+
+    # --- Compute quality lever (resolution vs EE compute/memory) ---
+    from core import compute as _cq
+    _cq.selector()
+
+    st.caption(
+        "Satellite layers are computed live and can take 10-30s the "
+        "first time you enable one for an area; they load fast after "
+        "(cached). Plantation is the heaviest. Use **Compute quality** "
+        "above: Light if Earth Engine is throttled, Heavy for full "
+        "10 m detail.")
+
     # --- Overlays, grouped by category ---
     for category, layers in LAYERS.items():
 
@@ -67,8 +92,8 @@ PADDY_LEGEND = [
 ]
 
 PLANTATION_LEGEND = [
-    ("Likely coconut/arecanut (flat + evergreen + small patch)",
-     "#ff9800"),
+    ("Likely coconut/arecanut (flat + evergreen in dry season)",
+     "#ffff00"),
 ]
 
 SOIL_PH_LEGEND = [
@@ -120,6 +145,15 @@ LEGENDS = {
     "cropland_confidence": ("Cropland Confidence", CONFIDENCE_LEGEND),
     "paddy": ("Paddy (radar)", PADDY_LEGEND),
     "plantation": ("Plantations", PLANTATION_LEGEND),
+    "banana": ("Banana (likely)",
+               [("Dense closed canopy - likely banana", "#ff1493")]),
+    "maize": ("Maize / kharif crop (likely)",
+              [("Dense kharif crop, bare off-season", "#ff8c00")]),
+    "worldcereal": ("WorldCereal Cropland (ESA, seasonal)",
+                    [("Cropland (temporary crops)", "#e6550d")]),
+    "aquaculture": ("Aquaculture ponds",
+                    [("Persistent pond-sized water (fish/prawn/farm pond)",
+                      "#1565c0")]),
     "soil_ph": ("Soil pH (0-30cm)", SOIL_PH_LEGEND),
     "soil_oc": ("Soil Organic Carbon (0-30cm)", SOIL_OC_LEGEND),
     "soil_n": ("Soil Total Nitrogen (0-30cm)", SOIL_N_LEGEND),

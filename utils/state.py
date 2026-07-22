@@ -16,6 +16,7 @@ DEFAULTS = {
     "input_method": "Manual Coordinates",
     "search_location": "",
     "basemap": "OpenStreetMap",
+    "overlay_opacity": 0.5,
     "analyze": False,
     "results": None,
     "ndvi_series": None,
@@ -31,14 +32,35 @@ DEFAULTS = {
     "soil_climate": None,
     "sourcing_scores": None,
     "report_path": None,
+    "full_pdf_bytes": None,
+    "full_pdf_path": None,
+    "full_excel_bytes": None,
+    "full_excel_path": None,
+    "full_notes": None,
+    "mandi_df": None,
+    "mandi_label": None,
+    "mandi_state": None,
+    "classifier_result": None,
+    "forecast_days": None,
+    "mode": "Area (radius)",
+    "point_result": None,
+    "multi_points_df": None,
 }
 
 
 def initialize_state():
 
+    # Start from defaults, then overlay the last-used location so the
+    # app reopens where the user left off.
+    from core.session_store import load_last
+
+    last = load_last()
+
     for key, value in DEFAULTS.items():
         if key not in st.session_state:
-            st.session_state[key] = value
+            st.session_state[key] = last.get(key, value) \
+                if key in ("lat", "lon", "radius", "year",
+                           "search_location", "basemap") else value
 
     if "layer_visibility" not in st.session_state:
         st.session_state.layer_visibility = default_visibility()

@@ -90,12 +90,15 @@ def dw_crops_mask(buffer, start_date, end_date):
 def get_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL for the probability-based composite."""
 
+    from core import compute as _cq
     point = ee.Geometry.Point([lon, lat])
     buffer = point.buffer(radius_km * 1000)
 
+    # Reproject to a cached grid (resolution from the compute lever)
+    # instead of recomputing the year-long analysis per tile.
     img = dw_class_image(
         buffer, f"{year}-01-01", f"{year}-12-31"
-    ).clip(buffer)
+    ).reproject(crs="EPSG:3857", scale=_cq.tile_px()).clip(buffer)
 
     mapid = img.getMapId({"min": 0, "max": 8, "palette": PALETTE})
 

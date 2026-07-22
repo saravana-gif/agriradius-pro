@@ -1,3 +1,7 @@
+# Agent / editor tooling (not part of the app)
+.agents/
+.claude/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -9,8 +13,8 @@ __pycache__/
 venv/
 env/
 
-# Streamlit
-.streamlit/
+# Streamlit - ignore only the real secrets, keep the template/config
+.streamlit/secrets.toml
 
 # VS Code
 .vscode/
@@ -46,6 +50,20 @@ data/exports/
 
 # Earth Engine credentials (if stored locally)
 credentials.json
+*service-account*.json
 
 # Saved projects
 data/projects/
+
+# Local runtime data (field data lives in Google Sheets when deployed)
+data/last_session.json
+data/mandi_cache/
+# Live team field data -> Google Sheets when deployed (keep out of repo).
+# Bundled CALIBRATION ground truth (coconut/maize) DOES ship, so we
+# only ignore the two live-entry files, not the whole folder.
+data/ground_truth/ground_truth.csv
+data/ground_truth/soil_cards.csv
+
+# Generated reports (all formats)
+reports/*.xlsx
+reports/*.docx

@@ -12,3 +12,7 @@ rasterio
 geopy
 reportlab
 requests
+shapely
+gspread
+google-auth
+google-cloud-monitoring

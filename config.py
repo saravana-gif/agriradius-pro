@@ -17,7 +17,7 @@ LOGO_PATH = PROJECT_ROOT / "assets" / "logos" / "oneroot_logo.png"
 # --- App defaults ---
 APP_NAME = "OneRoot AgriRadius Pro"
 COMPANY = "OneRoot (ENP Farms Private Limited)"
-APP_VERSION = "0.8.1"
+APP_VERSION = "0.9.0"
 DEFAULT_LAT = 11.923456
 DEFAULT_LON = 76.940123
 DEFAULT_RADIUS_KM = 10

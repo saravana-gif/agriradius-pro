@@ -393,91 +393,116 @@ def _area_report_bytes(df, villages):
     )
 
 
+def _build_full_report(kind):
+    """Run every analysis, then build a PDF or Excel and save to disk.
+
+    kind is 'pdf' or 'excel'. Stores bytes + path in session state.
+    """
+
+    from datetime import datetime
+
+    from config import APP_NAME, PROJECT_ROOT
+    from core.full_report import excel_bytes, gather, pdf_bytes
+
+    bar = st.progress(0, text="Starting full analysis...")
+
+    def report_progress(pct, label):
+        bar.progress(int(pct), text=label)
+
+    bundle = gather(progress=report_progress)
+
+    place = (bundle["meta"].get("place") or "area").replace(" ", "_")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+
+    if kind == "pdf":
+        data = pdf_bytes(bundle)
+        fname = f"AgriRadius_{place}_{stamp}.pdf"
+    else:
+        data = excel_bytes(bundle)
+        fname = f"AgriRadius_{place}_{stamp}.xlsx"
+
+    bar.progress(100, text="Done.")
+
+    # Best-effort local save (skipped silently on read-only hosts
+    # like Streamlit Cloud; the download button always works).
+    saved_path = None
+    try:
+        reports_dir = PROJECT_ROOT / "reports"
+        reports_dir.mkdir(exist_ok=True)
+        p = reports_dir / fname
+        p.write_bytes(data)
+        saved_path = str(p)
+    except Exception:
+        saved_path = None
+
+    st.session_state[f"full_{kind}_bytes"] = data
+    st.session_state[f"full_{kind}_path"] = saved_path
+    st.session_state["full_notes"] = bundle.get("notes", [])
+
+
 def _downloads_tab(df):
 
-    villages = _villages_df()
+    st.caption(
+        "One click runs every analysis for the current location and "
+        "radius, then builds a complete report. The full suite can "
+        "take 1-3 minutes (village insights is the slow part). Each "
+        "report is also saved to your project's 'reports' folder."
+    )
 
-    if st.button(
-        "📄 Build Area Report",
-        use_container_width=True,
-        type="primary",
-    ):
-        try:
-            pdf = _area_report_bytes(df, villages)
-            st.session_state.report_pdf = pdf
+    c1, c2 = st.columns(2)
 
-            # Also save straight to disk - browser-proof
-            from datetime import datetime
-            from config import PROJECT_ROOT
+    with c1:
+        if st.button("📄 Build Full PDF Report",
+                     use_container_width=True, type="primary"):
+            try:
+                _build_full_report("pdf")
+            except Exception as e:
+                st.error(f"PDF build failed: {e}")
 
-            reports_dir = PROJECT_ROOT / "reports"
-            reports_dir.mkdir(exist_ok=True)
+    with c2:
+        if st.button("📊 Build Full Excel Report",
+                     use_container_width=True, type="primary"):
+            try:
+                _build_full_report("excel")
+            except Exception as e:
+                st.error(f"Excel build failed: {e}")
 
-            stamp = datetime.now().strftime("%Y%m%d_%H%M")
-            path = reports_dir / f"AgriRadius_Report_{stamp}.pdf"
-            path.write_bytes(pdf)
+    XLSX_MIME = ("application/vnd.openxmlformats-officedocument"
+                 ".spreadsheetml.sheet")
 
-            st.session_state.report_path = str(path)
-
-        except Exception as e:
-            st.session_state.report_pdf = None
-            st.error(f"Could not build PDF report: {e}")
-
-    if st.session_state.get("report_pdf"):
-
-        if st.session_state.get("report_path"):
+    if st.session_state.get("full_pdf_bytes"):
+        if st.session_state.get("full_pdf_path"):
             st.success(
-                f"Report saved to: {st.session_state.report_path}"
-            )
-
+                f"PDF saved to: {st.session_state['full_pdf_path']}")
+        else:
+            st.success("PDF report ready.")
         st.download_button(
-            "📥 Download Area Report (PDF)",
-            st.session_state.report_pdf,
-            file_name="AgriRadius_Area_Report.pdf",
+            "📥 Download PDF Report",
+            st.session_state["full_pdf_bytes"],
+            file_name="AgriRadius_Full_Report.pdf",
             mime="application/pdf",
             use_container_width=True,
         )
 
-    st.caption(
-        "The report includes every analysis you have run in this "
-        "session (land cover, confidence, crop cycle, paddy, "
-        "rainfall, village insights). Run more analyses, then "
-        "rebuild to enrich it."
-    )
-
-    st.divider()
-
-    if df is not None:
+    if st.session_state.get("full_excel_bytes"):
+        if st.session_state.get("full_excel_path"):
+            st.success(
+                f"Excel saved to: {st.session_state['full_excel_path']}")
+        else:
+            st.success("Excel report ready.")
         st.download_button(
-            "📥 Land Cover (CSV)",
-            df.to_csv(index=False).encode("utf-8"),
-            file_name="LandCover_Report.csv",
-            mime="text/csv",
-            use_container_width=True
+            "📥 Download Excel Report",
+            st.session_state["full_excel_bytes"],
+            file_name="AgriRadius_Full_Report.xlsx",
+            mime=XLSX_MIME,
+            use_container_width=True,
         )
 
-    if villages is not None and not villages.empty:
-        st.download_button(
-            "📥 Village List (CSV)",
-            villages.to_csv(index=False).encode("utf-8"),
-            file_name="Villages_In_Buffer.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-
-    if df is not None or (villages is not None and not villages.empty):
-        st.download_button(
-            "📥 Full Report (Excel)",
-            excel_report(df, villages),
-            file_name="AgriRadius_Report.xlsx",
-            mime=(
-                "application/vnd.openxmlformats-officedocument"
-                ".spreadsheetml.sheet"
-            ),
-            use_container_width=True
-        )
-    else:
-        st.info("Run an analysis to enable downloads.")
+    notes = st.session_state.get("full_notes")
+    if notes:
+        with st.expander("Report notes / skipped sections"):
+            for n in notes:
+                st.write(f"- {n}")
 
 
 def _paddy_check():
@@ -702,7 +727,96 @@ def _rainfall_tab():
         st.plotly_chart(fig2, use_container_width=True)
 
 
+def _live_conditions():
+    """Header + controls, then an auto-refreshing metrics fragment."""
+    st.markdown("##### 🔴 Live conditions (now)")
+    lc1, lc2, lc3 = st.columns([2, 1, 1])
+    lc1.caption(
+        "Real-time readings at this point (Open-Meteo). Toggle Auto to "
+        "refresh every 5 min, or pull on demand.")
+    lc2.toggle("Auto 5m", key="live_auto",
+               help="Auto-refresh live metrics every 5 minutes.")
+    if lc3.button("🔄 Refresh", use_container_width=True):
+        st.session_state.live_nonce = \
+            st.session_state.get("live_nonce", 0) + 1
+
+    interval = 300 if st.session_state.get("live_auto") else None
+
+    @st.fragment(run_every=interval)
+    def _live_metrics():
+        _render_live()
+
+    _live_metrics()
+    st.divider()
+
+
+def _render_live():
+    """Fetch + render the live metrics (runs inside the fragment)."""
+    from core.weather import (get_current, get_air_quality,
+                              drying_assessment)
+    import datetime as _dt
+
+    nonce = st.session_state.get("live_nonce", 0)
+    try:
+        cur = get_current(st.session_state.lat, st.session_state.lon,
+                          nonce)
+    except Exception as e:
+        st.warning(f"Could not read live conditions: {e}")
+        cur = None
+
+    if cur:
+        # Rain / sun headline
+        if cur["is_raining"]:
+            amt = cur["precip"] or cur["rain"] or cur["showers"]
+            st.error(f"🌧️ Raining now - {cur['condition']} "
+                     f"({amt:.1f} mm/h)")
+        elif cur["is_day"]:
+            st.success(f"☀️ {cur['condition']} - dry")
+        else:
+            st.info(f"🌙 {cur['condition']} - night, dry")
+
+        c = st.columns(4)
+        c[0].metric("Temperature", f"{cur['temp']}°C",
+                    f"feels {cur['feels_like']}°C")
+        c[1].metric("Humidity", f"{cur['humidity']}%")
+        c[2].metric("Wind", f"{cur['wind_speed']} km/h",
+                    f"gust {cur['wind_gust']}")
+        c[3].metric("Rain now", f"{cur['precip']:.1f} mm/h")
+        c = st.columns(4)
+        c[0].metric("Cloud cover", f"{cur['cloud_cover']}%")
+        c[1].metric("Sun (solar)", f"{cur['solar']:.0f} W/m²")
+        c[2].metric("UV index", f"{cur.get('uv') or 0:.1f}")
+        c[3].metric("Pressure", f"{cur['pressure']:.0f} hPa")
+
+        # Real-time soil + water balance (irrigation / drying signal)
+        c = st.columns(4)
+        sm = cur.get("soil_moisture")
+        c[0].metric("Soil moisture", f"{sm*100:.0f}%" if sm is not None
+                    else "-", help="Volumetric, surface 0-1 cm.")
+        c[1].metric("Soil temp", f"{cur.get('soil_temp') or 0:.0f}°C")
+        c[2].metric("Evapotranspiration",
+                    f"{cur.get('et') or 0:.2f} mm/h",
+                    help="Current water loss rate (ET).")
+        aq = get_air_quality(st.session_state.lat,
+                             st.session_state.lon, nonce)
+        if aq and aq.get("pm2_5") is not None:
+            c[3].metric("Air PM2.5", f"{aq['pm2_5']:.0f} µg/m³",
+                        f"AQI {aq.get('us_aqi', '-')}")
+
+        label, score, reasons = drying_assessment(cur)
+        st.markdown(
+            f"**🌾 Drying suitability: {label} ({score}/100)** - "
+            + "; ".join(reasons))
+        auto = " · auto-refresh on" if st.session_state.get(
+            "live_auto") else ""
+        st.caption(
+            f"Reading time: {cur.get('time', '-')} · updated "
+            f"{_dt.datetime.now().strftime('%H:%M:%S')}{auto}")
+
+
 def _forecast_tab():
+
+    _live_conditions()
 
     st.caption(
         "16-day forecast for the selected point (Open-Meteo). "
@@ -711,11 +825,22 @@ def _forecast_tab():
 
     from core.weather import get_forecast, analyze_forecast
 
-    try:
-        days = get_forecast(
-            st.session_state.lat, st.session_state.lon)
-    except Exception as e:
-        st.warning(f"Could not fetch forecast: {e}")
+    # Fetch only on click, so a slow weather server can't block the
+    # rest of the page.
+    if st.button("⛅ Get Forecast", use_container_width=True,
+                 type="primary"):
+        try:
+            st.session_state.forecast_days = get_forecast(
+                st.session_state.lat, st.session_state.lon)
+        except Exception as e:
+            st.session_state.forecast_days = None
+            st.warning(f"Could not fetch forecast: {e}")
+            return
+
+    days = st.session_state.get("forecast_days")
+
+    if days is None:
+        st.info("Click Get Forecast for the 16-day outlook.")
         return
 
     r = analyze_forecast(days)
@@ -890,14 +1015,205 @@ def _ground_truth_tab():
 
     villages = _villages_df()
 
-    sub_crop, sub_soil = st.tabs(
-        ["🌾 Crop Observation", "🧾 Soil Health Card"])
+    sub_crop, sub_soil, sub_ai = st.tabs(
+        ["🌾 Crop Observation", "🧾 Soil Health Card",
+         "🧠 Trained Crop Map"])
 
     with sub_soil:
         _soil_card_section(villages)
 
     with sub_crop:
         _crop_observation_section(villages)
+
+    with sub_ai:
+        _classifier_section()
+
+
+def _classifier_section():
+
+    import pandas as pd
+
+    import folium
+    from streamlit_folium import st_folium
+
+    from core.ground_truth import load_records
+    from gee.classifier import (
+        can_train, labelled_points, train_and_classify, MIN_POINTS,
+        parse_labeled_points, probe)
+    from gis.village_search import village_centroids
+
+    st.caption(
+        "Trains a Random Forest on labelled points using ~35 features "
+        "(reflectance, red-edge & moisture indices, phenology, radar, "
+        "Dynamic World probabilities, terrain) - a crop map tuned to "
+        "your region, not a global guess."
+    )
+
+    # --- Coconut model (bundled ground truth, one click) ---
+    from gee.classifier import (
+        train_coconut_classifier, coconut_points_in_view)
+
+    n_coco = len(coconut_points_in_view(
+        st.session_state.lat, st.session_state.lon,
+        st.session_state.radius))
+
+    st.markdown("##### 🥥 Coconut model (trained on field ground truth)")
+    st.caption(
+        f"{n_coco} confirmed-coconut villages from the FRUITS/Bhoomi "
+        "survey lie in this view. Trains a Random Forest on them vs "
+        "auto-sampled non-coconut land cover - real labels, not "
+        "thresholds. Pan to a coconut belt (Tiptur, Gubbi, Arsikere, "
+        "Nagamangala, Channapatna, Hiriyur) if the count is low.")
+
+    if st.button("🥥 Train coconut model from ground truth",
+                 use_container_width=True, type="primary",
+                 disabled=n_coco < 30):
+        try:
+            st.session_state.classifier_result = \
+                train_coconut_classifier(
+                    st.session_state.lat, st.session_state.lon,
+                    st.session_state.radius, st.session_state.year)
+            r = st.session_state.classifier_result
+            msg = f"Trained on {r['n_points']} coconut ground-truth points"
+            if r.get("coconut_ac") is not None:
+                msg += f" · mapped {r['coconut_ac']:,} ac coconut in view"
+            st.success(msg)
+        except Exception as e:
+            st.error(f"Training failed: {e}")
+
+    st.divider()
+
+    # --- Direct labelled-points training (paste lat, lon, crop) ---
+    with st.expander("📌 Train from pasted coordinates "
+                     "(lat, lon, crop)", expanded=False):
+        st.caption(
+            "One point per line: lat, lon, crop. Crops: Coconut, "
+            "Arecanut, Banana, Maize, Paddy, Sugarcane, Turmeric, "
+            "Chilli, Vegetables, Groundnut, Fallow. Needs "
+            f"{MIN_POINTS}+ points across 2+ crops.")
+        ptext = st.text_area(
+            "Labelled points",
+            placeholder="10.6588, 77.0089, Coconut\n"
+                        "11.9270, 76.9424, Banana\n"
+                        "14.4667, 75.9167, Maize",
+            height=140, key="clf_points_text")
+
+        if st.button("🧠 Train from these points",
+                     use_container_width=True, type="primary"):
+            pts, grps = parse_labeled_points(ptext)
+            if not can_train(pts, grps):
+                st.error(
+                    f"Need {MIN_POINTS}+ valid points across 2+ crops "
+                    f"- got {len(pts)} across {len(grps)}.")
+            else:
+                try:
+                    st.session_state.classifier_result = \
+                        train_and_classify(
+                            st.session_state.lat,
+                            st.session_state.lon,
+                            st.session_state.radius,
+                            st.session_state.year, pts)
+                    st.success(
+                        f"Trained on {len(pts)} points, "
+                        f"{len(grps)} crops.")
+                except Exception as e:
+                    st.error(f"Training failed: {e}")
+
+    # --- Feature probe (calibration) ---
+    with st.expander("🔬 Probe satellite features at a coordinate",
+                     expanded=False):
+        st.caption(
+            "Reads the raw discriminating features (peak NDVI, "
+            "moisture, radar VH, Dynamic World probabilities...) at a "
+            "point - useful for checking why a plot classifies the "
+            "way it does, or for tuning thresholds.")
+        prow = st.text_input("lat, lon", key="probe_pt",
+                             placeholder="10.6588, 77.0089")
+        if st.button("Read features", use_container_width=True):
+            try:
+                a, b = prow.replace(";", ",").split(",")[:2]
+                vals = probe(float(a), float(b),
+                             st.session_state.year)
+                st.dataframe(
+                    pd.DataFrame(vals.items(),
+                                 columns=["Feature", "Value"]),
+                    use_container_width=True, hide_index=True)
+            except Exception as e:
+                st.error(f"Probe failed: {e}")
+
+    st.divider()
+    st.caption("Or train from village ground-truth observations:")
+
+    gt = load_records()
+
+    try:
+        centroids = village_centroids(
+            st.session_state.lat,
+            st.session_state.lon,
+            st.session_state.radius,
+        )
+    except Exception as e:
+        st.warning(f"Could not locate villages: {e}")
+        return
+
+    points, groups = labelled_points(gt, centroids)
+
+    c1, c2 = st.columns(2)
+    c1.metric("Usable labelled villages", len(points))
+    c2.metric("Crop groups", len(groups))
+
+    if not can_train(points, groups):
+        st.info(
+            "Not enough labelled data in this buffer yet. Keep "
+            "logging crop observations in the villages here - once "
+            f"there are {MIN_POINTS}+ across 2+ groups, the trained "
+            "map unlocks."
+        )
+        return
+
+    if st.button("🧠 Train & Map", use_container_width=True,
+                 type="primary"):
+        try:
+            st.session_state.classifier_result = train_and_classify(
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year,
+                points,
+            )
+        except Exception as e:
+            st.session_state.classifier_result = None
+            st.error(f"Training failed: {e}")
+            return
+
+    res = st.session_state.get("classifier_result")
+
+    if not res:
+        return
+
+    a, b = st.columns(2)
+    a.metric("Training Points", res["n_points"])
+    if res.get("train_accuracy") is not None:
+        b.metric("Training Accuracy", f"{res['train_accuracy']}%")
+
+    st.caption("Legend: " + "  ".join(
+        f"{g}" for g in res["classes"]))
+
+    m = folium.Map(
+        location=[st.session_state.lat, st.session_state.lon],
+        zoom_start=12, tiles=None)
+    folium.TileLayer(
+        tiles="https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
+        attr="Google", name="Satellite").add_to(m)
+    folium.TileLayer(
+        tiles=res["tile_url"], attr="AgriRadius", name="Crop Map",
+        opacity=0.6).add_to(m)
+    for g, color in res["legend"].items():
+        folium.Circle(
+            location=[st.session_state.lat, st.session_state.lon],
+            radius=1, color=f"#{color}", tooltip=g).add_to(m)
+    st_folium(m, width=None, height=500,
+              returned_objects=[])
 
 
 def _crop_observation_section(villages):
@@ -1212,11 +1528,44 @@ def _mandi_tab():
         state = st.selectbox(
             "State", STATES, index=STATES.index(default_state))
 
-    try:
-        df = get_prices(COMMODITIES[commodity_label], state)
-    except Exception as e:
-        st.error(f"Could not fetch prices: {e}")
+    st.caption(
+        "Prices come from the government AGMARKNET feed (data.gov.in) "
+        "- the only open source, used by every price aggregator. It "
+        "can be slow; the fetch gives up after ~12s and falls back to "
+        "the last cached prices if the server is down. Just click "
+        "again if it fails.")
+
+    # Fetch ONLY on button click, and fail fast (12s) so it can't
+    # freeze the page. A synchronous fetch can't be cancelled
+    # mid-flight, so 'stop' = a short timeout + retry.
+    bcol1, bcol2 = st.columns([3, 1])
+    with bcol1:
+        fetch = st.button("Get Prices", use_container_width=True,
+                          type="primary")
+    with bcol2:
+        if st.button("Clear", use_container_width=True):
+            st.session_state.mandi_df = None
+            st.rerun()
+
+    if fetch:
+        try:
+            st.session_state.mandi_df = get_prices(
+                COMMODITIES[commodity_label], state)
+            st.session_state.mandi_label = commodity_label
+            st.session_state.mandi_state = state
+        except Exception as e:
+            st.session_state.mandi_df = None
+            st.error(f"Could not fetch prices: {e}")
+            return
+
+    df = st.session_state.get("mandi_df")
+
+    if df is None:
+        st.info("Choose a commodity and state, then click Get Prices.")
         return
+
+    commodity_label = st.session_state.get("mandi_label", commodity_label)
+    state = st.session_state.get("mandi_state", state)
 
     if df.empty:
         st.info(
@@ -1225,6 +1574,10 @@ def _mandi_tab():
             "markets may not have traded it today. Try All India."
         )
         return
+
+    note = df.attrs.get("note")
+    if note:
+        st.warning(note)
 
     modal = df["Modal (Rs/qtl)"].dropna()
 
@@ -1243,6 +1596,38 @@ def _mandi_tab():
         f"on {best['Date']}"
     )
 
+    # --- MSP floor comparison (procurement signal) ---
+    from core.msp import msp_for_commodity
+    m = msp_for_commodity(commodity_label)
+    if m is None:
+        st.caption(
+            f"ℹ️ {commodity_label} is not an MSP-mandated crop - there "
+            "is no government floor price for it.")
+    elif m["comparable"]:
+        avg = float(modal.mean())
+        floor = m["msp"]
+        gap = avg - floor
+        pct = 100 * gap / floor if floor else 0
+        mc1, mc2 = st.columns(2)
+        mc1.metric(f"MSP floor ({m['season']} {m['year']})",
+                   f"₹{floor:,.0f}/qtl")
+        mc2.metric("Avg modal vs MSP", f"₹{avg:,.0f}/qtl",
+                   f"{pct:+.0f}% vs floor")
+        if avg < floor:
+            st.warning(
+                f"Market average is **below the MSP floor** - farmers "
+                f"may hold produce or sell to procurement. Sourcing "
+                f"leverage is higher.")
+        else:
+            st.info(
+                f"Market average is **{pct:.0f}% above MSP** - open "
+                f"market is the better sell for farmers.")
+    else:
+        st.info(
+            f"ℹ️ Coconut has no direct MSP, but the **copra floor is "
+            f"₹{m['msp']:,.0f}/qtl** ({m['year']}) - the effective "
+            "price support for coconut farmers who make copra.")
+
     st.dataframe(df, use_container_width=True, hide_index=True,
                  height=400)
 
@@ -1254,55 +1639,487 @@ def _mandi_tab():
         use_container_width=True,
     )
 
+    # --- Historical price trend (variety-wise archive, 2014+) ---
+    st.divider()
+    st.markdown("##### 📈 Price trend (history)")
+    st.caption(
+        "Monthly modal price (median across the state's reporting "
+        "markets) from the daily archive - shows seasonality and the "
+        "multi-year direction, to time procurement.")
+    if st.button("Show price trend", use_container_width=True):
+        try:
+            from core.mandi import get_price_history, COMMODITIES
+            hist = get_price_history(
+                COMMODITIES[commodity_label], state)
+            if hist is None or hist.empty:
+                st.info("No historical prices found for this "
+                        "commodity/state.")
+            else:
+                st.session_state.mandi_hist = hist
+                st.session_state.mandi_hist_key = (commodity_label, state)
+        except Exception as e:
+            st.warning(f"Could not load history: {e}")
+
+    hist = st.session_state.get("mandi_hist")
+    if hist is not None and not hist.empty:
+        hk = st.session_state.get("mandi_hist_key", ("", ""))
+        st.caption(f"{hk[0]} · {hk[1]} · {len(hist)} months "
+                   f"(₹/qtl, monthly median)")
+        st.line_chart(hist.set_index("Month")["Modal"],
+                      height=260)
+        recent = hist.iloc[-1]
+        first = hist.iloc[0]
+        chg = (recent["Modal"] - first["Modal"])
+        pctv = 100 * chg / first["Modal"] if first["Modal"] else 0
+        h1, h2, h3 = st.columns(3)
+        h1.metric("Latest month",
+                  f"₹{recent['Modal']:,.0f}/qtl")
+        h2.metric("Range (period)",
+                  f"₹{hist['Low'].min():,.0f}-{hist['High'].max():,.0f}")
+        h3.metric("Since start", f"{pctv:+.0f}%")
+
+    # --- Variety / grade breakdown (variety-wise archive) ---
+    st.divider()
+    st.markdown("##### 🏷️ Variety / grade breakdown")
+    st.caption(
+        "Price by variety & grade (e.g. Grade-I vs Grade-II) - the "
+        "premium a better grade fetches, for sourcing & pricing.")
+    if st.button("Show variety breakdown", use_container_width=True):
+        try:
+            from core.mandi import get_variety_prices, COMMODITIES
+            vdf = get_variety_prices(COMMODITIES[commodity_label], state)
+            if vdf is None or vdf.empty:
+                st.info("No variety data found for this "
+                        "commodity/state.")
+                st.session_state.mandi_var = None
+            else:
+                st.session_state.mandi_var = vdf
+                st.session_state.mandi_var_key = (commodity_label, state)
+        except Exception as e:
+            st.warning(f"Could not load variety breakdown: {e}")
+
+    vdf = st.session_state.get("mandi_var")
+    if vdf is not None and not vdf.empty:
+        vk = st.session_state.get("mandi_var_key", ("", ""))
+        st.caption(f"{vk[0]} · {vk[1]} · ₹/qtl "
+                   "(Latest = most recent reported day per variety)")
+        st.dataframe(vdf, use_container_width=True, hide_index=True)
+        top = vdf.iloc[0]
+        st.success(
+            f"Top grade: **{top['Variety']}** at "
+            f"**₹{top['Latest']:,}/qtl** (latest {top['Latest Date']})")
+
+
+@st.cache_data(show_spinner="Reading livestock census for this area...")
+def _allied_area_profile(lat, lon, radius_km):
+    from core.allied import area_profile
+    return area_profile(lat, lon, radius_km)
+
+
+@st.cache_data(show_spinner=False)
+def _allied_sector_rows(lat, lon, radius_km, which):
+    from core import allied
+    dists = allied.districts_touching(lat, lon, radius_km)
+    path = (allied.SERICULTURE_CSV if which == "sericulture"
+            else allied.FISHERIES_CSV)
+    return allied.sector_for_districts(path, dists)
+
+
+def _allied_tab():
+    """Allied / livestock sectors: animal husbandry, poultry, dairy,
+    feed demand, aquaculture, sericulture, fisheries."""
+
+    lat = st.session_state.lat
+    lon = st.session_state.lon
+    radius = st.session_state.radius
+
+    st.caption(
+        "District figures are the **20th Livestock Census 2019** "
+        "(real counts). 'Within your radius' numbers are area-"
+        "allocated from those district totals; milk and feed are "
+        "**derived estimates** (see method note at the bottom).")
+
+    prof = _allied_area_profile(lat, lon, radius)
+
+    if not prof.get("available"):
+        st.info(
+            "No livestock census match for this area yet. Bundled data "
+            "currently covers Karnataka; other states drop in as a CSV "
+            "under data/allied/. (" + str(prof.get("reason", "")) + ")")
+    else:
+        wr = prof["within_radius"]
+        d = prof["derived"]
+
+        st.markdown("#### 🐄 Livestock & poultry (within radius, est.)")
+        c = st.columns(3)
+        c[0].metric("Cattle", f"{wr['cattle']:,}")
+        c[1].metric("Buffalo", f"{wr['buffalo']:,}")
+        c[2].metric("Poultry", f"{wr['poultry']:,}")
+        c = st.columns(3)
+        c[0].metric("Goat", f"{wr['goat']:,}")
+        c[1].metric("Sheep", f"{wr['sheep']:,}")
+        c[2].metric("Pig", f"{wr['pig']:,}")
+
+        st.markdown("#### 🥛 Dairy pool & feed demand (estimated)")
+        c = st.columns(3)
+        c[0].metric("Milk / day (L)",
+                    f"{d['milk_litres_per_day']:,}")
+        c[1].metric("Milk / year (L)",
+                    f"{d['milk_litres_per_year']:,}")
+        c[2].metric("In-milk bovines", f"{d['milch_bovines']:,}")
+        c = st.columns(3)
+        c[0].metric("Bovine feed (t/day)", f"{d['bovine_feed_tpd']:,}")
+        c[1].metric("Poultry feed (t/day)", f"{d['poultry_feed_tpd']:,}")
+        c[2].metric("Total feed (t/day)", f"{d['total_feed_tpd']:,}")
+        st.caption(
+            "Feed = concentrate/manufactured feed only (the feed-"
+            "company-relevant portion), not green/dry fodder.")
+
+        rows = prof.get("districts", [])
+        if rows:
+            import pandas as _pd
+            tdf = _pd.DataFrame(rows)
+            ren = {"AreaShare": "Share in radius", "cattle": "Cattle",
+                   "buffalo": "Buffalo", "goat": "Goat", "sheep": "Sheep",
+                   "pig": "Pig", "poultry": "Poultry"}
+            tdf = tdf.rename(columns=ren)
+            with st.expander(
+                    "District census totals (real) & share falling in "
+                    "your radius"):
+                st.dataframe(tdf, use_container_width=True,
+                             hide_index=True)
+
+    st.divider()
+
+    # --- Aquaculture (satellite, opt-in compute) ---
+    st.markdown("#### 🐟 Aquaculture ponds (satellite)")
+    st.caption(
+        "Persistent pond-sized water bodies (fish/prawn/farm ponds). "
+        "Toggle the *Aquaculture ponds* map layer to see them; measure "
+        "the area here.")
+    if st.button("Measure pond area in radius"):
+        try:
+            from gee.aquaculture import aquaculture_stats
+            s = aquaculture_stats(lat, lon, radius, st.session_state.year)
+            st.metric("Detected pond area (acres)", f"{s['pond_ac']:,}")
+        except Exception as e:
+            st.warning(f"Could not measure ponds: {e}")
+
+    st.divider()
+
+    # --- Sericulture & Fisheries: district data if bundled, else the
+    #     authoritative state-level figure for the state(s) in view. ---
+    from core import allied as _allied
+    try:
+        state_keys = _allied.states_touching(lat, lon, radius)
+    except Exception:
+        state_keys = []
+
+    for which, title, note, state_csv in (
+        ("sericulture", "🐛 Sericulture",
+         "Mulberry silk - raw silk production.",
+         _allied.SERICULTURE_STATE_CSV),
+        ("fisheries", "🎣 Fisheries",
+         "Inland fish production.",
+         _allied.FISHERIES_STATE_CSV),
+    ):
+        st.markdown(f"#### {title}")
+        st.caption(note)
+
+        # 1) district-level (only if a district CSV has been filled)
+        try:
+            ddf = _allied_sector_rows(lat, lon, radius, which)
+        except Exception:
+            ddf = None
+        if ddf is not None and not ddf.empty:
+            st.dataframe(ddf, use_container_width=True, hide_index=True)
+            continue
+
+        # 2) state-level fallback (real, latest)
+        try:
+            sdf = _allied.state_sector_rows(state_csv, state_keys)
+        except Exception:
+            sdf = None
+        if sdf is not None and not sdf.empty:
+            st.dataframe(sdf, use_container_width=True, hide_index=True)
+            st.caption("State-level figure (latest available). "
+                       "District split not yet in open data.")
+        else:
+            st.info(
+                "No figure bundled for this state yet - add a row to "
+                f"data/allied/{which}_state.csv (or district rows to "
+                f"{which}_district.csv) and it appears here.")
+
+    # --- Apiculture (national-only data) ---
+    st.markdown("#### 🐝 Apiculture (beekeeping)")
+    st.info(_allied.APICULTURE_NOTE)
+
+    st.divider()
+
+    # --- Importable reference datasets (fertiliser, horticulture,
+    #     land use, ...) - download-only from data.gov.in, drop-in. ---
+    st.markdown("#### 📚 Agri economy data (importable)")
+    from core import agri_data
+    try:
+        d_states = _allied.states_touching(lat, lon, radius)
+    except Exception:
+        d_states = []
+    try:
+        d_dists = _allied.districts_touching(lat, lon, radius)
+    except Exception:
+        d_dists = []
+
+    for key, ds in agri_data.DATASETS.items():
+        st.markdown(f"**{ds['label']}**")
+        try:
+            rows = agri_data.rows_for_area(key, d_states, d_dists)
+        except Exception:
+            rows = None
+        if rows is not None and not rows.empty:
+            st.caption(ds["note"])
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+        else:
+            st.caption(
+                ds["note"] + "  \n_Not bundled for this area yet._ "
+                f"Source: {ds['source']}. After downloading, run: "
+                f"`py tools/import_agri.py {key} <file>"
+                f"{' <State>' if ds['level']=='state' else ''}` "
+                "(or drop the file in the folder and send it to me).")
+
+    with st.expander("ℹ️ Method & sources"):
+        st.markdown(
+            "**Real:** cattle / buffalo / goat / sheep / pig / poultry "
+            "counts are 20th Livestock Census 2019 district figures "
+            "(DAHD, via the ARTPARK open release).\n\n"
+            "**Area-allocated:** a district's count is split by the "
+            "share of its area inside your radius (from village "
+            "polygons) - assumes even spread, so treat as an estimate, "
+            "not a headcount.\n\n"
+            "**Derived (estimates):** milk = in-milk cattle (28%) x "
+            "4.5 L + in-milk buffalo (32%) x 5.5 L per day; feed = "
+            "2.5 kg/day concentrate per in-milk bovine + 0.10 kg/day "
+            "per commercial bird (65% of poultry). Coefficients are "
+            "tunable in core/allied.py.\n\n"
+            "**Aquaculture:** JRC Global Surface Water occurrence, "
+            "pond-sized clusters on flat land - visible from space, "
+            "so it is a true map layer.")
+
+
+def _safe(render, *args):
+    """Render a tab's content; if it errors, show the error inside
+    that tab instead of aborting the whole results section (which
+    would blank out every tab after it)."""
+    try:
+        render(*args)
+    except Exception as e:
+        import traceback
+        st.error(f"This section hit an error: {e}")
+        with st.expander("Technical details"):
+            st.code(traceback.format_exc())
+
+
+def _data_confidence_panel():
+    """Honest, always-visible statement of what to trust and how."""
+
+    with st.expander("ℹ️ Data & Confidence - how much to trust this",
+                     expanded=False):
+        st.markdown(
+            "**High confidence (direct measurements):**\n"
+            "- NDVI / crop-cycle vigour - measured from Sentinel-2, "
+            "not modelled\n"
+            "- Rainfall history (CHIRPS, 40+ yrs) and 16-day forecast\n"
+            "- Paddy & plantation detection - Sentinel-1 radar "
+            "structure\n"
+            "- Mandi prices - reported by markets, not estimated\n\n"
+            "**Use as ranges, not exact (modelled / classified):**\n"
+            "- Land-cover classes (Dynamic World ~75-85% accuracy)\n"
+            "- Soil pH / OC / N / texture - SoilGrids modelled at "
+            "250 m; belt-level, not field-level\n"
+            "- Cropping-pattern & sourcing-score thresholds\n\n"
+            "**Built-in cross-checks:** two independent datasets "
+            "(Dynamic World + ESA WorldCover/WorldCereal) are "
+            "compared, a 3-year stability test flags unreliable "
+            "areas, and every prediction can be scored against your "
+            "team's ground-truth.\n\n"
+            "**Rule of thumb:** trust the direction and the ranges; "
+            "verify the edges on the ground. Accuracy improves for a "
+            "region as your team logs observations there.\n\n"
+            "*Sources: Sentinel-1/2 (ESA), Dynamic World (Google), "
+            "WorldCover/WorldCereal (ESA), SoilGrids (ISRIC), CHIRPS "
+            "(UCSB), ERA5-Land (ECMWF), Open-Meteo, AGMARKNET "
+            "(data.gov.in).*"
+        )
+
+
+def _point_details_view():
+    """Point mode: details for one exact coordinate + optional
+    multi-point table."""
+
+    import pandas as pd
+
+    lat = st.session_state.lat
+    lon = st.session_state.lon
+
+    st.subheader("📍 Point Details")
+    st.caption(
+        f"Everything the satellites know about the exact point "
+        f"{lat:.6f}, {lon:.6f} - no radius. First run takes ~1 min.")
+
+    if st.button("🔎 Get Point Details", use_container_width=True,
+                 type="primary"):
+        from gee.point_query import point_details
+        try:
+            st.session_state.point_result = point_details(
+                lat, lon, st.session_state.year)
+        except Exception as e:
+            st.session_state.point_result = None
+            st.error(f"Point analysis failed: {e}")
+
+    r = st.session_state.get("point_result")
+
+    if r:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Village", r.get("Village", "-"))
+        c2.metric("Taluk", r.get("Taluk", "-"))
+        c3.metric("District", r.get("District", "-"))
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Land Cover", str(r.get("Land Cover", "-")))
+        c2.metric("Elevation", f"{r.get('Elevation (m)', '-')} m")
+        c3.metric("Slope", f"{r.get('Slope (deg)', '-')}°")
+
+        st.markdown("**Soil**")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("pH", r.get("Soil pH", "-"))
+        c2.metric("Organic C", f"{r.get('Soil OC (g/kg)', '-')} g/kg")
+        c3.metric("Nitrogen", f"{r.get('Soil N (g/kg)', '-')} g/kg")
+        c4.metric("Texture", str(r.get("Soil Texture", "-")))
+
+        if r.get("Cropping Pattern"):
+            st.markdown("**History**")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Cropping Pattern", r["Cropping Pattern"])
+            c2.metric("Cycles/Year", r.get("Cycles/Year", "-"))
+            if r.get("Mean Soil Temp (C)") is not None:
+                c3.metric("Mean Soil Temp",
+                          f"{r['Mean Soil Temp (C)']} °C")
+
+        if r.get("Rainfall Reliability"):
+            c1, c2 = st.columns(2)
+            c1.metric("Rainfall Reliability",
+                      r["Rainfall Reliability"])
+            c2.metric("Avg Annual Rain",
+                      f"{r.get('Avg Annual Rain (mm)', '-')} mm")
+
+        # Download this point's full record
+        flat = {k: v for k, v in r.items() if not k.startswith("_")}
+        st.download_button(
+            "📥 Point Details (CSV)",
+            pd.DataFrame([flat]).to_csv(index=False).encode("utf-8"),
+            file_name="Point_Details.csv", mime="text/csv",
+            use_container_width=True)
+
+    # --- Multiple coordinates ---
+    st.divider()
+    with st.expander("📋 Multiple points (paste coordinates)"):
+        st.caption(
+            "One point per line as 'lat, lon'. Returns village, land "
+            "cover, soil and elevation for each (no history, to keep "
+            "it fast).")
+        txt = st.text_area(
+            "Coordinates", placeholder="12.9716, 77.5946\n"
+            "13.3400, 77.1006", height=120)
+
+        if st.button("Analyze Points", use_container_width=True):
+            from gee.point_query import point_core
+            rows = []
+            for line in txt.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    a, b = line.replace(";", ",").split(",")[:2]
+                    plat, plon = float(a), float(b)
+                except Exception:
+                    continue
+                try:
+                    core = point_core(plat, plon, st.session_state.year)
+                    rows.append({k: v for k, v in core.items()
+                                 if not k.startswith("_")})
+                except Exception:
+                    rows.append({"lat": plat, "lon": plon,
+                                 "Village": "error"})
+            st.session_state.multi_points_df = (
+                pd.DataFrame(rows) if rows else None)
+
+        mp = st.session_state.get("multi_points_df")
+        if mp is not None and not mp.empty:
+            st.dataframe(mp, use_container_width=True, hide_index=True)
+            st.download_button(
+                "📥 Points Table (CSV)",
+                mp.to_csv(index=False).encode("utf-8"),
+                file_name="Points_Details.csv", mime="text/csv",
+                use_container_width=True)
+
 
 def results():
+
+    if st.session_state.get("mode") == "Point location":
+        _safe(_point_details_view)
+        return
 
     st.subheader("🌾 Analysis Results")
 
     df = _landcover_df()
 
+    _data_confidence_panel()
+
     (tab_summary, tab_villages, tab_charts, tab_crop,
-     tab_rain, tab_forecast, tab_soil, tab_mandi, tab_gt,
+     tab_rain, tab_forecast, tab_soil, tab_allied, tab_mandi, tab_gt,
      tab_downloads) = st.tabs(
         ["📊 Summary", "🏘️ Villages", "📈 Charts",
          "🌱 Crop Cycle", "🌧️ Rainfall", "⛅ Forecast",
-         "🧪 Soil", "💰 Mandi", "✅ Ground Truth", "📥 Downloads"]
+         "🧪 Soil", "🐄 Allied Sectors", "💰 Mandi",
+         "✅ Ground Truth", "📥 Downloads"]
     )
 
     with tab_summary:
-        _summary_tab(df)
+        _safe(_summary_tab, df)
         st.divider()
-        _confidence_check()
-        _stability_check()
+        _safe(_confidence_check)
+        _safe(_stability_check)
 
     with tab_villages:
-        _villages_tab()
-        _village_insights_section()
-        _sourcing_score_section()
+        _safe(_villages_tab)
+        _safe(_village_insights_section)
+        _safe(_sourcing_score_section)
 
     with tab_charts:
-        _charts_tab(df)
+        _safe(_charts_tab, df)
 
     with tab_crop:
-        _crop_cycle_tab()
+        _safe(_crop_cycle_tab)
         st.divider()
-        _paddy_check()
-        _plantation_check()
+        _safe(_paddy_check)
+        _safe(_plantation_check)
 
     with tab_rain:
-        _rainfall_tab()
+        _safe(_rainfall_tab)
 
     with tab_forecast:
-        _forecast_tab()
+        _safe(_forecast_tab)
 
     with tab_soil:
-        _soil_tab()
+        _safe(_soil_tab)
+
+    with tab_allied:
+        _safe(_allied_tab)
 
     with tab_mandi:
-        _mandi_tab()
+        _safe(_mandi_tab)
 
     with tab_gt:
-        _ground_truth_tab()
+        _safe(_ground_truth_tab)
 
     with tab_downloads:
-        _downloads_tab(df)
+        _safe(_downloads_tab, df)

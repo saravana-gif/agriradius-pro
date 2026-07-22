@@ -41,9 +41,11 @@ def _layers(lat, lon, radius_km, year):
 def confidence_tile_url(lat, lon, radius_km, year):
     """Tile URL: green = both agree cropland, yellow = only one."""
 
+    from core import compute as _cq
     buffer, dw, wc = _layers(lat, lon, radius_km, year)
 
-    agreement = dw.add(wc)  # 0 / 1 / 2
+    agreement = dw.add(wc).reproject(  # 0 / 1 / 2
+        crs="EPSG:3857", scale=_cq.tile_px())
 
     img = agreement.updateMask(agreement.gt(0)).clip(buffer)
 
@@ -68,12 +70,14 @@ def cropland_crosscheck(lat, lon, radius_km, year):
         ee.Image.pixelArea().updateMask(wc_only).rename("wc_only"),
     ])
 
+    from core import compute as _cq
     stats = img.reduceRegion(
         reducer=ee.Reducer.sum(),
         geometry=buffer,
-        scale=30,
+        scale=_cq.stat_scale(),
         maxPixels=1e13,
         bestEffort=True,
+        tileScale=_cq.tile_scale(),
     ).getInfo()
 
     def acres(key):

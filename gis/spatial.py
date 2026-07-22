@@ -61,3 +61,47 @@ def villages_in_buffer(lat, lon, radius_km):
         pd.concat(parts, ignore_index=True),
         crs="EPSG:4326"
     )
+
+
+def village_at_point(lat, lon):
+    """Return the village whose polygon contains the point.
+
+    Returns a dict of Village/Taluk/District/State (values that exist)
+    or None if the point falls outside all registered boundaries.
+    """
+
+    pt = Point(lon, lat)
+
+    for state in GIS_DATA:
+
+        if "villages" not in GIS_DATA[state]:
+            continue
+
+        try:
+            gdf = load_boundaries(state, "villages")
+        except FileNotFoundError:
+            continue
+
+        idx = list(gdf.sindex.intersection((lon, lat, lon, lat)))
+
+        if not idx:
+            continue
+
+        candidates = gdf.iloc[idx]
+        hit = candidates[candidates.contains(pt)]
+
+        if not hit.empty:
+            row = hit.iloc[0]
+            fields = {
+                "Village": "vilname11",
+                "Taluk": "sdtname",
+                "District": "dtname",
+                "State": "stname",
+            }
+            return {
+                label: str(row[col])
+                for label, col in fields.items()
+                if col in hit.columns and row[col] is not None
+            }
+
+    return None

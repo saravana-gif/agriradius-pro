@@ -11,29 +11,38 @@ from data.layer_registry import BASEMAPS
 
 class MapEngine:
 
-    def __init__(self, lat, lon, zoom=11, basemap="OpenStreetMap"):
+    def __init__(self, lat, lon, zoom=11, basemap="OpenStreetMap",
+                 center=None):
 
         self.lat = lat
         self.lon = lon
+
+        # Marker/buffer use lat/lon; the map VIEW can be centered
+        # elsewhere (e.g. where the user last panned to).
+        view = center if center else [lat, lon]
 
         base = BASEMAPS.get(basemap, BASEMAPS["OpenStreetMap"])
 
         if base["attr"] is None:
             self.map = folium.Map(
-                location=[lat, lon],
+                location=view,
                 zoom_start=zoom,
-                tiles=base["tiles"]
+                tiles=base["tiles"],
+                max_zoom=22,
             )
         else:
             self.map = folium.Map(
-                location=[lat, lon],
+                location=view,
                 zoom_start=zoom,
-                tiles=None
+                tiles=None,
+                max_zoom=22,
             )
             folium.TileLayer(
                 tiles=base["tiles"],
                 attr=base["attr"],
-                name=basemap
+                name=basemap,
+                max_zoom=22,
+                max_native_zoom=20,
             ).add_to(self.map)
 
     def add_marker(self, tooltip="Selected Location"):
@@ -119,14 +128,26 @@ class MapEngine:
 
     def add_tile_overlay(self, tile_url, name, attr="Google Earth Engine",
                          opacity=0.6):
-        """Add a raster tile overlay (e.g. Dynamic World from EE)."""
+        """Add a raster tile overlay (e.g. Dynamic World from EE).
+
+        max_zoom=22 lets the user keep zooming; max_native_zoom=16
+        stops Leaflet from requesting fresh deep-zoom tiles from Earth
+        Engine (which load slowly/partially and can vanish at 100%
+        zoom). Instead it upsamples the zoom-16 tiles it already has,
+        so the overlay stays fully visible at every zoom - slightly
+        softer at extreme zoom, but the 10 m data isn't sharper than
+        that anyway.
+        """
 
         folium.TileLayer(
             tiles=tile_url,
             attr=attr,
             name=name,
             overlay=True,
-            opacity=opacity
+            opacity=opacity,
+            max_zoom=22,
+            min_zoom=1,
+            max_native_zoom=16,
         ).add_to(self.map)
 
         return self

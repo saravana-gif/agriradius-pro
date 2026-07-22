@@ -1,0 +1,21 @@
+# OneRoot AgriRadius Pro - app configuration.
+# secrets.toml (API keys, service account) is separate and gitignored.
+
+[theme]
+primaryColor = "#1B7A3D"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F1F7F2"
+textColor = "#1F2937"
+font = "sans serif"
+
+[server]
+maxUploadSize = 50
+enableStaticServing = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = "stacktrace"
+toolbarMode = "minimal"

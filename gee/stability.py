@@ -24,26 +24,28 @@ def cropland_stability(lat, lon, radius_km, end_year):
 
     years = list(range(end_year - N_YEARS + 1, end_year + 1))
 
-    images = []
-
-    for y in years:
+    # Each year is reduced in its OWN request (not stacked into one
+    # image) with tileScale to spread memory, and at a coarser 60 m
+    # scale - a year-over-year *ratio* doesn't need 30 m precision.
+    # This avoids the "User memory limit exceeded" error that stacking
+    # three full-year Dynamic World reductions caused. Coarser/scaled
+    # fallbacks keep it working even on large radii.
+    def _acres(y, scale, tile_scale):
         mask = dw_crops_mask(buffer, f"{y}-01-01", f"{y}-12-31")
-        images.append(
-            ee.Image.pixelArea().updateMask(mask).rename(f"y{y}")
-        )
+        area = (ee.Image.pixelArea().updateMask(mask)
+                .reduceRegion(reducer=ee.Reducer.sum(), geometry=buffer,
+                              scale=scale, maxPixels=1e13,
+                              bestEffort=True, tileScale=tile_scale)
+                .get("area"))
+        return round((area.getInfo() or 0) / SQM_PER_ACRE, 1)
 
-    stats = ee.Image.cat(images).reduceRegion(
-        reducer=ee.Reducer.sum(),
-        geometry=buffer,
-        scale=30,
-        maxPixels=1e13,
-        bestEffort=True,
-    ).getInfo()
-
-    by_year = {
-        y: round((stats.get(f"y{y}") or 0) / SQM_PER_ACRE, 1)
-        for y in years
-    }
+    by_year = {}
+    for y in years:
+        try:
+            by_year[y] = _acres(y, 60, 8)
+        except Exception:
+            # last-resort: even coarser + max tiling
+            by_year[y] = _acres(y, 120, 16)
 
     values = list(by_year.values())
     mean = sum(values) / len(values) if values else 0

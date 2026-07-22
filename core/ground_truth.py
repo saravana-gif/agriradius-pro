@@ -23,9 +23,11 @@ COLUMNS = [
 ]
 
 CROP_OPTIONS = [
-    "Turmeric", "Chilli", "Maize", "Coconut", "Banana", "Paddy",
-    "Sugarcane", "Vegetables", "Fruits/Orchard", "Ginger",
-    "Groundnut", "Cotton", "Ragi/Millets", "Fallow", "Other",
+    "Turmeric", "Chilli", "Maize", "Coconut", "Arecanut", "Banana",
+    "Paddy", "Sugarcane", "Vegetables", "Fruits/Orchard", "Ginger",
+    "Groundnut", "Cotton", "Ragi/Millets",
+    "Other Tree", "Casuarina", "Mixed Trees", "Forest",
+    "Fallow", "Other",
 ]
 
 # Crops whose canopy stays green year-round -> plantation signature
@@ -36,8 +38,21 @@ PERENNIAL = {"coconut", "banana", "fruits/orchard", "arecanut",
 LONG_DURATION = {"sugarcane", "turmeric", "ginger"}
 
 
+GT_SHEET = "GroundTruth"
+
+
 def load_records():
-    """Return the ground truth DataFrame (empty if none yet)."""
+    """Return the ground truth DataFrame (empty if none yet).
+
+    Reads from the shared Google Sheet when configured, else the
+    local CSV.
+    """
+
+    from core import sheets
+
+    if sheets.is_enabled():
+        df = sheets.read_records(GT_SHEET, COLUMNS)
+        return df if not df.empty else pd.DataFrame(columns=COLUMNS)
 
     if not GT_PATH.exists():
         return pd.DataFrame(columns=COLUMNS)
@@ -47,11 +62,9 @@ def load_records():
 
 def add_record(village, taluk, district, crops, cycles,
                irrigated, notes, observer):
-    """Append one observation to the CSV."""
+    """Append one observation to the shared Sheet or local CSV."""
 
-    GT_DIR.mkdir(parents=True, exist_ok=True)
-
-    df = load_records()
+    from core import sheets
 
     row = {
         "Date": date.today().isoformat(),
@@ -65,6 +78,12 @@ def add_record(village, taluk, district, crops, cycles,
         "Observer": observer or "",
     }
 
+    if sheets.is_enabled():
+        sheets.append_row(GT_SHEET, row, COLUMNS)
+        return row
+
+    GT_DIR.mkdir(parents=True, exist_ok=True)
+    df = load_records()
     new_row = pd.DataFrame([row])
     df = new_row if df.empty else pd.concat(
         [df, new_row], ignore_index=True)
@@ -150,8 +169,18 @@ SOIL_CARD_COLUMNS = [
 ]
 
 
+SOIL_CARD_SHEET = "SoilCards"
+
+
 def load_soil_cards():
     """Return the soil card DataFrame (empty if none yet)."""
+
+    from core import sheets
+
+    if sheets.is_enabled():
+        df = sheets.read_records(SOIL_CARD_SHEET, SOIL_CARD_COLUMNS)
+        return df if not df.empty else pd.DataFrame(
+            columns=SOIL_CARD_COLUMNS)
 
     if not SOIL_CARD_PATH.exists():
         return pd.DataFrame(columns=SOIL_CARD_COLUMNS)
@@ -163,7 +192,7 @@ def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
                   n, p, k, water_ft, micro, notes, observer):
     """Append one soil health card record. Zero/blank = not recorded."""
 
-    GT_DIR.mkdir(parents=True, exist_ok=True)
+    from core import sheets
 
     def clean(v):
         try:
@@ -171,8 +200,6 @@ def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
             return v if v > 0 else ""
         except (TypeError, ValueError):
             return ""
-
-    df = load_soil_cards()
 
     row = {
         "Date": date.today().isoformat(),
@@ -192,6 +219,12 @@ def add_soil_card(village, taluk, district, farmer, ph, ec, oc,
         "Observer": observer or "",
     }
 
+    if sheets.is_enabled():
+        sheets.append_row(SOIL_CARD_SHEET, row, SOIL_CARD_COLUMNS)
+        return row
+
+    GT_DIR.mkdir(parents=True, exist_ok=True)
+    df = load_soil_cards()
     new_row = pd.DataFrame([row])
     df = new_row if df.empty else pd.concat(
         [df, new_row], ignore_index=True)

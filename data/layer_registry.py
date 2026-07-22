@@ -38,6 +38,16 @@ LAYERS = {
          "default": False},
         {"id": "plantation", "label": "Plantations (coconut/arecanut)",
          "default": False},
+        {"id": "banana", "label": "Banana (likely)",
+         "default": False},
+        {"id": "maize", "label": "Maize / kharif crop (likely)",
+         "default": False},
+        {"id": "worldcereal", "label": "WorldCereal Cropland (ESA)",
+         "default": False},
+    ],
+    "Allied Sectors": [
+        {"id": "aquaculture", "label": "Aquaculture ponds (satellite)",
+         "default": False},
     ],
     "Soil": [
         {"id": "soil_ph", "label": "Soil pH (painted)",

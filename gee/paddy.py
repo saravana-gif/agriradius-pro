@@ -54,12 +54,13 @@ def paddy_mask(buffer, start_date, end_date):
 def paddy_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL showing detected paddy in cyan."""
 
+    from core import compute as _cq
     point = ee.Geometry.Point([lon, lat])
     buffer = point.buffer(radius_km * 1000)
 
     mask = paddy_mask(
         buffer, f"{year}-01-01", f"{year}-12-31"
-    )
+    ).reproject(crs="EPSG:3857", scale=_cq.tile_px())
 
     img = mask.updateMask(mask).clip(buffer)
 
@@ -86,12 +87,14 @@ def paddy_stats(lat, lon, radius_km, year):
         ee.Image.pixelArea().updateMask(crops).rename("cropland"),
     ])
 
+    from core import compute as _cq
     stats = img.reduceRegion(
         reducer=ee.Reducer.sum(),
         geometry=buffer,
-        scale=30,
+        scale=_cq.stat_scale(),
         maxPixels=1e13,
         bestEffort=True,
+        tileScale=_cq.tile_scale(),
     ).getInfo()
 
     paddy_ac = round((stats.get("paddy") or 0) / SQM_PER_ACRE, 2)

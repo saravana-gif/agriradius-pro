@@ -5,6 +5,7 @@ import pandas as pd
 import plotly.express as px
 
 from gis.village_search import get_villages
+from core import data_vintage as dv
 from core.export import excel_report
 from core.crop_cycle import to_dataframe, analyze_series
 from gee.worldcover import cropland_crosscheck
@@ -33,6 +34,11 @@ def _summary_tab(df):
     if df is None:
         st.info("Run an analysis to view the summary.")
         return
+
+    _yr = st.session_state.get("year")
+    dv.st_caption("satellite",
+                  as_of_override=(f"{_yr} season composite" if _yr
+                                  else None))
 
     total_area = df["Area (acres)"].sum()
     agriculture = df.loc[df["Land Cover"] == "Agriculture", "Area (acres)"].sum()
@@ -661,6 +667,7 @@ def _rainfall_tab():
         "satellite-gauge dataset). Tells you whether this belt gets "
         "dependable rain or swings between good and bad years."
     )
+    dv.st_caption("rainfall")
 
     if st.button("🌧️ Analyze Rainfall", use_container_width=True):
 
@@ -825,6 +832,7 @@ def _forecast_tab():
         "16-day forecast for the selected point (Open-Meteo). "
         "Use the dry window for harvest and pickup planning."
     )
+    dv.st_caption("weather")
 
     from core.weather import get_forecast, analyze_forecast
 
@@ -1531,6 +1539,7 @@ def _soil_tab():
         "for lab tests. Phosphorus and potassium cannot be measured "
         "from satellite - collect Soil Health Cards for those."
     )
+    dv.st_caption("soil")
 
     if st.button("🧪 Read Soil Profile", use_container_width=True):
 
@@ -1634,7 +1643,8 @@ def _soil_tab():
 
     st.caption(
         "Monthly soil temperature (0-7 cm) and moisture from "
-        "ERA5-Land (~11 km grid - area-level, not per-village). "
+        "ERA5-Land (~11 km grid - area-level, not per-village; "
+        "monthly, ~1-2 month lag). "
         "Groundwater depth has no satellite source: log borewell "
         "levels in the Soil Health Card form instead."
     )
@@ -1687,6 +1697,99 @@ def _soil_tab():
         else:
             st.warning("No soil climate data for this period.")
 
+    st.divider()
+    _land_capability_section()
+
+
+def _land_capability_section():
+    """SLUSI detailed-soil-survey Land Capability for the district(s)
+    under the searched area. Reference soil-suitability context that
+    SoilGrids can't give - clearly stamped with survey vintage."""
+
+    from core import soil_capability as scap
+
+    st.write("**🗺️ Land Capability (SLUSI detailed soil survey)**")
+
+    if not scap.has_data():
+        st.caption("SLUSI land-capability data not bundled.")
+        return
+
+    lat = st.session_state.get("lat")
+    lon = st.session_state.get("lon")
+    radius = st.session_state.get("radius", 10)
+
+    try:
+        from core import allied
+        pairs = allied.districts_touching(lat, lon, radius)
+    except Exception:
+        pairs = []
+
+    summaries = scap.for_districts(pairs) if pairs else []
+
+    if not summaries:
+        st.caption(
+            "No detailed soil survey (SLUSI) on record for this "
+            "district. Coverage exists only for surveyed watersheds "
+            "in parts of Karnataka & Tamil Nadu.")
+        return
+
+    span = scap.year_span(summaries)
+    stamp = (f"field surveys {span[0]}-{span[1]}" if span
+             else "field surveys 1960-2018")
+    dv.st_caption("slusi", as_of_override=stamp)
+    st.caption(
+        "Land Capability Class rates how cultivable the soil is: "
+        "**I-IV = arable** (I best → IV marginal), **V-VIII = "
+        "non-arable** (pasture / forest / steep). Figures cover the "
+        "**surveyed watersheds only**, not the whole district, and "
+        "are historical reference — **not current land use**.")
+
+    for s in summaries:
+        st.markdown(f"**{s['district']}** ({s['state']})")
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Arable (I-IV)", f"{s['arable_pct']}%")
+        c2.metric("Non-arable (V-VIII)", f"{s['marginal_pct']}%")
+        c3.metric("Prime (I-II)", f"{s['prime_pct']}%")
+        c4.metric("Surveyed", f"{s['surveyed_ha']:,} ha")
+
+        st.caption(
+            f"Dominant: {s['dominant_label']} · "
+            f"{s['reports']} survey report(s) · "
+            f"surveyed {s['year_min']}-{s['year_max']}")
+
+        # per-class breakdown table
+        cl = s["class_ha"]
+        rows = [
+            {"Class": scap.CLASS_LABEL[i], "Area (ha)": cl[i],
+             "% of surveyed":
+                 round(100 * cl[i] / s["classified_ha"], 1)
+                 if s["classified_ha"] else 0.0}
+            for i in range(1, 9) if cl[i] > 0
+        ]
+        if rows:
+            with st.expander("Class-by-class breakdown"):
+                st.dataframe(pd.DataFrame(rows),
+                             use_container_width=True, hide_index=True)
+
+        reps = scap.reports_for_district(s["district"], limit=12)
+        if reps:
+            with st.expander(
+                    f"📄 {len(reps)} detailed survey report(s) — "
+                    "open the official SLUSI PDF"):
+                for r in reps:
+                    st.markdown(
+                        f"- [{r['report_no']} ({r['year']})]"
+                        f"({r['pdf_url']}) · {r['districts']}")
+        st.divider()
+
+    st.caption(
+        "Source: Soil & Land Use Survey of India (SLUSI), Detailed "
+        "Soil Survey — Dept. of Agriculture & Farmers Welfare, GoI. "
+        "Land capability is a slow-changing soil property, so older "
+        "surveys stay useful — but always verify current use on the "
+        "ground.")
+
 
 def _mandi_tab():
 
@@ -1697,6 +1800,7 @@ def _mandi_tab():
         "data.gov.in). Prices are Rs per quintal; refreshed every "
         "30 minutes."
     )
+    dv.st_caption("mandi")
 
     # Default state guessed from the buffer's villages
     default_state = "Karnataka"
@@ -1930,6 +2034,7 @@ def _allied_tab():
         "(real counts). 'Within your radius' numbers are area-"
         "allocated from those district totals; milk and feed are "
         "**derived estimates** (see method note at the bottom).")
+    dv.st_caption("livestock")
 
     prof = _allied_area_profile(lat, lon, radius)
 
@@ -2139,8 +2244,19 @@ def _data_confidence_panel():
             "*Sources: Sentinel-1/2 (ESA), Dynamic World (Google), "
             "WorldCover/WorldCereal (ESA), SoilGrids (ISRIC), CHIRPS "
             "(UCSB), ERA5-Land (ECMWF), Open-Meteo, AGMARKNET "
-            "(data.gov.in).*"
+            "(data.gov.in), SLUSI & CGWB (GoI).*"
         )
+
+        st.markdown("**🕒 How current is each data source?**")
+        st.caption(dv.legend())
+        st.dataframe(dv.as_table(), use_container_width=True,
+                     hide_index=True)
+        st.caption(
+            "Live = refreshes on demand; periodic = a dated official "
+            "release; modelled = a modelled baseline; reference = a "
+            "one-off historical survey. Check the 'As of' column so "
+            "you never mistake older reference data for today's "
+            "ground reality.")
 
 
 def _point_details_view():

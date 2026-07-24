@@ -63,7 +63,12 @@ unless you ask.
   wind, sun/solar, UV, soil moisture & temp, evapotranspiration, and a
   **drying-suitability score**) with an *Auto 5m* refresh toggle, plus
   the 16-day outlook & dry-window.
-- **Soil** — pH, organic carbon, nitrogen, texture.
+- **Soil** — pH, organic carbon, nitrogen, texture, plus a
+  **Land Capability** panel (SLUSI detailed soil survey): how much of
+  the district's *surveyed* land is prime/arable (Class I-IV) vs
+  non-arable (V-VIII), with links to the official survey PDFs. It's
+  authoritative but **historical reference** (surveys 1960-2018,
+  surveyed watersheds only) — not current land use.
 - **Allied Sectors** — livestock & poultry, estimated **dairy pool** &
   **feed demand**, aquaculture, sericulture, fisheries, fertiliser,
   horticulture.
@@ -85,6 +90,14 @@ reliable; **modelled/classified** things (land-cover class, soil at
 250 m) are best read as **ranges**. Rule of thumb: *trust the direction
 and the ranges; verify the edges on the ground.* It improves as your
 team logs ground truth.
+
+**Know how current each number is.** Every tab shows a small dated
+caption (🟢 live · 🟡 periodic release · 🟠 modelled · ⚪ historical
+reference), and the **Data & Confidence** box lists an *"as of"* date
+for every source. Live weather and mandi prices are today's; the
+livestock census is 2019; soil (SoilGrids) is a 2020 modelled baseline;
+the SLUSI land-capability survey is 1960-2018. Always read the date so
+you don't mistake older reference data for today's ground reality.
 
 #### 7. Please test mindfully 🙏
 This is a **free, open-source** setup (Google Earth Engine) with a

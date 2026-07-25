@@ -2,10 +2,10 @@
 # secrets.toml (API keys, service account) is separate and gitignored.
 
 [theme]
-primaryColor = "#1B7A3D"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F1F7F2"
-textColor = "#1F2937"
+primaryColor = "#16A34A"
+backgroundColor = "#F5F8FB"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#0F172A"
 font = "sans serif"
 
 [server]

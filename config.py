@@ -21,5 +21,10 @@ APP_VERSION = "0.9.0"
 DEFAULT_LAT = 11.923456
 DEFAULT_LON = 76.940123
 DEFAULT_RADIUS_KM = 10
-DEFAULT_YEAR = 2026
-AVAILABLE_YEARS = [2026, 2025, 2024, 2023]
+# Default to the most recent COMPLETE year: the crop detectors
+# (plantation / maize / paddy / coconut) are calibrated on full-year
+# phenology, so a partial current year makes their layers read empty.
+# The current year is still selectable for current-season classifier
+# work (field_calib.py), just not the default.
+DEFAULT_YEAR = 2025
+AVAILABLE_YEARS = [2025, 2024, 2023, 2026]

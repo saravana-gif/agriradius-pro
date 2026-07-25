@@ -128,6 +128,15 @@ def sidebar():
                if st.session_state.year in AVAILABLE_YEARS else 0),
     )
 
+    import datetime as _dt
+    if st.session_state.year >= _dt.date.today().year:
+        st.caption(
+            "⚠️ Current year is a **partial season** — the crop-detector "
+            "layers (plantation, maize, paddy, coconut) may look empty "
+            "until the year completes. Pick a past year for full "
+            "detection; use the current year mainly for the trained "
+            "crop classifier.")
+
     st.divider()
 
     st.write("### Current Location")

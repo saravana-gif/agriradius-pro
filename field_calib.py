@@ -130,6 +130,39 @@ def main():
         print(f"  {g:12s} {row}")
     print(f"\n  >>> Training accuracy: {round(acc * 100, 1)}%   "
           f"({len(df)} points, {len(groups)} groups)")
+
+    # --- Honest leave-one-out check (independent of the RF above) ---
+    # Nearest-centroid in standardised feature space: each point is
+    # classified using ONLY the other points, so this number is not
+    # inflated by memorising the training set.
+    import numpy as np
+    feat = [b for b in SIG_BANDS if b in s.columns]
+    X = s[feat].astype(float).copy()
+    X = (X - X.mean()) / X.std(ddof=0).replace(0, 1)
+    y = s["group"].to_numpy()
+    n = len(s)
+    correct = 0
+    miss = []
+    for i in range(n):
+        mask = np.arange(n) != i
+        cents = {g: X[mask][y[mask] == g].mean() for g in set(y[mask])}
+        row = X.iloc[i]
+        pred = min(cents, key=lambda g: float(((row - cents[g]) ** 2).sum()))
+        if pred == y[i]:
+            correct += 1
+        else:
+            miss.append((s.iloc[i]["Crop"], y[i], pred))
+    print("\n=== Leave-one-out separability (honest, non-overfit) ===")
+    print(f"  nearest-centroid LOO accuracy: {round(100*correct/n, 1)}% "
+          f"({correct}/{n})")
+    if miss:
+        print("  confused points:")
+        for crop, truth, pred in miss:
+            print(f"    {crop} ({truth}) -> predicted {pred}")
+    print("  (This is an independent separability proxy, not the RF; "
+          "use it as the realistic floor and the RF resubstitution as "
+          "the optimistic ceiling.)")
+
     print("\nNote: resubstitution accuracy is optimistic (trained and "
           "scored on the same points). With only a few points per crop "
           "it mainly confirms the crops are separable from satellite; "

@@ -25,6 +25,15 @@ def sidebar():
         else:
             st.error("Location not found")
 
+    if st.button("✨ Try a sample area (Pollachi)",
+                 use_container_width=True,
+                 help="Loads a demo coconut belt so you can explore "
+                      "the app instantly — then hit a layer or Run."):
+        st.session_state.lat = 10.6588
+        st.session_state.lon = 77.0089
+        st.session_state.search_location = "Pollachi (sample)"
+        st.rerun()
+
     # --- Google Maps link / coordinates ---
     gmap = st.text_input(
         "Google Maps link or coordinates",

@@ -15,6 +15,19 @@ import requests
 from gee.features import _s2_collection, _season, s2_annual
 
 
+# Legends (hex, label) so the PDF can show what each colour means.
+DW_LEGEND = [
+    ("419bdf", "Water"), ("397d49", "Trees"), ("88b053", "Grass"),
+    ("ff00ff", "Cropland"), ("dfc35a", "Shrub / scrub"),
+    ("c4281b", "Built-up"), ("a59b8f", "Bare soil"),
+]
+NDVI_LEGEND = [
+    ("d7191c", "Bare / very low"), ("fdae61", "Low"),
+    ("ffffbf", "Moderate"), ("a6d96a", "High"),
+    ("1a9641", "Dense / very high"),
+]
+
+
 def _buffer(lat, lon, radius_km):
     return ee.Geometry.Point([lon, lat]).buffer(radius_km * 1000)
 
@@ -48,10 +61,13 @@ def map_images(lat, lon, radius_km, year):
     try:
         rgb = _s2_rgb(buffer, year)
         out.append({
+            "kind": "satellite",
             "title": "Satellite view (true colour)",
             "caption": "Sentinel-2 cloud-free composite over the analysis "
                        "area - the ground every layer below is measured "
-                       "from.",
+                       "from. Natural colour: vegetation green, water "
+                       "dark, soil/built pale.",
+            "legend": None,
             "png": _thumb(rgb.clip(buffer), buffer),
         })
     except Exception:
@@ -64,9 +80,12 @@ def map_images(lat, lon, radius_km, year):
         dw = dw_class_image(buffer, s, e)
         dwvis = dw.visualize(min=0, max=8, palette=PALETTE)
         out.append({
+            "kind": "landcover",
             "title": "Land cover classification (Dynamic World)",
-            "caption": "Google Dynamic World near-real-time classes - "
-                       "water, trees, crops, grass, built-up, bare soil.",
+            "caption": "Google Dynamic World near-real-time classes. Each "
+                       "pixel is coloured by its most likely land cover "
+                       "(see legend).",
+            "legend": DW_LEGEND,
             "png": _thumb(dwvis.clip(buffer), buffer),
         })
     except Exception:
@@ -80,9 +99,11 @@ def map_images(lat, lon, radius_km, year):
             palette=["#d7191c", "#fdae61", "#ffffbf",
                      "#a6d96a", "#1a9641"])
         out.append({
+            "kind": "ndvi",
             "title": "Vegetation vigour (NDVI)",
-            "caption": "Median greenness. Red = bare / low vigour, "
-                       "green = dense healthy vegetation.",
+            "caption": "Median growing-season greenness (NDVI). Higher = "
+                       "denser, healthier canopy.",
+            "legend": NDVI_LEGEND,
             "png": _thumb(nvis.clip(buffer), buffer),
         })
     except Exception:
@@ -95,10 +116,12 @@ def map_images(lat, lon, radius_km, year):
         mask = plantation_mask(buffer, year).selfMask()
         mvis = mask.visualize(palette=["#ffe000"])
         out.append({
+            "kind": "plantation",
             "title": "Plantation detection (coconut / arecanut)",
-            "caption": "Yellow = pixels the detector flags as perennial "
-                       "plantation, drawn over the satellite image so you "
-                       "can see the fit.",
+            "caption": "Detector output drawn over the satellite image so "
+                       "you can judge the fit against real groves.",
+            "legend": [("ffe000", "Detected plantation"),
+                       ("_base", "Satellite (everything else)")],
             "png": _thumb(rgb.blend(mvis).clip(buffer), buffer),
         })
     except Exception:
@@ -112,9 +135,12 @@ def map_images(lat, lon, radius_km, year):
             buffer, f"{year}-01-01", f"{year}-12-31").selfMask()
         mvis = mask.visualize(palette=["#00e5ff"])
         out.append({
+            "kind": "paddy",
             "title": "Paddy detection (radar)",
-            "caption": "Cyan = pixels flagged as paddy from Sentinel-1 "
-                       "radar structure, over the satellite image.",
+            "caption": "Flagged from Sentinel-1 radar structure, drawn "
+                       "over the satellite image.",
+            "legend": [("00e5ff", "Detected paddy"),
+                       ("_base", "Satellite (everything else)")],
             "png": _thumb(rgb.blend(mvis).clip(buffer), buffer),
         })
     except Exception:

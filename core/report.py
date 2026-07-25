@@ -17,6 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     Image,
+    KeepTogether,
     PageBreak,
     Paragraph,
     SimpleDocTemplate,
@@ -49,6 +50,39 @@ def _table(data, col_widths=None):
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
+    return t
+
+
+def _legend_table(legend, per_row=3):
+    """A small colour-swatch legend: [(hex_or_'_base', label), ...]."""
+    if not legend:
+        return None
+    items = [("#888888" if h == "_base" else "#" + h, lbl)
+             for h, lbl in legend]
+    data, styles = [], []
+    for i in range(0, len(items), per_row):
+        chunk = items[i:i + per_row]
+        row, r = [], len(data)
+        for c, (color, lbl) in enumerate(chunk):
+            row += [" ", lbl]
+            styles.append(("BACKGROUND", (c * 2, r), (c * 2, r),
+                           colors.HexColor(color)))
+            styles.append(("BOX", (c * 2, r), (c * 2, r), 0.4,
+                           colors.grey))
+        while len(row) < per_row * 2:
+            row += ["", ""]
+        data.append(row)
+    widths = []
+    for _ in range(per_row):
+        widths += [0.55 * cm, 4.3 * cm]
+    t = Table(data, colWidths=widths, hAlign="CENTER")
+    t.setStyle(TableStyle([
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+    ] + styles))
     return t
 
 
@@ -442,23 +476,63 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             f"{meta['year']}.", ss["Normal"]))
         story.append(Spacer(1, 10))
 
-        placed = 0
+        stat_style = ParagraphStyle(
+            "stat", parent=ss["Normal"], fontSize=9,
+            textColor=GREEN)
+
+        def _stat_for(mi):
+            k = mi.get("kind")
+            try:
+                if k == "plantation" and plantation:
+                    return (f"Measured here: "
+                            f"{plantation['plantation_ac']:,.0f} acres of "
+                            f"plantation ({plantation['plantation_pct']}% "
+                            f"of the area).")
+                if k == "paddy" and paddy:
+                    return (f"Measured here: {paddy['paddy_ac']:,.0f} "
+                            f"acres of paddy ({paddy['paddy_pct']}% of "
+                            f"cropland).")
+                if k == "landcover" and landcover_df is not None \
+                        and not landcover_df.empty:
+                    tot = landcover_df["Area (acres)"].sum()
+                    top = landcover_df.nlargest(3, "Area (acres)")
+                    parts = [f"{r['Land Cover']} "
+                             f"{100*r['Area (acres)']/tot:.0f}%"
+                             for _, r in top.iterrows()] if tot else []
+                    return "Dominant cover: " + ", ".join(parts) + "."
+                if k == "ndvi" and crop_insight:
+                    return (f"Mean cropland NDVI "
+                            f"{crop_insight.get('mean_ndvi')}; pattern: "
+                            f"{crop_insight.get('pattern')}.")
+                if k == "satellite" and crosscheck:
+                    return (f"Confirmed cropland: "
+                            f"{crosscheck['confirmed_ac']:,.0f} ac "
+                            f"({crosscheck['agreement_pct']}% agreement "
+                            f"between two datasets).")
+            except Exception:
+                return None
+            return None
+
         for mi in map_images:
             try:
                 png = mi.get("png")
                 if not png:
                     continue
-                story.append(Paragraph(mi.get("title", "Map"), ss["H2x"]))
-                story.append(Image(
-                    BytesIO(png), width=13 * cm, height=13 * cm,
-                    kind="proportional", hAlign="CENTER"))
+                block = [Paragraph(mi.get("title", "Map"), ss["H2x"]),
+                         Image(BytesIO(png), width=9.6 * cm,
+                               height=9.6 * cm, kind="proportional",
+                               hAlign="CENTER")]
+                stat = _stat_for(mi)
+                if stat:
+                    block.append(Paragraph(stat, stat_style))
+                lt = _legend_table(mi.get("legend"))
+                if lt is not None:
+                    block.append(Spacer(1, 2))
+                    block.append(lt)
                 if mi.get("caption"):
-                    story.append(Paragraph(mi["caption"], cap))
-                story.append(Spacer(1, 10))
-                placed += 1
-                # two maps per page
-                if placed % 2 == 0:
-                    story.append(PageBreak())
+                    block.append(Paragraph(mi["caption"], cap))
+                block.append(Spacer(1, 14))
+                story.append(KeepTogether(block))
             except Exception:
                 continue
 

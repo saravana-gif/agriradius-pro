@@ -1,4 +1,5 @@
 import streamlit as st
+from config import AVAILABLE_YEARS
 from core.geocoder import search_place
 from gee.analysis import analyze_landcover
 
@@ -122,8 +123,9 @@ def sidebar():
 
     st.session_state.year = st.selectbox(
         "Year",
-        [2025, 2024, 2023],
-        index=[2025, 2024, 2023].index(st.session_state.year)
+        AVAILABLE_YEARS,
+        index=(AVAILABLE_YEARS.index(st.session_state.year)
+               if st.session_state.year in AVAILABLE_YEARS else 0),
     )
 
     st.divider()

@@ -102,6 +102,16 @@ def gather(progress=None):
     except Exception:
         bundle["plantation"] = None
 
+    # 6b. Map thumbnails - visual proof for the PDF (satellite + the
+    # detection layers rendered as PNGs). EE-heavy, so guarded.
+    step(56, "Rendering map images for the report...")
+    try:
+        from gee.report_maps import map_images
+        bundle["map_images"] = map_images(lat, lon, radius, year)
+    except Exception as e:
+        bundle["map_images"] = None
+        bundle["notes"].append(f"Map images skipped: {e}")
+
     # 7. Rainfall
     step(58, "10-year rainfall history...")
     try:
@@ -282,6 +292,7 @@ def pdf_bytes(bundle):
         allied=bundle.get("allied"),
         mandi_hist=bundle.get("mandi_hist"),
         mandi_var=bundle.get("mandi_var"),
+        map_images=bundle.get("map_images"),
     )
 
 

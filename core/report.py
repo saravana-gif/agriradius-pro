@@ -17,6 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     Image,
+    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -66,7 +67,8 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       soil_verdicts=None, scores_df=None,
                       mandi_df=None, soil_climate_df=None,
                       village_soil_df=None, allied=None,
-                      mandi_hist=None, mandi_var=None):
+                      mandi_hist=None, mandi_var=None,
+                      map_images=None):
     """Assemble the PDF. Returns bytes."""
 
     ss = _styles()
@@ -421,6 +423,53 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                 rows, [4 * cm, 2.4 * cm, 2.4 * cm, 2.2 * cm, 2.2 * cm,
                        1.6 * cm]))
         story.append(Spacer(1, 12))
+
+    # --- Detection evidence: satellite maps (visual proof) ---
+    if map_images:
+        cap = ParagraphStyle(
+            "cap", parent=ss["Normal"], fontSize=8,
+            textColor=colors.HexColor("#555555"))
+
+        story.append(PageBreak())
+        story.append(Paragraph(
+            "Detection Evidence - Satellite Maps", ss["H1x"]))
+        story.append(Paragraph(
+            "The maps below are rendered directly from the satellite "
+            "imagery and the same detection layers used for the numbers "
+            "in this report - visual proof of what was measured. Each is "
+            f"clipped to your {meta['radius']} km analysis area around "
+            f"{meta['lat']:.4f}, {meta['lon']:.4f} for year "
+            f"{meta['year']}.", ss["Normal"]))
+        story.append(Spacer(1, 10))
+
+        placed = 0
+        for mi in map_images:
+            try:
+                png = mi.get("png")
+                if not png:
+                    continue
+                story.append(Paragraph(mi.get("title", "Map"), ss["H2x"]))
+                story.append(Image(
+                    BytesIO(png), width=13 * cm, height=13 * cm,
+                    kind="proportional", hAlign="CENTER"))
+                if mi.get("caption"):
+                    story.append(Paragraph(mi["caption"], cap))
+                story.append(Spacer(1, 10))
+                placed += 1
+                # two maps per page
+                if placed % 2 == 0:
+                    story.append(PageBreak())
+            except Exception:
+                continue
+
+        story.append(Spacer(1, 6))
+        story.append(Paragraph(
+            "How to read these: coloured detection overlays (plantation "
+            "in yellow, paddy in cyan) sit on top of the true-colour "
+            "satellite image, so you can judge the fit against real "
+            "fields. Land cover and NDVI are standalone renders. These "
+            "are model outputs at 10 m - trust the pattern and verify "
+            "edges on the ground.", cap))
 
     story.append(Spacer(1, 8))
     story.append(Paragraph(

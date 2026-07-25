@@ -10,6 +10,8 @@ Both the plantation detector (Lever 1) and the trained classifier
 (Lever 3) build on this, so features stay consistent.
 """
 
+import datetime as _dt
+
 import ee
 
 from gee.ndvi import _mask_clouds
@@ -18,11 +20,32 @@ S2 = "COPERNICUS/S2_SR_HARMONIZED"
 S1 = "COPERNICUS/S1_GRD"
 
 
+def _season(year):
+    """Date window for a year's composite.
+
+    Past, COMPLETE years use the calendar year unchanged (behaviour is
+    byte-identical to before). The CURRENT, still-incomplete year uses
+    a trailing 12-month window ending today, so the phenology features
+    (NDVI p15/p90/amplitude) still see a full growing season and the
+    calibrated detectors keep working mid-year instead of reading a
+    half-year as 'empty'. Returns (start, end) as ee.Date.
+    """
+    today = _dt.date.today()
+    if year >= today.year:
+        end = ee.Date(today.isoformat())
+        start = end.advance(-12, "month")
+    else:
+        start = ee.Date(f"{year}-01-01")
+        end = ee.Date(f"{year}-12-31")
+    return start, end
+
+
 def _s2_collection(buffer, year):
+    start, end = _season(year)
     return (
         ee.ImageCollection(S2)
         .filterBounds(buffer)
-        .filterDate(f"{year}-01-01", f"{year}-12-31")
+        .filterDate(start, end)
         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 60))
         .map(_mask_clouds)
     )
@@ -71,16 +94,17 @@ def _monthly_s2(buffer, year):
     bands = ["B2", "B3", "B4", "B5", "B6", "B7", "B8", "B8A",
              "B11", "B12"]
 
-    def monthly(m):
-        m = ee.Number(m)
-        start = ee.Date.fromYMD(year, m, 1)
-        sub = col.filterDate(start, start.advance(1, "month"))
+    win_start, _win_end = _season(year)
+
+    def monthly(k):
+        st = ee.Date(win_start).advance(ee.Number(k), "month")
+        sub = col.filterDate(st, st.advance(1, "month"))
         return ee.Image(ee.Algorithms.If(
             sub.size().gt(0),
             sub.median().select(bands).set("empty", 0),
             ee.Image().set("empty", 1)))
 
-    months = ee.List.sequence(1, 12).map(monthly)
+    months = ee.List.sequence(0, 11).map(monthly)
     return (ee.ImageCollection.fromImages(months)
             .filterMetadata("empty", "equals", 0))
 
@@ -113,10 +137,11 @@ def s1_annual(buffer, year):
     texture). This keys on structure, not just greenness.
     """
 
+    _s1_start, _s1_end = _season(year)
     col = (
         ee.ImageCollection(S1)
         .filterBounds(buffer)
-        .filterDate(f"{year}-01-01", f"{year}-12-31")
+        .filterDate(_s1_start, _s1_end)
         .filter(ee.Filter.eq("instrumentMode", "IW"))
         .filter(ee.Filter.listContains(
             "transmitterReceiverPolarisation", "VV"))
@@ -156,10 +181,11 @@ def terrain(buffer):
 def dw_probs(buffer, year):
     """Dynamic World mean class probabilities - auxiliary features
     (woody 'trees' vs herbaceous 'crops' etc.), not the answer."""
+    _dw_start, _dw_end = _season(year)
     dw = (
         ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
         .filterBounds(buffer)
-        .filterDate(f"{year}-01-01", f"{year}-12-31")
+        .filterDate(_dw_start, _dw_end)
         .select(["trees", "crops", "grass", "shrub_and_scrub",
                  "built", "bare"])
         .mean()

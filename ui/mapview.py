@@ -9,6 +9,20 @@ def mapview():
     vis = st.session_state.layer_visibility
     _op = float(st.session_state.get("overlay_opacity", 0.5))
 
+    # --- View mode: single map vs multi-layer comparison grid ---
+    view_mode = st.radio(
+        "🗺️ Map view",
+        ["Single map", "Compare layers (grid)"],
+        horizontal=True,
+        key="map_view_mode",
+        help="Compare shows every ticked overlay layer in its own panel "
+             "with synced or independent zoom and a full-screen option.",
+    )
+    if view_mode == "Compare layers (grid)":
+        from ui.multimap import multimap_view
+        multimap_view()
+        return
+
     lat = st.session_state.lat
     lon = st.session_state.lon
 

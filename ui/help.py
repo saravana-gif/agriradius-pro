@@ -44,6 +44,12 @@ market prices and livestock/allied sectors.
 - **Compute quality** (Light / Balanced / Heavy): Heavy = sharpest but
   heaviest — drop to **Light** if it's slow or Earth Engine is busy.
 - If tiles look missing after zooming, click **Refresh map**.
+- **Compare layers (grid):** above the map, switch *Map view* to
+  *Compare layers (grid)* to see every ticked layer in its own panel
+  side by side. Toggle **synced zoom** (all panels follow the top-left
+  *master* — pan/zoom it and the rest match) or make them independent,
+  set **max panels**, and use **⛶ Full screen**. Each panel shows its
+  key figure on a translucent badge.
 
 Layers include: Dynamic World land cover, Cropland Confidence, Paddy,
 Maize, Plantations (coconut/arecanut), Banana, Aquaculture ponds,

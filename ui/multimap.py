@@ -110,14 +110,31 @@ def multimap_view():
             "they'll appear here as side-by-side maps.")
         return
 
-    maxn = st.slider(
-        "Max panels to show", 1, 6, min(4, len(selected)),
-        help="A cap so ticking every layer doesn't render dozens of "
-             "maps at once (each panel is a live Earth Engine layer).")
+    cap = min(12, len(selected))
+    if cap <= 1:
+        maxn = cap
+    else:
+        maxn = st.slider(
+            "Max panels to show", 1, cap, min(4, cap),
+            help="How many of your ticked layers to render side by side. "
+                 "Each panel is a live Earth Engine layer, so more panels "
+                 "= more compute; raise it as far as you need.")
     show = selected[:maxn]
     if len(selected) > maxn:
         st.caption(f"Showing {maxn} of {len(selected)} ticked layers — "
                    f"raise the cap to see more.")
+
+    op = st.slider(
+        "Overlay opacity", 0.1, 1.0,
+        float(ss.get("overlay_opacity", 0.6)), 0.05,
+        help="Turn this up to make sparse detection layers (plantation, "
+             "paddy, maize) easier to spot over the satellite image.")
+
+    st.caption(
+        "Tip: full-cover layers (Dynamic World, Cropland Confidence, "
+        "Soil) paint the whole area; detection layers (plantation, "
+        "paddy, maize, banana) only colour the pixels they flag, so "
+        "they look sparse — zoom in or raise opacity to see them.")
 
     layers = []
     with st.spinner("Rendering comparison maps (first time is slower)…"):
@@ -140,7 +157,7 @@ def multimap_view():
         return
 
     n = len(layers)
-    cols = 1 if n == 1 else (2 if n <= 4 else 3)
+    cols = (1 if n == 1 else 2 if n <= 4 else 3 if n <= 9 else 4)
     rows = (n + cols - 1) // cols
     height = 78 + rows * 372
 
@@ -205,8 +222,8 @@ _HTML = """
     if(i === 0){ var mb = document.createElement('div'); mb.className='master'; mb.textContent='MASTER'; panel.appendChild(mb); }
     grid.appendChild(panel);
     var map = L.map('m' + i, {center:[CFG.lat, CFG.lon], zoom:CFG.zoom, zoomControl:(i===0)});
-    L.tileLayer(CFG.sat, {maxZoom:20}).addTo(map);
-    if(ly.url){ L.tileLayer(ly.url, {opacity:CFG.opacity, maxZoom:20}).addTo(map); }
+    L.tileLayer(CFG.sat, {maxZoom:22, maxNativeZoom:20}).addTo(map);
+    if(ly.url){ L.tileLayer(ly.url, {opacity:CFG.opacity, maxZoom:22, minZoom:1, maxNativeZoom:16, zIndex:400}).addTo(map); }
     if(CFG.radius_m > 0){ L.circle([CFG.lat, CFG.lon], {radius:CFG.radius_m, color:'#22D3EE', weight:2, fill:false}).addTo(map); }
     maps.push(map);
   });

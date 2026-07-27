@@ -34,7 +34,11 @@ market prices and livestock/allied sectors.
   the Search box at the top.
 - **Radius (km):** slider or exact value — keep it **7–10 km** (big
   circles are slow and use more compute).
-- Pick the **Year** for the satellite analysis.
+- Pick the **Year** for the satellite analysis. The **current year**
+  uses a rolling 12-month window so detectors still work mid-season;
+  a completed past year is the safest reference.
+- New here? Click **✨ Try a sample area (Pollachi)** in the sidebar to
+  load a demo location instantly.
 - *Example:* `10.6588, 77.0089` (Pollachi), radius 10 km.
 
 #### 4. The map (sidebar → Layers)

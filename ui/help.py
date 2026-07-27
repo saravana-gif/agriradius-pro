@@ -52,8 +52,11 @@ market prices and livestock/allied sectors.
   *Compare layers (grid)* to see every ticked layer in its own panel
   side by side. Toggle **synced zoom** (all panels follow the top-left
   *master* — pan/zoom it and the rest match) or make them independent,
-  set **max panels**, and use **⛶ Full screen**. Each panel shows its
-  key figure on a translucent badge.
+  set **max panels** (up to all your ticked layers), and use
+  **⛶ Full screen**. **Double-click any panel** to expand it full and
+  double-click again to restore. Each panel shows its key figure on a
+  translucent badge; use the **Overlay opacity** slider to make sparse
+  detection layers easier to see.
 
 Layers include: Dynamic World land cover, Cropland Confidence, Paddy,
 Maize, Plantations (coconut/arecanut), Banana, Aquaculture ponds,

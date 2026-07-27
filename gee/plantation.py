@@ -33,20 +33,28 @@ SQM_PER_ACRE = 4046.8564224
 #   partial TREE canopy (Dynamic World trees prob) - the signal that
 #   separates open coconut from seasonal cropland (~0 trees) - plus a
 #   peak-greenness floor to drop bare land, on flat ground.
-MAX_SLOPE_DEG = 12
+MAX_SLOPE_DEG = 10           # tightened 12->10: drops hill forest/scrub
 # Base gate: pixel greens up at peak (rejects permanently bare land).
 PLANTATION_PEAK_MIN = 0.45
 # Base gate: DRY-SEASON greenness (15th-pct NDVI). This is the key
 # "evergreen palm vs bare/built land" signal - bare land and built-up
 # brown down in the dry season (p15 ~0.1), irrigated/rain-fed coconut
-# stays greener (p15 ~0.29+). Without it the layer spilled into empty
-# land and towns. Moderate (not the old strict 0.40) so open coconut
-# still passes.
-EVERGREEN_MIN = 0.22
+# stays greener. Tightened 0.22->0.26: at 0.22 the layer still spilled
+# onto empty/fallow ground (which greens a little in monsoon). 0.26
+# sits just under the ground-truth coconut median (~0.29) so it keeps
+# most true coconut while cutting the empty-land leak.
+EVERGREEN_MIN = 0.26
 # Base gate: persistent tree canopy fraction (Dynamic World). Raised
-# to 0.12 for precision - fallow/scrub with only a hint of tree leaked
-# at 0.08. Trades some recall (sparse groves) for a cleaner map.
-PLANTATION_TREES_MIN = 0.12
+# 0.12->0.14 for precision - thin-tree scrub/fallow leaked below this.
+PLANTATION_TREES_MIN = 0.14
+# Base gate: UPPER tree bound. Dense closed-canopy NATURAL forest sits
+# well above plantations (ground-truth coconut DW_trees ~0.16), so an
+# upper cap drops solid forest that was being painted as plantation
+# without hurting real open coconut.
+DW_TREES_MAX = 0.82
+# Base gate: reject empty/bare ground explicitly (belt-and-braces with
+# the tree>bare test) and grassland.
+DW_BARE_MAX = 0.30
 # Base gate: reject built-up outright (never plantation). (Water is
 # already excluded by the greenness gates - it has near-zero NDVI.)
 DW_BUILT_MAX = 0.30
@@ -89,6 +97,7 @@ def crop_class_image(buffer, year):
     dw_crops = feats.select("DW_crops")
     dw_built = feats.select("DW_built")
     dw_bare = feats.select("DW_bare")
+    dw_grass = feats.select("DW_grass")
 
     slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
 
@@ -101,7 +110,10 @@ def crop_class_image(buffer, year):
             .And(p15.gte(EVERGREEN_MIN))
             .And(p90.gte(PLANTATION_PEAK_MIN))
             .And(dw_trees.gte(PLANTATION_TREES_MIN))
-            .And(dw_trees.gt(dw_bare))       # tree-dominant, not bare land
+            .And(dw_trees.lte(DW_TREES_MAX))   # not dense natural forest
+            .And(dw_trees.gt(dw_bare))         # tree-dominant, not bare
+            .And(dw_trees.gt(dw_grass))        # not grassland
+            .And(dw_bare.lt(DW_BARE_MAX))      # not empty/bare ground
             .And(dw_built.lt(DW_BUILT_MAX)))
 
     v_tree = dw_trees.gt(dw_crops)

@@ -195,13 +195,15 @@ _HTML = """
   .ovl .s{color:#9FE7C9;font-family:'JetBrains Mono',monospace;font-size:11px;}
   .master{position:absolute;top:8px;right:8px;z-index:500;background:rgba(6,182,212,.85);
           color:#04283a;font-weight:700;font-size:10px;padding:3px 8px;border-radius:999px;}
+  #grid.has-expanded .panel{display:none;}
+  #grid.has-expanded .panel.expanded{display:block;grid-column:1 / -1;}
   :fullscreen #grid{height:calc(100vh - 60px);}
 </style>
 <div id="wrap">
   <div id="bar">
     <button class="btn" id="syncBtn">&#128279; Synced zoom: ON</button>
     <button class="btn" id="fsBtn">&#9974; Full screen</button>
-    <span id="hint">Synced: all panels follow the top-left master. Turn off for independent zoom.</span>
+    <span id="hint">Synced: all panels follow the top-left master. Double-click any map to expand it full / restore.</span>
   </div>
   <div id="grid"></div>
 </div>
@@ -221,12 +223,30 @@ _HTML = """
     panel.appendChild(md); panel.appendChild(ov);
     if(i === 0){ var mb = document.createElement('div'); mb.className='master'; mb.textContent='MASTER'; panel.appendChild(mb); }
     grid.appendChild(panel);
-    var map = L.map('m' + i, {center:[CFG.lat, CFG.lon], zoom:CFG.zoom, zoomControl:(i===0)});
+    var map = L.map('m' + i, {center:[CFG.lat, CFG.lon], zoom:CFG.zoom, zoomControl:(i===0), doubleClickZoom:false});
     L.tileLayer(CFG.sat, {maxZoom:22, maxNativeZoom:20}).addTo(map);
     if(ly.url){ L.tileLayer(ly.url, {opacity:CFG.opacity, maxZoom:22, minZoom:1, maxNativeZoom:16, zIndex:400}).addTo(map); }
     if(CFG.radius_m > 0){ L.circle([CFG.lat, CFG.lon], {radius:CFG.radius_m, color:'#22D3EE', weight:2, fill:false}).addTo(map); }
+    map.on('dblclick', function(){ toggleExpand(i); });
     maps.push(map);
   });
+
+  function toggleExpand(idx){
+    var panels = Array.prototype.slice.call(document.querySelectorAll('.panel'));
+    var p = panels[idx];
+    var expanding = !p.classList.contains('expanded');
+    panels.forEach(function(x){ x.classList.remove('expanded'); });
+    document.getElementById('grid').classList.toggle('has-expanded', expanding);
+    var fs = !!document.fullscreenElement;
+    if(expanding){
+      p.classList.add('expanded');
+      p.querySelector('.m').style.height = (fs ? (window.innerHeight - 70) : 640) + 'px';
+    } else {
+      var h = (fs ? Math.floor((window.innerHeight - 70) / CFG.rows) : 360) + 'px';
+      document.querySelectorAll('.m').forEach(function(el){ el.style.height = h; });
+    }
+    setTimeout(function(){ maps.forEach(function(m){ m.invalidateSize(); }); }, 160);
+  }
   var synced = false;
   function setSync(on){
     for(var i=0;i<maps.length;i++){ for(var j=0;j<maps.length;j++){ if(i!==j){ try{ on ? maps[i].sync(maps[j]) : maps[i].unsync(maps[j]); }catch(e){} } } }

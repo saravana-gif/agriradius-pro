@@ -41,17 +41,20 @@ SAMPLE = int(_sys.argv[2]) if len(_sys.argv) > 2 else 400
 YEAR = 2024
 
 # current detector thresholds (mirror gee/plantation.py)
-MAX_SLOPE_DEG = 12
-EVERGREEN_MIN = 0.22         # base: dry-season greenness (p15)
+MAX_SLOPE_DEG = 10
+EVERGREEN_MIN = 0.26         # base: dry-season greenness (p15)
 PLANTATION_PEAK_MIN = 0.45   # base: greens up at peak
-PLANTATION_TREES_MIN = 0.12  # base: persistent tree canopy
+PLANTATION_TREES_MIN = 0.14  # base: persistent tree canopy
+DW_TREES_MAX = 0.82          # base: not dense natural forest
+DW_BARE_MAX = 0.30           # base: not empty/bare ground
 DW_BUILT_MAX = 0.30          # base: not built-up
 PEAK_MAX = 0.82              # coconut vote
 AMP_MAX = 0.45              # coconut vote
 VH_MIN = -18.0             # coconut vote
 
 BANDS = ["NDVI_p15", "NDVI_p90", "NDVI_amp", "VH",
-         "DW_trees", "DW_crops", "DW_built", "DW_bare", "slope"]
+         "DW_trees", "DW_crops", "DW_built", "DW_bare",
+         "DW_grass", "slope"]
 
 
 def main():
@@ -95,7 +98,10 @@ def main():
             & (s["NDVI_p15"] >= EVERGREEN_MIN)
             & (s["NDVI_p90"] >= PLANTATION_PEAK_MIN)
             & (s["DW_trees"] >= PLANTATION_TREES_MIN)
+            & (s["DW_trees"] <= DW_TREES_MAX)
             & (s["DW_trees"] > s["DW_bare"])
+            & (s["DW_trees"] > s["DW_grass"])
+            & (s["DW_bare"] < DW_BARE_MAX)
             & (s["DW_built"] < DW_BUILT_MAX))
     v_tree = s["DW_trees"] > s["DW_crops"]
     v_peak = s["NDVI_p90"] < PEAK_MAX

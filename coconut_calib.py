@@ -103,13 +103,14 @@ def main():
             & (s["DW_trees"] > s["DW_grass"])
             & (s["DW_bare"] < DW_BARE_MAX)
             & (s["DW_built"] < DW_BUILT_MAX))
-    v_tree = s["DW_trees"] > s["DW_crops"]
+    tree_dom = s["DW_trees"] > s["DW_crops"]     # now a HARD gate
     v_peak = s["NDVI_p90"] < PEAK_MAX
     v_stable = s["NDVI_amp"] <= AMP_MAX
     v_vh = s["VH"] > VH_MIN
-    votes = (v_tree.astype(int) + v_peak.astype(int)
-             + v_stable.astype(int) + v_vh.astype(int))
-    coconut = base & (votes >= 2)
+    support = (v_peak.astype(int) + v_stable.astype(int)
+               + v_vh.astype(int))
+    votes = support   # kept for the sweep/printouts below
+    coconut = base & tree_dom & (support >= 2)
 
     print("\n=== Gate pass-rates over known coconut (higher = better) ===")
     print(f"  base: slope<={MAX_SLOPE_DEG}              : {pct(s['slope']<=MAX_SLOPE_DEG)}")
@@ -117,7 +118,7 @@ def main():
     print(f"  base: p90>={PLANTATION_PEAK_MIN} (greens up)   : {pct(s['NDVI_p90']>=PLANTATION_PEAK_MIN)}")
     print(f"  base: DW_trees>={PLANTATION_TREES_MIN} (canopy) : {pct(s['DW_trees']>=PLANTATION_TREES_MIN)}")
     print(f"  base (all)                     : {pct(base)}")
-    print(f"  vote tree (trees>crops)        : {pct(v_tree)}")
+    print(f"  GATE tree-dom (trees>crops)    : {pct(tree_dom)}")
     print(f"  vote peak (p90<{PEAK_MAX})         : {pct(v_peak)}")
     print(f"  vote stable (amp<={AMP_MAX})        : {pct(v_stable)}")
     print(f"  vote VH (>{VH_MIN})            : {pct(v_vh)}")

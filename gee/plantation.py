@@ -116,15 +116,21 @@ def crop_class_image(buffer, year):
             .And(dw_bare.lt(DW_BARE_MAX))      # not empty/bare ground
             .And(dw_built.lt(DW_BUILT_MAX)))
 
-    v_tree = dw_trees.gt(dw_crops)
+    # Woody dominance is now a HARD gate for coconut (was a soft vote):
+    # coconut is a tree crop, so its Dynamic World 'trees' probability
+    # must beat 'crops'. This is what stops the layer swallowing the
+    # green cropland matrix (paddy, maize, sugarcane) - those are
+    # crop-dominant and get excluded here rather than painted yellow.
+    tree_dom = dw_trees.gt(dw_crops)
+
     v_peak = p90.lt(COCONUT_PEAK_NDVI_MAX)
     v_stable = amp.lte(COCONUT_AMP_MAX)
     v_vh = vh.gt(COCONUT_VH_MIN_DB)
+    # Support from the 3 remaining signatures (peak / stability / radar).
+    support = v_peak.add(v_stable).add(v_vh)
 
-    coconut_votes = (v_tree.add(v_peak).add(v_stable).add(v_vh))
-
-    coconut = base.And(coconut_votes.gte(2))
-    banana = base.And(coconut_votes.lt(2))
+    coconut = base.And(tree_dom).And(support.gte(2))
+    banana = base.And(tree_dom.Not()).And(support.lt(2))
 
     return (ee.Image(0)
             .where(coconut, 1)
@@ -133,14 +139,32 @@ def crop_class_image(buffer, year):
             .updateMask(base))
 
 
+def _not_paddy(buffer, year):
+    """1 where the independent radar paddy detector says NOT paddy.
+
+    Paddy and coconut are mutually exclusive land uses, and paddy is
+    found from a different signal (Sentinel-1 radar), so subtracting it
+    is a clean cross-check that stops irrigated paddy / wet cropland
+    leaking into the plantation layer.
+    """
+    try:
+        from gee.paddy import paddy_mask
+        pad = paddy_mask(buffer, f"{year}-01-01", f"{year}-12-31")
+        return pad.unmask(0).eq(0)
+    except Exception:
+        return ee.Image(1)
+
+
 def plantation_mask(buffer, year):
-    """Coconut/arecanut mask (class 1)."""
-    return crop_class_image(buffer, year).eq(1).rename("plantation")
+    """Coconut/arecanut mask (class 1), with paddy carved out."""
+    coco = crop_class_image(buffer, year).eq(1)
+    return coco.And(_not_paddy(buffer, year)).rename("plantation")
 
 
 def banana_mask(buffer, year):
-    """Banana mask (class 2)."""
-    return crop_class_image(buffer, year).eq(2).rename("banana")
+    """Banana mask (class 2), with paddy carved out."""
+    ban = crop_class_image(buffer, year).eq(2)
+    return ban.And(_not_paddy(buffer, year)).rename("banana")
 
 
 @st.cache_data(show_spinner="Detecting plantations (coconut/arecanut)...")

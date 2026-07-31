@@ -16,8 +16,8 @@ def _service_account_creds():
     Returns ee credentials or None.
     """
     try:
-        raw = (st.secrets.get("EE_SERVICE_ACCOUNT")
-               or st.secrets.get("GCP_SERVICE_ACCOUNT"))
+        from core.secrets import get as _sec
+        raw = (_sec("EE_SERVICE_ACCOUNT") or _sec("GCP_SERVICE_ACCOUNT"))
     except Exception:
         raw = None
 

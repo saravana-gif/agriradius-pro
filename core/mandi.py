@@ -39,7 +39,8 @@ STATES = ["All India", "Karnataka", "Tamil Nadu", "Kerala",
 
 def _api_key():
     try:
-        return st.secrets["DATA_GOV_API_KEY"]
+        from core.secrets import get as _get
+        return _get("DATA_GOV_API_KEY") or ""
     except Exception:
         return ""
 

@@ -28,7 +28,8 @@ SCOPES = [
 
 def _secret(key):
     try:
-        return st.secrets.get(key)
+        from core.secrets import get as _get
+        return _get(key)
     except Exception:
         return None
 

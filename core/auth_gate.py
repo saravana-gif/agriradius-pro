@@ -36,7 +36,9 @@ _DEFAULT_OWNER = "saravana@oneroot.farm"
 
 def _secret(key, default=""):
     try:
-        return st.secrets.get(key, default)
+        from core.secrets import get as _get
+        val = _get(key)
+        return default if val is None else val
     except Exception:
         return default
 

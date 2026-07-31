@@ -131,7 +131,13 @@ def _legacy_email():
 # ----------------------------------------------------------------------
 def require_login():
     """Return the signed-in user dict, or None (caller should st.stop())."""
-    permissions.ensure_owner(str(_secret("OWNER_EMAIL", _DEFAULT_OWNER)))
+    # Seed the owner once per session, not on every rerun (a Sheets hit).
+    if not st.session_state.get("_owner_ensured"):
+        try:
+            permissions.ensure_owner(str(_secret("OWNER_EMAIL", _DEFAULT_OWNER)))
+        except Exception:
+            pass
+        st.session_state["_owner_ensured"] = True
 
     if _native_configured():
         return _require_native()

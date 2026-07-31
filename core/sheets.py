@@ -86,6 +86,21 @@ def append_rows(sheet_name, rows, columns):
         value_input_option="USER_ENTERED")
 
 
+def overwrite(sheet_name, columns, rows):
+    """Replace a worksheet's contents with header + rows (small tables).
+
+    `rows` is a list of dicts keyed by `columns`. Used for the small
+    user-permissions table where we rewrite the whole sheet on each
+    add / remove / role change.
+    """
+    ws = _worksheet(sheet_name, columns)
+    data = [list(columns)]
+    for r in rows:
+        data.append([str(r.get(c, "")) for c in columns])
+    ws.clear()
+    ws.update(data, value_input_option="USER_ENTERED")
+
+
 def read_records(sheet_name, columns):
     """Return a worksheet as a DataFrame (empty if missing)."""
     try:

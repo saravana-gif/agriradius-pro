@@ -67,3 +67,6 @@ data/ground_truth/soil_cards.csv
 # Generated reports (all formats)
 reports/*.xlsx
 reports/*.docx
+# Local auth fallback (real allowlist lives in Google Sheets)
+data/permissions.csv
+data/permissions.db

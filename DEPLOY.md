@@ -97,3 +97,39 @@ libgdal-dev
 gdal-bin
 ```
 commit & push. (Only needed if geopandas/fiona fail to install.)
+
+---
+
+## Login & access control (@oneroot.farm Google sign-in)
+
+The app can require a Google sign-in and only let in emails an admin has
+added. Password = the person's own @oneroot.farm Google password; the
+app never sees or stores it.
+
+**How it decides:**
+- If an `[auth]` section is present in the app's Secrets → **Google
+  sign-in is ON**. A visitor signs in with Google; if their email isn't
+  in the allowlist they see *"signed in, but hasn't been given access
+  yet — ask an admin."* Non-@oneroot.farm accounts are refused.
+- If there's **no** `[auth]` section → the app stays open/legacy, so
+  nothing breaks before you finish setup.
+
+**One-time setup:**
+1. Google Cloud Console → APIs & Services → **Credentials** → Create
+   **OAuth client ID** → *Web application*.
+2. Add the Authorised redirect URI **exactly**:
+   `https://agriradius-pro-ytsri4v3cvjcwt3vnvjabl.streamlit.app/oauth2callback`
+3. On Streamlit Cloud → App → **Settings → Secrets**, paste the `[auth]`
+   block from `.streamlit/secrets.toml.example` with your `client_id`,
+   `client_secret`, a random `cookie_secret`, and keep
+   `OWNER_EMAIL = "saravana@oneroot.farm"` so you seed yourself as owner.
+4. Reboot the app. You'll be asked to sign in; as owner you get the
+   **People & Access** panel in the sidebar.
+
+**Managing staff (live, no redeploy):** open the sidebar **People &
+Access** panel (owners only). Add someone by **email + role**, change a
+role from the dropdown, or **Remove** them — all written to the shared
+Google Sheet (`Users` tab), so it persists across restarts.
+
+Roles: **owner** (full + user admin), **analyst** (full app), **viewer**
+(read-only). You can't remove yourself (prevents lock-out).

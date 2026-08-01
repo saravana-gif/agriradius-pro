@@ -19,7 +19,7 @@ services:
   - type: web
     name: agriradius-pro
     runtime: python
-    plan: starter          # 'free' also works but sleeps; 'starter' is always-on
+    plan: free             # free tier: sleeps after inactivity (cold start); 512 MB RAM
     region: singapore      # closest Render region to India
     branch: main
     autoDeploy: true

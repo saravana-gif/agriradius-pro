@@ -27,9 +27,12 @@ METRIC = "earthengine.googleapis.com/project/cpu/usage_time"
 
 
 def _credentials():
+    # Use the tolerant reader: it finds the key whether it's a top-level
+    # secret OR nested under an [auth] table (which is how the secrets are
+    # laid out when copied from Streamlit Cloud).
     try:
-        raw = (st.secrets.get("EE_SERVICE_ACCOUNT")
-               or st.secrets.get("GCP_SERVICE_ACCOUNT"))
+        from core.secrets import get as _sec
+        raw = (_sec("EE_SERVICE_ACCOUNT") or _sec("GCP_SERVICE_ACCOUNT"))
     except Exception:
         raw = None
     if not raw:

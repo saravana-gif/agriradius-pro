@@ -5,9 +5,12 @@
 #
 # After first deploy:
 #   1. Render dashboard -> this service -> Environment -> Secret Files:
-#      add a file named  .streamlit/secrets.toml  and paste the SAME
-#      secrets you use on Streamlit Cloud, BUT change the [auth]
-#      redirect_uri to the new domain:
+#      add a file named  secrets.toml  (Render's field rejects the "/"
+#      in a path, so it CANNOT be named .streamlit/secrets.toml here).
+#      The startCommand below copies it into .streamlit/secrets.toml on
+#      boot, which is where Streamlit reads secrets from.
+#      Paste the SAME secrets you use on Streamlit Cloud, BUT change the
+#      [auth] redirect_uri to the new domain:
 #        redirect_uri = "https://groundintel.oneroot.farm/oauth2callback"
 #      (keep [auth] LAST in the file - the TOML ordering rule.)
 #   2. Settings -> Custom Domains -> add  groundintel.oneroot.farm
@@ -24,8 +27,17 @@ services:
     branch: main
     autoDeploy: true
     buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false
-    healthCheckPath: /
+    # Render secret files can't be named with a "/", so the secret is
+    # uploaded as  secrets.toml  and mounted at /etc/secrets/secrets.toml.
+    # Copy it into .streamlit/ (where Streamlit reads secrets) before
+    # launching. The copy is best-effort so a missing secret never turns
+    # a deploy into a crash-loop - the app just shows "sign-in not set up".
+    startCommand: mkdir -p .streamlit && (cp secrets.toml .streamlit/secrets.toml 2>/dev/null || cp /etc/secrets/secrets.toml .streamlit/secrets.toml 2>/dev/null || true) && streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false
+    # Use Streamlit's dedicated health endpoint, not "/". With native
+    # Google auth ([auth]) enabled, "/" no longer returns a clean 200 for
+    # an unauthenticated request, which makes Render's health-checked
+    # deploy hang forever. "/_stcore/health" always returns 200 "ok".
+    healthCheckPath: /_stcore/health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"

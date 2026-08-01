@@ -147,25 +147,46 @@ def require_login():
 
 
 def _authorise(email):
-    """Shared: domain check + allowlist lookup. Returns user dict or None."""
+    """Decide access for a signed-in email. Returns a user dict or None.
+
+    Access model:
+      * Anyone with an @oneroot.farm account gets full access automatically
+        - no need to be added to the allowlist.
+      * An explicit allowlist entry (People & Access) always wins. This is
+        how admins (a) grant access to an outside / third-party email, or
+        (b) override a role (e.g. make someone an owner), or (c) disable a
+        specific person by setting them inactive.
+    """
     dom = _domain()
-    if dom and not email.endswith("@" + dom):
-        _denied(
-            f"<b>{email}</b> is not an @{dom} account.",
-            "This app is only for OneRoot members. Sign in with your "
-            "@oneroot.farm Google account.",
-            logout=True)
-        return None
+
+    # 1. Explicit allowlist entry wins (third-party grants, role overrides,
+    #    and revocations all live here).
     user = permissions.get(email)
-    if not user:
-        _denied(
-            f"<b>{email}</b> signed in, but hasn't been given access yet.",
-            "Ask an admin to add you in the People &amp; Access panel, "
-            "then reload this page.",
-            logout=True)
-        return None
-    st.session_state["user"] = user
-    return user
+    if user:
+        if not user.get("active", True):
+            _denied(
+                f"<b>{email}</b>'s access has been turned off.",
+                "Ask an admin to re-enable your account in the People &amp; "
+                "Access panel.",
+                logout=True)
+            return None
+        st.session_state["user"] = user
+        return user
+
+    # 2. Any @oneroot.farm account gets full access automatically.
+    if dom and email.endswith("@" + dom):
+        user = {"email": email, "role": "analyst", "active": True}
+        st.session_state["user"] = user
+        return user
+
+    # 3. Outside the domain and not explicitly added -> no access.
+    _denied(
+        f"<b>{email}</b> doesn't have access to this app.",
+        f"This app is for OneRoot (@{dom}) members. To use a different "
+        "email, ask an admin to add it in the People &amp; Access panel, "
+        "then reload this page.",
+        logout=True)
+    return None
 
 
 def _require_native():
@@ -206,12 +227,13 @@ def admin_panel():
     me = _clean((st.session_state.get("user") or {}).get("email"))
 
     with st.sidebar.expander("\U0001F465 People & Access", expanded=False):
-        st.caption("Members sign in with their @oneroot.farm Google "
-                   "password — nothing is stored here. Add someone by "
-                   "email and role; changes apply live.")
+        st.caption("Everyone with an @oneroot.farm Google account already "
+                   "has full access — you don't need to add them here. Use "
+                   "this to give access to an outside email, make someone an "
+                   "owner, or turn off a specific person. Changes apply live.")
 
         with st.form("add_user", clear_on_submit=True):
-            email = st.text_input("Email", placeholder="name@oneroot.farm")
+            email = st.text_input("Email", placeholder="name@company.com")
             role = st.selectbox("Role", permissions.ROLES, index=1)
             if st.form_submit_button("Add / update", type="primary",
                                      use_container_width=True):
@@ -225,7 +247,7 @@ def admin_panel():
         st.divider()
 
         rows = permissions.list_all()
-        st.caption(f"{len(rows)} member(s)")
+        st.caption(f"{len(rows)} extra / overridden member(s)")
         for r in rows:
             em = r["email"]
             tag = "" if r["active"] else " · disabled"

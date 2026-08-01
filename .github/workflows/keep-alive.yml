@@ -1,0 +1,22 @@
+name: keep-alive
+
+# Pings the app's health endpoint so the Render free instance stays awake
+# during Indian working hours. It is allowed to sleep overnight so we stay
+# well within Render's free monthly run-time limit.
+#   Schedule below is UTC. 01:00-16:00 UTC == 06:30-21:30 IST.
+# GitHub cron is best-effort and may run a few minutes late - that is fine
+# for keep-alive. You can also trigger it manually from the Actions tab.
+
+on:
+  schedule:
+    - cron: "*/10 1-15 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: >
+          curl -fsS --max-time 90 --retry 4 --retry-all-errors
+          https://groundintel.oneroot.farm/_stcore/health || true

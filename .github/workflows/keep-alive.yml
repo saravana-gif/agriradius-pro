@@ -1,15 +1,16 @@
 name: keep-alive
 
 # Pings the app's health endpoint so the Render free instance stays awake
-# during Indian working hours. It is allowed to sleep overnight so we stay
-# well within Render's free monthly run-time limit.
-#   Schedule below is UTC. 01:00-16:00 UTC == 06:30-21:30 IST.
-# GitHub cron is best-effort and may run a few minutes late - that is fine
-# for keep-alive. You can also trigger it manually from the Actions tab.
+# through India's active hours (~05:30-23:30 IST). It's allowed to sleep
+# overnight so we stay within Render's free monthly run-time budget.
+#   Schedule is in UTC. 00:00-17:59 UTC == 05:30-23:29 IST.
+# GitHub's scheduler is best-effort and can run a few minutes late, so we
+# ping every 5 minutes to leave margin against Render's 15-minute sleep
+# timer. You can also run it manually from the Actions tab.
 
 on:
   schedule:
-    - cron: "*/10 1-15 * * *"
+    - cron: "*/5 0-17 * * *"
   workflow_dispatch:
 
 jobs:

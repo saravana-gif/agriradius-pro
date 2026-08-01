@@ -133,3 +133,32 @@ Google Sheet (`Users` tab), so it persists across restarts.
 
 Roles: **owner** (full + user admin), **analyst** (full app), **viewer**
 (read-only). You can't remove yourself (prevents lock-out).
+
+---
+
+## Re-host at groundintel.oneroot.farm (Render) — keeps the URL + GitHub auto-deploy
+
+Streamlit Community Cloud can't serve a custom domain, so to have the URL
+stay `groundintel.oneroot.farm` we run the same repo on **Render** (native
+Python, same `requirements.txt`). Pushes to `main` still auto-deploy.
+
+**Steps (one-time):**
+1. **render.com** → sign in **with GitHub** → **New → Blueprint** → pick the
+   `agriradius-pro` repo. Render reads `render.yaml` and creates the service.
+   (Blueprint uses the `starter` plan = always-on, ~$7/mo; switch to `free`
+   in render.yaml if you accept cold starts.)
+2. **Secrets:** service → **Environment → Secret Files** → add a file named
+   `.streamlit/secrets.toml` and paste the SAME secrets from Streamlit Cloud,
+   changing only the `[auth]` `redirect_uri` to
+   `https://groundintel.oneroot.farm/oauth2callback`. Keep `[auth]` LAST.
+3. **Custom domain:** service → **Settings → Custom Domains** → add
+   `groundintel.oneroot.farm`. Render gives a CNAME target — add that CNAME
+   at oneroot.farm's DNS host. (Only this subdomain; never touch MX/email.)
+4. **Google OAuth:** Cloud Console → the OAuth client → add redirect URI
+   `https://groundintel.oneroot.farm/oauth2callback` and JS origin
+   `https://groundintel.oneroot.farm`.
+5. Wait for DNS + Render's TLS cert (a few minutes to a couple of hours).
+   Open `https://groundintel.oneroot.farm` → Google sign-in → app.
+
+The old `…streamlit.app` app can stay as a backup or be deleted once the new
+domain works.

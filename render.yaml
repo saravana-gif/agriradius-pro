@@ -1,0 +1,31 @@
+# Render blueprint - host AgriRadius Pro at a custom domain
+# (groundintel.oneroot.farm) with auto-deploy on every push to main.
+# Same repo + same requirements.txt as Streamlit Cloud (native Python,
+# no Docker), so the working dependency set is unchanged.
+#
+# After first deploy:
+#   1. Render dashboard -> this service -> Environment -> Secret Files:
+#      add a file named  .streamlit/secrets.toml  and paste the SAME
+#      secrets you use on Streamlit Cloud, BUT change the [auth]
+#      redirect_uri to the new domain:
+#        redirect_uri = "https://groundintel.oneroot.farm/oauth2callback"
+#      (keep [auth] LAST in the file - the TOML ordering rule.)
+#   2. Settings -> Custom Domains -> add  groundintel.oneroot.farm
+#      Render shows a CNAME target; add it at your DNS host.
+#   3. Google Cloud Console -> the OAuth client -> add authorised
+#      redirect URI  https://groundintel.oneroot.farm/oauth2callback
+#      and JavaScript origin  https://groundintel.oneroot.farm
+services:
+  - type: web
+    name: agriradius-pro
+    runtime: python
+    plan: starter          # 'free' also works but sleeps; 'starter' is always-on
+    region: singapore      # closest Render region to India
+    branch: main
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --server.enableCORS false
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"

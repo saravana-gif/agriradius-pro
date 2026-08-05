@@ -64,6 +64,21 @@ def mapview():
                 st.session_state.lon,
                 st.session_state.radius
             )
+            # Keep the map light: simplify outlines (~30 m tolerance)
+            # and cap how many polygons go into the page. A 100 km
+            # radius can hit thousands of villages, which used to
+            # build an enormous map and stall the free server.
+            MAX_VILLAGES = 1200
+            if len(gdf):
+                gdf = gdf.copy()
+                gdf["geometry"] = gdf.geometry.simplify(
+                    0.0003, preserve_topology=True)
+            if len(gdf) > MAX_VILLAGES:
+                st.caption(
+                    f"Showing {MAX_VILLAGES} of {len(gdf)} villages "
+                    "on the map (all are counted in the Villages tab). "
+                    "Reduce the radius to see every outline.")
+                gdf = gdf.head(MAX_VILLAGES)
             engine.add_villages(
                 gdf,
                 popup_fields=["vilname11", "sdtname", "dtname", "stname"],

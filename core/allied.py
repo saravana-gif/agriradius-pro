@@ -160,36 +160,39 @@ def _district_area_shares(lat, lon, radius_km):
     Returns dict {(state_norm, district_norm): (a_in, a_tot)}.
     """
     from data.gis_data import GIS_DATA
-    from gis.boundary_loader import load_boundaries
+    from gis.boundary_loader import load_boundaries, state_may_intersect
     from gis.spatial import _buffer_geometry
 
-    buf = _buffer_geometry(lat, lon, radius_km).to_crs(3857)
+    buf4326 = _buffer_geometry(lat, lon, radius_km)
+    buf = buf4326.to_crs(3857)
     buf_geom = buf.geometry.iloc[0]
+
+    # Memory-safe: instead of loading whole states, read a window
+    # around the buffer wide enough to contain any district that
+    # touches it (Indian districts are < ~2 degrees across).
+    margin = 1.2  # degrees, ~130 km
+    b = buf4326.total_bounds
+    window = (b[0] - margin, b[1] - margin, b[2] + margin, b[3] + margin)
 
     out = {}
     for state in GIS_DATA:
         if "villages" not in GIS_DATA[state]:
             continue
+        if not state_may_intersect(state, window):
+            continue
         try:
-            gdf = load_boundaries(state, "villages")
+            gdf = load_boundaries(state, "villages", bbox=window)
         except Exception:
             continue
-        if "dtname" not in gdf.columns:
+        if gdf.empty or "dtname" not in gdf.columns:
             continue
         gdf = gdf.to_crs(3857)
         dist = gdf["dtname"].map(_norm)
 
-        # candidate villages intersecting the buffer bounds
-        try:
-            cand_idx = list(gdf.sindex.intersection(buf.total_bounds))
-        except Exception:
-            cand_idx = list(range(len(gdf)))
-        cand = gdf.iloc[cand_idx]
-        cand_dist = dist.iloc[cand_idx]
-        inside = cand[cand.intersects(buf_geom)]
+        inside = gdf[gdf.intersects(buf_geom)]
         if inside.empty:
             continue
-        inside_dist = cand_dist.loc[inside.index]
+        inside_dist = dist.loc[inside.index]
 
         clip_area = inside.geometry.intersection(buf_geom).area
         state_norm = _norm(state)

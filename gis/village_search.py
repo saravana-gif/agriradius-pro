@@ -13,7 +13,8 @@ DISPLAY_COLS = {
 }
 
 
-@st.cache_data(show_spinner="Finding villages in buffer...")
+@st.cache_data(show_spinner="Finding villages in buffer...",
+               max_entries=8, ttl=3600)
 def get_villages(lat, lon, radius):
     """Return villages intersecting the buffer as a plain DataFrame."""
 
@@ -31,7 +32,8 @@ def get_villages(lat, lon, radius):
     return df.reset_index(drop=True)
 
 
-@st.cache_data(show_spinner="Locating villages...")
+@st.cache_data(show_spinner="Locating villages...",
+               max_entries=8, ttl=3600)
 def village_centroids(lat, lon, radius):
     """Return {village_name: (lat, lon)} for villages in the buffer."""
 

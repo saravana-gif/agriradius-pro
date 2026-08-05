@@ -1,11 +1,15 @@
-"""Spatial queries across all registered states."""
+"""Spatial queries across all registered states - memory-safe.
+
+Every query passes a bounding box to the loader, so only the villages
+near the query area are ever read into memory (see boundary_loader).
+"""
 
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
 from data.gis_data import GIS_DATA
-from gis.boundary_loader import load_boundaries
+from gis.boundary_loader import load_boundaries, state_may_intersect
 
 
 def _buffer_geometry(lat, lon, radius_km):
@@ -25,10 +29,15 @@ def _buffer_geometry(lat, lon, radius_km):
 
 
 def villages_in_buffer(lat, lon, radius_km):
-    """Villages from every registered state that intersect the buffer."""
+    """Villages from every registered state that intersect the buffer.
+
+    Only reads features inside the buffer's bounding box, and skips
+    states whose extent cannot overlap it at all.
+    """
 
     buffer = _buffer_geometry(lat, lon, radius_km)
     geom = buffer.geometry.iloc[0]
+    bounds = tuple(buffer.total_bounds)  # (minx, miny, maxx, maxy)
 
     parts = []
 
@@ -37,19 +46,18 @@ def villages_in_buffer(lat, lon, radius_km):
         if "villages" not in GIS_DATA[state]:
             continue
 
+        if not state_may_intersect(state, bounds):
+            continue
+
         try:
-            gdf = load_boundaries(state, "villages")
+            gdf = load_boundaries(state, "villages", bbox=bounds)
         except FileNotFoundError:
             continue
 
-        # Spatial index query, then exact intersection test
-        idx = list(gdf.sindex.intersection(buffer.total_bounds))
-
-        if not idx:
+        if gdf.empty:
             continue
 
-        candidates = gdf.iloc[idx]
-        hits = candidates[candidates.intersects(geom)]
+        hits = gdf[gdf.intersects(geom)]
 
         if not hits.empty:
             parts.append(hits)
@@ -72,23 +80,27 @@ def village_at_point(lat, lon):
 
     pt = Point(lon, lat)
 
+    # A tiny window around the point is all we need to read.
+    pad = 0.02  # ~2 km
+    bounds = (lon - pad, lat - pad, lon + pad, lat + pad)
+
     for state in GIS_DATA:
 
         if "villages" not in GIS_DATA[state]:
             continue
 
+        if not state_may_intersect(state, bounds):
+            continue
+
         try:
-            gdf = load_boundaries(state, "villages")
+            gdf = load_boundaries(state, "villages", bbox=bounds)
         except FileNotFoundError:
             continue
 
-        idx = list(gdf.sindex.intersection((lon, lat, lon, lat)))
-
-        if not idx:
+        if gdf.empty:
             continue
 
-        candidates = gdf.iloc[idx]
-        hit = candidates[candidates.contains(pt)]
+        hit = gdf[gdf.contains(pt)]
 
         if not hit.empty:
             row = hit.iloc[0]

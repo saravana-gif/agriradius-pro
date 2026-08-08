@@ -2431,3 +2431,118 @@ def results():
 
     with tab_downloads:
         _safe(_downloads_tab, df)
+
+
+# ---------------------------------------------------------------------
+# SHC add-on: MEASURED soil health (Soil Health Card scheme) +
+# soil-test-based fertiliser guidance. Appended as an override wrapper:
+# the Soil tab looks up _land_capability_section at call time, so this
+# later definition runs the SHC panel first, then the original SLUSI
+# land-capability section.
+# ---------------------------------------------------------------------
+_slusi_section_original = _land_capability_section
+
+
+def _land_capability_section():
+    _safe(_shc_section)
+    st.divider()
+    _slusi_section_original()
+
+
+def _shc_section():
+    """MEASURED soil nutrient status from the Soil Health Card scheme
+    for the district(s) in view, plus soil-test-based fertiliser
+    guidance. Complements the modelled SoilGrids profile above."""
+
+    from core import shc
+
+    st.write("**🧾 Measured soil health (Soil Health Card scheme)**")
+
+    if not shc.has_data():
+        st.caption("SHC nutrient data not bundled.")
+        return
+
+    lat = st.session_state.get("lat")
+    lon = st.session_state.get("lon")
+    radius = st.session_state.get("radius", 10)
+
+    try:
+        from core import allied
+        pairs = allied.districts_touching(lat, lon, radius)
+    except Exception:
+        pairs = []
+
+    rows = shc.for_districts(pairs) if pairs else None
+    summary = shc.area_summary(rows) if rows is not None else None
+
+    if not summary:
+        st.caption("No SHC record for the district(s) in view "
+                   "(coverage: Karnataka & Tamil Nadu districts).")
+        return
+
+    dv.st_caption(
+        "shc",
+        as_of_override=f"cycle {summary['cycle']}, "
+                       f"{summary['samples']:,} lab samples")
+    st.caption(
+        "Lab-tested farmer samples aggregated at district level "
+        f"({', '.join(summary['districts'])}). Unlike the modelled "
+        "profile above, these are REAL measurements - but district "
+        "averages, not your specific plot.")
+
+    dom_key = {"Low": "low", "Medium": "med", "High": "high"}
+    mc = st.columns(4)
+    for i, (key, m) in enumerate(summary["macros"].items()):
+        pct = m[dom_key[m["dominant"]]]
+        mc[i].metric(m["label"], m["dominant"],
+                     f"{pct}% of samples", delta_color="off")
+
+    pc1, pc2, pc3 = st.columns(3)
+    ph = summary["ph"]
+    ph_key = {"Acidic": "acid", "Neutral": "neut", "Alkaline": "alk"}
+    pc1.metric("Soil reaction (pH)", ph["dominant"],
+               f"{ph[ph_key[ph['dominant']]]}% of samples",
+               delta_color="off")
+    pc2.metric("Salinity (EC)", f"{summary['ec_saline']}% saline",
+               "of samples", delta_color="off")
+    worst = max(summary["micros"].values(),
+                key=lambda m: m["deficient_pct"])
+    pc3.metric("Top micro-deficiency", worst["label"],
+               f"{worst['deficient_pct']}% deficient",
+               delta_color="off")
+
+    st.write("**Micronutrient deficiency (% of samples)**")
+    micro_df = _shc_micro_df(summary)
+    st.dataframe(micro_df, use_container_width=True, hide_index=True)
+
+    with st.expander("🧮 Fertiliser guidance for a target crop "
+                     "(soil-test based)"):
+        st.caption(
+            "Standard package-of-practices dose adjusted by the "
+            "area's SHC soil-test class (+25% when Low, -25% when "
+            "High). PLANNING ESTIMATE ONLY - final doses should come "
+            "from the plot's own Soil Health Card / local KVK.")
+        crop = st.selectbox("Target crop", shc.crops(), key="shc_crop")
+        g = shc.fertilizer_guidance(summary, crop)
+        if g:
+            gdf = pd.DataFrame([
+                {"Nutrient": r["nutrient"],
+                 "Soil test": r["soil_class"],
+                 f"Standard dose ({g['unit']})": r["rdf"],
+                 "Adjust": f"x{r['factor']}",
+                 f"Suggested ({g['unit']})": r["adjusted"]}
+                for r in g["rows"]])
+            st.dataframe(gdf, use_container_width=True,
+                         hide_index=True)
+            for n in g["notes"]:
+                st.markdown(f"- {n}")
+
+
+def _shc_micro_df(summary):
+    return pd.DataFrame([
+        {"Micronutrient": m["label"],
+         "% samples deficient": m["deficient_pct"],
+         "Common corrective (confirm with KVK)": m["advice"]}
+        for m in summary["micros"].values()
+    ]).sort_values("% samples deficient",
+                   ascending=False).reset_index(drop=True)

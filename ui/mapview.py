@@ -273,13 +273,20 @@ def mapview():
             metric = st.session_state.get("shc_map_metric", "n_low")
             label = shc_layer.METRICS.get(
                 metric, shc_layer.METRICS["n_low"])[0]
-            gj = shc_layer.geojson_for(metric)
+            gj = shc_layer.geojson_for(
+                metric,
+                round(float(st.session_state.lat), 4),
+                round(float(st.session_state.lon), 4),
+                float(st.session_state.get("radius", 10)),
+            )
             if gj:
                 engine.add_choropleth(
                     gj, label,
                     fill_opacity=min(0.8, _op + 0.1))
             else:
-                st.caption("SHC district layer data not bundled.")
+                st.caption(
+                    "No SHC district data inside the selected area "
+                    "(coverage: Karnataka & Tamil Nadu).")
         except Exception as e:
             st.warning(f"Could not load SHC district layer: {e}")
 

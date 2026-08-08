@@ -56,6 +56,8 @@ LAYERS = {
          "default": False},
         {"id": "soil_n", "label": "Soil Nitrogen (painted)",
          "default": False},
+        {"id": "shc", "label": "SHC measured soil-test (district)",
+         "default": False},
     ],
     "Administrative": [
         {"id": "villages", "label": "Villages (in buffer)", "default": False},

@@ -67,6 +67,23 @@ def layer_manager():
                 key=f"layer_{layer_id}"
             )
 
+    # SHC measured-data choropleth: pick which soil-test metric to
+    # paint (district-level lab data, cycle-based - see Soil tab).
+    if st.session_state.layer_visibility.get("shc"):
+        from gis import shc_layer
+        opts = shc_layer.metric_options()
+        keys = [k for k, _ in opts]
+        labels = {k: l for k, l in opts}
+        st.selectbox(
+            "SHC metric to paint",
+            keys,
+            format_func=lambda k: labels[k],
+            key="shc_map_metric",
+            help="District averages of lab-tested farmer samples "
+                 "(Soil Health Card scheme). Real measurements - "
+                 "district resolution, not plot-level.",
+        )
+
     legends()
 
 
@@ -168,3 +185,12 @@ def legends():
     for layer_id, (title, items) in LEGENDS.items():
         if vis.get(layer_id):
             _legend(title, items)
+
+    if vis.get("shc"):
+        from gis import shc_layer
+        metric = st.session_state.get("shc_map_metric", "n_low")
+        if metric in shc_layer.METRICS:
+            _legend(
+                f"SHC: {shc_layer.METRICS[metric][0]}",
+                [(lab, col)
+                 for lab, col in shc_layer.legend_items(metric)])

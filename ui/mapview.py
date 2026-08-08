@@ -265,6 +265,24 @@ def mapview():
                 _u.note_error("earth_engine", e)
                 st.warning(_u.friendly(e) or f"Could not load {soil_layer}: {e}")
 
+    if vis.get("shc"):
+
+        from gis import shc_layer
+
+        try:
+            metric = st.session_state.get("shc_map_metric", "n_low")
+            label = shc_layer.METRICS.get(
+                metric, shc_layer.METRICS["n_low"])[0]
+            gj = shc_layer.geojson_for(metric)
+            if gj:
+                engine.add_choropleth(
+                    gj, label,
+                    fill_opacity=min(0.8, _op + 0.1))
+            else:
+                st.caption("SHC district layer data not bundled.")
+        except Exception as e:
+            st.warning(f"Could not load SHC district layer: {e}")
+
     # --- Refresh button: remounts the map so any tiles that failed
     # to load (Earth Engine timeouts at high zoom) are re-requested,
     # without having to nudge the opacity slider. ---

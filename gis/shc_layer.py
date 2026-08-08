@@ -2,10 +2,9 @@
 
 Joins the bundled Soil Health Card nutrient table
 (data/reference/shc_district_nutrients.csv, real lab samples) onto a
-tiny simplified district-boundary file
-(data/reference/shc_districts.geojson, ~135 KB) and returns a GeoJSON
-dict whose features carry a precomputed fill colour + display text,
-ready for folium. Pure data prep - no folium, no streamlit.
+tiny simplified district-boundary file and returns a GeoJSON dict
+whose features carry a precomputed fill colour + display text, ready
+for folium. Pure data prep - no folium, no streamlit.
 """
 
 import base64
@@ -16,17 +15,30 @@ from functools import lru_cache
 from config import PROJECT_ROOT
 
 _REF = PROJECT_ROOT / "data" / "reference"
+DISTRICTS_LOCAL = _REF / "shc_districts_local.geojson.gz.b64"
 DISTRICTS_GJ = _REF / "shc_districts.geojson"
 DISTRICTS_B64 = _REF / "shc_districts.geojson.gz.b64"
 
 
 def _read_districts():
-    """Load the district GeoJSON (prefers the compact gz+base64 copy)."""
-    if DISTRICTS_B64.exists():
-        blob = DISTRICTS_B64.read_text().replace("\n", "").strip()
-        return json.loads(gzip.decompress(base64.b64decode(blob)))
-    if DISTRICTS_GJ.exists():
-        return json.loads(DISTRICTS_GJ.read_text())
+    """Load the district GeoJSON.
+
+    Tries, in order: the locally-built compact copy (see
+    scripts/build_shc_districts.py), the bundled compact copy, then a
+    plain GeoJSON. Each candidate is validated - a corrupt file is
+    skipped instead of crashing the map.
+    """
+    for path in (DISTRICTS_LOCAL, DISTRICTS_B64, DISTRICTS_GJ):
+        try:
+            if not path.exists():
+                continue
+            txt = path.read_text()
+            if path.name.endswith(".b64"):
+                blob = txt.replace("\n", "").replace("\r", "").strip()
+                return json.loads(gzip.decompress(base64.b64decode(blob)))
+            return json.loads(txt)
+        except Exception:
+            continue
     return None
 
 # metric key -> (label shown in UI, csv column or "ph", legend kind)
@@ -113,7 +125,7 @@ def _match(district):
 def geojson_for(metric):
     """GeoJSON dict for `metric`; features carry _fill, district, val.
 
-    Cached per metric (the source file is ~135 KB, so at most a few
+    Cached per metric (source geometry is small, so at most a few
     hundred KB resident - safe on the small server).
     """
     if metric not in METRICS:

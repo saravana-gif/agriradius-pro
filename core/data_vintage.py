@@ -107,6 +107,14 @@ VINTAGES = {
                 "Land capability is a stable soil property, but this "
                 "is NOT current land use.",
     },
+    "shc": {
+        "label": "Soil Health Card — measured nutrient status",
+        "as_of": "cycle 2025-26 (latest complete)",
+        "kind": "periodic",
+        "note": "District aggregation of lab-tested farmer samples "
+                "(soilhealth.dac.gov.in nutrient dashboard). Real "
+                "measurements, district-average resolution.",
+    },
 }
 
 # small icon per freshness kind

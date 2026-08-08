@@ -1,8 +1,8 @@
 """Build the SHC district-choropleth geometry locally.
 
 Dissolves the bundled village boundaries (Karnataka + Tamil Nadu) into
-district polygons, simplifies them heavily (choropleth display only),
-and writes a compact gzip+base64 GeoJSON to
+district polygons, simplifies them (choropleth display only), and
+writes a compact gzip+base64 GeoJSON to
 
     data/reference/shc_districts_local.geojson.gz.b64   (gitignored)
 
@@ -49,13 +49,13 @@ def main():
     dd = gpd.GeoDataFrame(pd.concat(parts, ignore_index=True),
                           crs=parts[0].crs)
     dd["geometry"] = dd.geometry.simplify(
-        0.025, preserve_topology=True).buffer(0)
+        0.005, preserve_topology=True).buffer(0)
 
     gj = json.loads(dd.to_json())
 
     def rnd(c):
         if isinstance(c, (int, float)):
-            return round(c, 3)
+            return round(c, 4)
         return [rnd(x) for x in c]
 
     for f in gj["features"]:

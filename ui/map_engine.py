@@ -126,6 +126,36 @@ class MapEngine:
 
         return self
 
+    def add_choropleth(self, geojson, name, fill_opacity=0.55):
+        """District choropleth from a GeoJSON dict whose feature
+        properties carry a precomputed `_fill` colour plus `district`
+        and `val` for the tooltip."""
+
+        if not geojson:
+            return self
+
+        folium.GeoJson(
+            geojson,
+            name=name,
+            style_function=lambda f: {
+                "fillColor": f["properties"].get("_fill", "#bdbdbd"),
+                "color": "#666",
+                "weight": 1,
+                "fillOpacity": fill_opacity,
+            },
+            highlight_function=lambda f: {
+                "color": "#222",
+                "weight": 2.5,
+                "fillOpacity": min(0.85, fill_opacity + 0.2),
+            },
+            tooltip=folium.GeoJsonTooltip(
+                fields=["district", "val"],
+                aliases=["District", name],
+            ),
+        ).add_to(self.map)
+
+        return self
+
     def add_tile_overlay(self, tile_url, name, attr="Google Earth Engine",
                          opacity=0.6):
         """Add a raster tile overlay (e.g. Dynamic World from EE).

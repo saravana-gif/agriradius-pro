@@ -70,3 +70,6 @@ reports/*.docx
 # Local auth fallback (real allowlist lives in Google Sheets)
 data/permissions.csv
 data/permissions.db
+
+# SHC district geometry built per-machine (scripts/build_shc_districts.py)
+data/reference/shc_districts_local.geojson.gz.b64

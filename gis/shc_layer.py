@@ -4,7 +4,9 @@ Joins the bundled Soil Health Card nutrient table
 (data/reference/shc_district_nutrients.csv, real lab samples) onto a
 tiny simplified district-boundary file and returns a GeoJSON dict
 whose features carry a precomputed fill colour + display text, ready
-for folium. Pure data prep - no folium, no streamlit.
+for folium. The output is CLIPPED to the analysis buffer circle so
+the rest of the map stays the normal basemap. Pure data prep - no
+folium, no streamlit.
 """
 
 import base64
@@ -121,12 +123,27 @@ def _match(district):
     return rows[close[0]] if close else None
 
 
-@lru_cache(maxsize=4)
-def geojson_for(metric):
-    """GeoJSON dict for `metric`; features carry _fill, district, val.
+def _circle(lat, lon, radius_km):
+    """Approximate geodesic circle as a shapely polygon (degrees)."""
+    import math
+    from shapely import affinity
+    from shapely.geometry import Point
 
-    Cached per metric (source geometry is small, so at most a few
-    hundred KB resident - safe on the small server).
+    unit = Point(lon, lat).buffer(1.0, quad_segs=48)
+    kx = radius_km / (111.32 * max(0.2, math.cos(math.radians(lat))))
+    ky = radius_km / 110.57
+    return affinity.scale(unit, kx, ky, origin=(lon, lat))
+
+
+@lru_cache(maxsize=8)
+def geojson_for(metric, lat, lon, radius_km):
+    """GeoJSON clipped to the selected buffer circle.
+
+    Only the parts of districts that fall INSIDE the analysis radius
+    are painted (rest of the map stays the normal basemap). Where the
+    circle crosses a district border the circle is split, so each
+    piece carries its own district's measured value. Cached per
+    (metric, point, radius).
     """
     if metric not in METRICS:
         return None
@@ -137,7 +154,22 @@ def geojson_for(metric):
     if gj is None:
         return None
 
+    from shapely.geometry import mapping, shape
+
+    circle = _circle(lat, lon, radius_km)
+
+    feats = []
     for f in gj["features"]:
+        try:
+            geom = shape(f["geometry"])
+            if not geom.intersects(circle):
+                continue
+            clipped = geom.buffer(0).intersection(circle)
+            if clipped.is_empty:
+                continue
+        except Exception:
+            continue
+
         p = f["properties"]
         row = _match(p.get("district", ""))
         name = str(p.get("district", "?")).title()
@@ -156,10 +188,17 @@ def geojson_for(metric):
             fill = _pct_color(v)
             disp = f"{v}% of samples"
 
-        f["properties"] = {
-            "district": name,
-            "val": disp,
-            "_fill": fill,
-        }
+        feats.append({
+            "type": "Feature",
+            "geometry": mapping(clipped),
+            "properties": {
+                "district": name,
+                "val": disp,
+                "_fill": fill,
+            },
+        })
 
-    return gj
+    if not feats:
+        return None
+
+    return {"type": "FeatureCollection", "features": feats}

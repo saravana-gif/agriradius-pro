@@ -7,6 +7,10 @@ whose features carry a precomputed fill colour + display text, ready
 for folium. The output is CLIPPED to the analysis buffer circle so
 the rest of the map stays the normal basemap. Pure data prep - no
 folium, no streamlit.
+
+Also provides VILLAGE-resolution rendering: each village polygon in
+the buffer coloured by its own live-fetched lab results (see
+core/shc_api.py).
 """
 
 import base64
@@ -202,3 +206,129 @@ def geojson_for(metric, lat, lon, radius_km):
         return None
 
     return {"type": "FeatureCollection", "features": feats}
+
+
+# --- Village-level detail (live SHC portal fetch, census-code join) ---
+
+# metric key -> (results key, class name) in the portal's counts dict
+_M2V = {
+    "n_low":     ("n",  "Low"),
+    "p_low":     ("p",  "Low"),
+    "k_low":     ("k",  "Low"),
+    "oc_low":    ("OC", "Low"),
+    "ec_saline": ("EC", "Saline"),
+    "zn_def":    ("Zn", "Deficient"),
+    "fe_def":    ("Fe", "Deficient"),
+    "b_def":     ("B",  "Deficient"),
+    "s_def":     ("S",  "Deficient"),
+    "mn_def":    ("Mn", "Deficient"),
+    "cu_def":    ("Cu", "Deficient"),
+}
+
+MAX_VILLAGE_POLYS = 250
+
+
+def geojson_villages(metric, lat, lon, radius_km):
+    """Village-resolution choropleth for the buffer circle.
+
+    Each village polygon inside the radius is coloured by its OWN
+    lab-sample counts, fetched live from the SHC portal (cached on
+    disk after the first fetch). Villages without samples, or not yet
+    fetched within the time budget, stay grey - re-rendering loads
+    more. Returns None when nothing can be drawn.
+    """
+    if metric not in METRICS:
+        return None
+
+    from gis.spatial import villages_in_buffer
+
+    try:
+        gdf = villages_in_buffer(lat, lon, radius_km)
+    except Exception:
+        return None
+    if gdf is None or gdf.empty or "vilcode11" not in gdf.columns:
+        return None
+
+    if len(gdf) > MAX_VILLAGE_POLYS:
+        gdf = gdf.copy()
+        cent = gdf.geometry.centroid
+        gdf["_d2"] = (cent.x - lon) ** 2 + (cent.y - lat) ** 2
+        gdf = gdf.nsmallest(MAX_VILLAGE_POLYS, "_d2")
+
+    from core import shc_api
+
+    pairs = [
+        (r.get("stname", ""), r.get("dtname", ""), r.get("vilcode11", ""))
+        for _, r in gdf.iterrows()
+    ]
+    try:
+        res_map = shc_api.results_for_villages(pairs)
+    except Exception:
+        res_map = {}
+
+    from shapely.geometry import mapping
+
+    circle = _circle(lat, lon, radius_km)
+
+    feats = []
+    for _, r in gdf.iterrows():
+        try:
+            geom = r.geometry.simplify(0.0003, preserve_topology=True)
+            clipped = geom.buffer(0).intersection(circle)
+            if clipped.is_empty:
+                continue
+        except Exception:
+            continue
+
+        try:
+            code = str(int(str(r.get("vilcode11", "")).strip()))
+        except Exception:
+            code = ""
+
+        vname = str(r.get("vilname11", "?")).title()
+        label = f"{vname} ({str(r.get('dtname', '')).title()})"
+
+        if code not in res_map:
+            fill, disp = NO_DATA, "not loaded yet - refresh to load more"
+        else:
+            results = res_map[code]
+            fill, disp = _village_style(results, metric)
+
+        feats.append({
+            "type": "Feature",
+            "geometry": mapping(clipped),
+            "properties": {
+                "district": label,
+                "val": disp,
+                "_fill": fill,
+            },
+        })
+
+    if not feats:
+        return None
+
+    return {"type": "FeatureCollection", "features": feats}
+
+
+def _village_style(results, metric):
+    """(fill colour, display text) for one village's counts."""
+    if not results:
+        return NO_DATA, "no lab samples this cycle"
+
+    if metric == "ph":
+        d = results.get("pH") or {}
+        tot = sum(int(v or 0) for v in d.values())
+        if not tot:
+            return NO_DATA, "no lab samples this cycle"
+        dom = max(d, key=lambda k: int(d[k] or 0))
+        return (PH_COLORS.get(dom, NO_DATA),
+                f"{dom} ({int(d[dom])}/{tot} samples)")
+
+    key, cls = _M2V[metric]
+    d = results.get(key) or {}
+    tot = sum(int(v or 0) for v in d.values())
+    if not tot:
+        return NO_DATA, "no lab samples this cycle"
+    v = int(d.get(cls, 0) or 0)
+    pct = round(100 * v / tot)
+    return _pct_color(pct), f"{pct}% ({v}/{tot} samples)"

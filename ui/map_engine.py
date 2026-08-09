@@ -5,8 +5,33 @@ Callers fetch data (villages GeoDataFrame, tile URLs) and pass it in.
 """
 
 import folium
+from branca.element import MacroElement
+from jinja2 import Template
 
 from data.layer_registry import BASEMAPS
+
+
+class _ZoomAdaptiveStroke(MacroElement):
+    """Scale the buffer-circle stroke with zoom so it never looks
+    clumsy: thin when zoomed out, bolder as you zoom in."""
+    _template = Template("""
+        {% macro script(this, kwargs) %}
+        (function(){
+            var map = {{ this._parent.get_name() }};
+            function upd(){
+                var z = map.getZoom();
+                var w = Math.max(0.8, Math.min(4.5,
+                                 0.6 + (z - 8) * 0.35));
+                map.eachLayer(function(l){
+                    if (l instanceof L.Circle){
+                        l.setStyle({weight: w});
+                    }
+                });
+            }
+            map.on('zoomend', upd);
+            map.whenReady(upd);
+        })();
+        {% endmacro %}""")
 
 
 class MapEngine:
@@ -44,6 +69,23 @@ class MapEngine:
                 max_zoom=22,
                 max_native_zoom=20,
             ).add_to(self.map)
+
+        self.map.add_child(_ZoomAdaptiveStroke())
+
+    def fit_bounds(self, minx, miny, maxx, maxy):
+        """Zoom the view to a bounding box (lon/lat)."""
+        self.map.fit_bounds([[miny, minx], [maxy, maxx]])
+        return self
+
+    def add_points(self, points):
+        """Numbered markers for a list of (lat, lon)."""
+        for i, (lat, lon) in enumerate(points, 1):
+            folium.Marker(
+                [lat, lon],
+                tooltip=f"Point {i}: {lat:.4f}, {lon:.4f}",
+                icon=folium.Icon(color="green" if i == 1 else "blue"),
+            ).add_to(self.map)
+        return self
 
     def add_marker(self, tooltip="Selected Location"):
 

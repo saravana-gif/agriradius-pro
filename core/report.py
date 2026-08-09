@@ -558,7 +558,7 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
         buf, pagesize=A4,
         leftMargin=1.8 * cm, rightMargin=1.8 * cm,
         topMargin=1.5 * cm, bottomMargin=1.5 * cm,
-        title="AgriRadius Pro - Area Report",
+        title="Ground Intel - Area Report",
     )
     doc.build(story)
 

@@ -58,10 +58,16 @@ h1,h2,h3,h4{ font-family:'Space Grotesk','Inter',sans-serif;
   filter:blur(6px);
 }
 .ar-hero-row{ position:relative; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
-.ar-logo{ height:52px; width:auto; border-radius:8px; flex:0 0 auto;
-  filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); background:rgba(255,255,255,.06); padding:6px 10px; }
+.ar-logo{ height:72px; width:auto; border-radius:12px; flex:0 0 auto;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.45));
+  background:rgba(255,255,255,.95); padding:8px 14px;
+  border:1px solid rgba(255,255,255,.35); }
 .ar-mark{ font-size:34px; line-height:1; filter:drop-shadow(0 0 10px rgba(6,182,212,.6)); }
-.ar-title{ font-family:'Space Grotesk',sans-serif; color:#fff;
+.ar-brand{ color:#4ADE80; font-family:'Space Grotesk',sans-serif;
+  font-size:1.05rem; font-weight:700; letter-spacing:.28em;
+  text-transform:uppercase; line-height:1;
+  text-shadow:0 0 14px rgba(74,222,128,.45); }
+.ar-title{ font-family:'Space Grotesk',sans-serif; color:#fff; margin-top:2px;
   font-size:1.72rem; font-weight:700; line-height:1.05; letter-spacing:-.02em; }
 .ar-sub{ margin-top:3px; color:#9FE7C9; font-size:.74rem; font-weight:600;
   letter-spacing:.16em; text-transform:uppercase; }
@@ -141,7 +147,8 @@ hr{ border-color:var(--line); }
   .ar-title{ font-size:1.3rem; }
   .ar-sub{ font-size:.64rem; letter-spacing:.12em; }
   .ar-chip{ margin-left:0; margin-top:6px; }
-  .ar-logo{ height:40px; }
+  .ar-logo{ height:54px; }
+  .ar-brand{ font-size:.86rem; letter-spacing:.2em; }
   div[data-testid="stMetricValue"]{ font-size:1.35rem; }
 }
 </style>
@@ -167,8 +174,9 @@ def _hero():
           <div class="ar-hero-row">
             {mark}
             <div>
+              <div class="ar-brand">OneRoot</div>
               <div class="ar-title">{APP_NAME.replace('OneRoot ', '')}</div>
-              <div class="ar-sub">Satellite Crop Intelligence &nbsp;·&nbsp; OneRoot (ENP Farms)</div>
+              <div class="ar-sub">Satellite Crop Intelligence &nbsp;·&nbsp; ENP Farms Private Limited</div>
             </div>
             <div class="ar-chip"><span class="ar-dot"></span> LIVE · EARTH ENGINE</div>
           </div>

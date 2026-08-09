@@ -4,6 +4,84 @@ from streamlit_folium import st_folium
 from ui.map_engine import MapEngine
 
 
+@st.cache_data(show_spinner=False, ttl=3600, max_entries=4)
+def _district_gdf(state_key, district):
+    from gis import admin_areas
+    return admin_areas.district_villages(state_key, district)
+
+
+def _region_geometry(engine, mode):
+    """Draw district villages / state extent / compare points."""
+    region = st.session_state.get("region") or {}
+
+    if mode == "Multiple points":
+        pts = st.session_state.get("multi_points") or []
+        if pts:
+            engine.add_points(pts)
+            lats = [p[0] for p in pts]
+            lons = [p[1] for p in pts]
+            engine.fit_bounds(min(lons) - 0.1, min(lats) - 0.1,
+                              max(lons) + 0.1, max(lats) + 0.1)
+        else:
+            st.caption("Add points in the sidebar to see them here.")
+        return
+
+    if mode == "District" and region.get("kind") == "district":
+        with st.spinner("Loading district boundaries..."):
+            gdf = _district_gdf(region["state"], region["district"])
+        if gdf is None or gdf.empty:
+            st.warning("Could not load this district's villages.")
+            return
+        show = gdf
+        if len(show) > 1500:
+            show = show.copy().head(1500)
+        show = show.copy()
+        show["geometry"] = show.geometry.simplify(
+            0.0002, preserve_topology=True)
+        engine.add_villages(
+            show,
+            popup_fields=["vilname11", "sdtname", "dtname", "stname"],
+            popup_aliases=["Village", "Taluk", "District", "State"],
+        )
+        b = gdf.total_bounds
+        engine.fit_bounds(b[0], b[1], b[2], b[3])
+        st.caption(
+            f"**{region['district'].title()}** - {len(gdf):,} village "
+            "boundaries shown with exact borders. The full report is "
+            "below the map.")
+        return
+
+    if mode == "State" and region.get("kind") == "state":
+        from gis.boundary_loader import STATE_BBOXES
+        bb = STATE_BBOXES.get(region["state"])
+        if bb:
+            engine.fit_bounds(bb[0], bb[1], bb[2], bb[3])
+        st.caption(
+            "State view - district rankings and state-wide village "
+            "rankings are in the report below the map. Open a "
+            "district (sidebar → District) for its exact village "
+            "borders.")
+        return
+
+    st.caption("Choose a region in the sidebar and open its report.")
+
+
+def _render_map(engine):
+    map_data = st_folium(
+        engine.render(),
+        width=None,
+        height=650,
+        returned_objects=["center", "zoom"],
+        key=f"map_{st.session_state.get('map_refresh', 0)}",
+    )
+    if map_data:
+        c = map_data.get("center")
+        if c and "lat" in c and "lng" in c:
+            st.session_state.map_center = [c["lat"], c["lng"]]
+        if map_data.get("zoom") is not None:
+            st.session_state.map_zoom = map_data["zoom"]
+
+
 def mapview():
 
     vis = st.session_state.layer_visibility
@@ -45,6 +123,15 @@ def mapview():
         basemap=st.session_state.basemap,
         center=center,
     )
+
+    mode = st.session_state.get("mode", "Area (radius)")
+
+    # --- Region modes draw their own geometry and skip the
+    #     radius-based overlay machinery entirely. ---
+    if mode in ("District", "State", "Multiple points"):
+        _region_geometry(engine, mode)
+        _render_map(engine)
+        return
 
     if vis.get("marker"):
         engine.add_marker()

@@ -15,14 +15,12 @@ Village identity join, per boundary dataset:
     village code (`vilcode11`), which the portal embeds in its own
     village names ("AMARAHOSAHALLI - 619459") - an exact code join.
 
-  * The Andhra Pradesh / Kerala / Maharashtra boundary files carry a
-    different (LGD-style) code, so those villages are joined by
-    normalised NAME within the matched district instead (the portal's
-    "(CT)" / "(Part)" markers and trailing code are stripped first).
-
-Telangana's portal id is wired in, but no village boundary file is
-bundled yet - drop one in boundaries/telangana_villages/ to light it
-up (see data/gis_data.py).
+  * The Andhra Pradesh / Kerala / Maharashtra / Telangana boundary
+    files carry different code systems, so those villages are joined
+    by normalised NAME within the matched district (the portal's
+    "(CT)" / "(Part)" markers and trailing code are stripped first),
+    with a state-wide unique-name fallback for villages whose census
+    district was since renamed or split (all of Telangana).
 
 Pure python + requests. No streamlit, no folium.
 """
@@ -36,6 +34,10 @@ from config import PROJECT_ROOT
 
 API = "https://soilhealth4.dac.gov.in/"
 CYCLE = "2025-26"
+# Newest first. A village with no samples in the current cycle very
+# often has them in an earlier one - fall back so fewer villages are
+# grey. The cycle used is echoed in the tooltip.
+CYCLES = ["2025-26", "2024-25", "2023-24"]
 TIMEOUT = 8
 WORKERS = 8
 MAX_FETCH = 400        # new villages fetched per render
@@ -185,13 +187,62 @@ def _maps_for_district(district_id):
     return bycode, byname
 
 
+def _state_maps(state_key, max_new=10):
+    """State-wide (by_code, by_unique_name) maps across every portal
+    district of a state.
+
+    Used when the boundary file's district can't be matched to a
+    portal district (districts got renamed / split - e.g. Telangana
+    went from 10 census districts to 33) or the village isn't listed
+    under the matched district. Name matches are only kept when the
+    name is UNIQUE state-wide, so a wrong-district collision can't
+    mislabel a village. District village lists are fetched at most
+    `max_new` per call (cached on disk forever after).
+    """
+    try:
+        dmap = _district_ids(state_key)
+    except Exception:
+        return {}, {}
+    bycode, byname, seen = {}, {}, {}
+    new = 0
+    for did in dmap.values():
+        rows = _load(f"villagelist_{did}.json", None)
+        if rows is None:
+            if new >= max_new:
+                continue
+            try:
+                rows = _village_list(did)
+                new += 1
+            except Exception:
+                continue
+        for r in rows:
+            name, vid = r.get("name", ""), r.get("_id")
+            if not vid:
+                continue
+            m = re.search(r"(\d{4,})\s*$", name)
+            if m:
+                bycode.setdefault(str(int(m.group(1))), vid)
+            nn = _vn(name)
+            if nn:
+                seen[nn] = seen.get(nn, 0) + 1
+                byname.setdefault(nn, vid)
+    return bycode, {n: v for n, v in byname.items() if seen.get(n) == 1}
+
+
 def _nutri(village_id):
-    """Results counts for one village, or None if no samples."""
-    rows = _gql(Q_NUTRI, {"village": village_id, "cycle": CYCLE,
-                          "count": True}) or []
-    if not rows:
-        return None
-    return (rows[0] or {}).get("results") or None
+    """Results counts for one village, or None if no samples.
+
+    Tries the current cycle first, then falls back through older
+    cycles. The cycle that produced the data is recorded under the
+    "_cycle" key of the returned dict."""
+    for cyc in CYCLES:
+        rows = _gql(Q_NUTRI, {"village": village_id, "cycle": cyc,
+                              "count": True}) or []
+        res = (rows[0] or {}).get("results") if rows else None
+        if res:
+            res["_cycle"] = cyc
+            return res
+    return None
 
 
 def results_for_villages(pairs):
@@ -212,44 +263,12 @@ def results_for_villages(pairs):
             (str(key), code, name))
 
     fetched = 0
-    for (st, dt), items in by_dist.items():
-        if time.time() - t0 > BUDGET_S:
-            break  # leave the rest absent -> grey "refresh to load"
+    state_pending = {}   # state name -> [(key, code, name)] unresolved
 
-        try:
-            did = district_id_for(st, dt)
-        except Exception:
-            did = None
-        if not did:
-            for key, _, _ in items:
-                out[key] = None
-            continue
-
-        try:
-            bycode, byname = _maps_for_district(did)
-        except Exception:
-            bycode, byname = {}, {}
-
-        fname = f"nutri_{did}_{CYCLE}.json"
-        ncache = _load(fname, {})
-        todo = []
-        for key, code, name in items:
-            vid = None
-            try:
-                vid = bycode.get(str(int(str(code).strip())))
-            except Exception:
-                vid = None
-            if vid is None:
-                vid = byname.get(_vn(name))
-            if vid is None:
-                out[key] = None
-            elif vid in ncache:
-                out[key] = ncache[vid]
-            else:
-                todo.append((key, vid))
-
-        # fetch what the time budget allows, in small parallel chunks
-        before = fetched
+    def _fetch_batch(todo, ncache, fname):
+        """Fetch nutrient counts for (key, vid) pairs within budget."""
+        nonlocal fetched
+        got = 0
         for i in range(0, len(todo), WORKERS):
             if time.time() - t0 > BUDGET_S or fetched >= MAX_FETCH:
                 break
@@ -269,7 +288,77 @@ def results_for_villages(pairs):
                 ncache[vid] = res
                 out[key] = res
                 fetched += 1
-        if fetched > before:
+                got += 1
+        if got:
             _save(fname, ncache)
+
+    for (st, dt), items in by_dist.items():
+        if time.time() - t0 > BUDGET_S:
+            break  # leave the rest absent -> grey "refresh to load"
+
+        try:
+            did = district_id_for(st, dt)
+        except Exception:
+            did = None
+        if not did:
+            state_pending.setdefault(st, []).extend(items)
+            continue
+
+        try:
+            bycode, byname = _maps_for_district(did)
+        except Exception:
+            bycode, byname = {}, {}
+
+        fname = f"nutri_{did}_multi.json"
+        ncache = _load(fname, {})
+        todo = []
+        for key, code, name in items:
+            vid = None
+            try:
+                vid = bycode.get(str(int(str(code).strip())))
+            except Exception:
+                vid = None
+            if vid is None:
+                vid = byname.get(_vn(name))
+            if vid is None:
+                state_pending.setdefault(st, []).append(
+                    (key, code, name))
+            elif vid in ncache:
+                out[key] = ncache[vid]
+            else:
+                todo.append((key, vid))
+
+        _fetch_batch(todo, ncache, fname)
+
+    # Second pass: villages whose district didn't resolve (renamed /
+    # split districts) - match state-wide by code or unique name.
+    for st, items in state_pending.items():
+        if time.time() - t0 > BUDGET_S:
+            break
+        skey = _n(st)
+        sid = STATE_IDS.get(skey)
+        if not sid:
+            for key, _, _ in items:
+                out[key] = None
+            continue
+        bycode, byname = _state_maps(skey)
+        fname = f"nutri_state_{sid}_multi.json"
+        ncache = _load(fname, {})
+        todo = []
+        for key, code, name in items:
+            vid = None
+            try:
+                vid = bycode.get(str(int(str(code).strip())))
+            except Exception:
+                vid = None
+            if vid is None:
+                vid = byname.get(_vn(name))
+            if vid is None:
+                out[key] = None
+            elif vid in ncache:
+                out[key] = ncache[vid]
+            else:
+                todo.append((key, vid))
+        _fetch_batch(todo, ncache, fname)
 
     return out

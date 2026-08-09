@@ -225,17 +225,33 @@ _M2V = {
     "cu_def":    ("Cu", "Deficient"),
 }
 
-MAX_VILLAGE_POLYS = 250
+MAX_VILLAGE_POLYS = 2500
+
+
+def _village_tol(n):
+    """Simplify tolerance by polygon count: finer borders for small
+    areas (no visible overlap), coarser for 100 km views (page
+    weight)."""
+    if n <= 400:
+        return 0.00012   # ~13 m - borders stay crisp
+    if n <= 900:
+        return 0.0003
+    if n <= 1800:
+        return 0.0005
+    return 0.0008
 
 
 def geojson_villages(metric, lat, lon, radius_km):
-    """Village-resolution choropleth for the buffer circle.
+    """Village-resolution choropleth covering the WHOLE buffer circle.
 
     Each village polygon inside the radius is coloured by its OWN
     lab-sample counts, fetched live from the SHC portal (cached on
     disk after the first fetch). Villages without samples, or not yet
     fetched within the time budget, stay grey - re-rendering loads
     more. Returns None when nothing can be drawn.
+
+    Coverage: Karnataka, Tamil Nadu, Kerala, Andhra Pradesh,
+    Maharashtra (Telangana pending a boundary file).
     """
     if metric not in METRICS:
         return None
@@ -246,20 +262,31 @@ def geojson_villages(metric, lat, lon, radius_km):
         gdf = villages_in_buffer(lat, lon, radius_km)
     except Exception:
         return None
-    if gdf is None or gdf.empty or "vilcode11" not in gdf.columns:
+    if gdf is None or gdf.empty or "vilname11" not in gdf.columns:
         return None
 
+    gdf = gdf.copy()
+
+    # Some CSV boundary files repeat rows - draw each village once.
+    dedupe_cols = [c for c in ("stname", "dtname", "sdtname",
+                               "vilname11", "vilcode11")
+                   if c in gdf.columns]
+    if dedupe_cols:
+        gdf = gdf.drop_duplicates(subset=dedupe_cols)
+
     if len(gdf) > MAX_VILLAGE_POLYS:
-        gdf = gdf.copy()
-        cent = gdf.geometry.centroid
-        gdf["_d2"] = (cent.x - lon) ** 2 + (cent.y - lat) ** 2
+        b = gdf.geometry.bounds
+        gdf["_d2"] = ((b.minx + b.maxx) / 2 - lon) ** 2 + \
+                     ((b.miny + b.maxy) / 2 - lat) ** 2
         gdf = gdf.nsmallest(MAX_VILLAGE_POLYS, "_d2")
 
     from core import shc_api
 
+    rows = list(gdf.iterrows())
     pairs = [
-        (r.get("stname", ""), r.get("dtname", ""), r.get("vilcode11", ""))
-        for _, r in gdf.iterrows()
+        (str(i), r.get("stname", ""), r.get("dtname", ""),
+         r.get("vilcode11", ""), r.get("vilname11", ""))
+        for i, (_, r) in enumerate(rows)
     ]
     try:
         res_map = shc_api.results_for_villages(pairs)
@@ -269,30 +296,30 @@ def geojson_villages(metric, lat, lon, radius_km):
     from shapely.geometry import mapping
 
     circle = _circle(lat, lon, radius_km)
+    tol = _village_tol(len(rows))
 
     feats = []
-    for _, r in gdf.iterrows():
+    for i, (_, r) in enumerate(rows):
         try:
-            geom = r.geometry.simplify(0.0003, preserve_topology=True)
+            geom = r.geometry.simplify(tol, preserve_topology=True)
             clipped = geom.buffer(0).intersection(circle)
             if clipped.is_empty:
                 continue
         except Exception:
             continue
 
-        try:
-            code = str(int(str(r.get("vilcode11", "")).strip()))
-        except Exception:
-            code = ""
-
         vname = str(r.get("vilname11", "?")).title()
         label = f"{vname} ({str(r.get('dtname', '')).title()})"
 
-        if code not in res_map:
+        key = str(i)
+        if key not in res_map:
             fill, disp = NO_DATA, "not loaded yet - refresh to load more"
         else:
-            results = res_map[code]
+            results = res_map[key]
             fill, disp = _village_style(results, metric)
+            extra = _village_summary(results, metric)
+            if extra:
+                disp = f"{disp}  |  {extra}"
 
         feats.append({
             "type": "Feature",
@@ -308,6 +335,53 @@ def geojson_villages(metric, lat, lon, radius_km):
         return None
 
     return {"type": "FeatureCollection", "features": feats}
+
+
+def _pct_of(results, key, cls):
+    """% of samples in `cls` for one nutrient dict, or None."""
+    d = (results or {}).get(key) or {}
+    tot = sum(int(v or 0) for v in d.values())
+    if not tot:
+        return None
+    return round(100 * int(d.get(cls, 0) or 0) / tot)
+
+
+def _village_summary(results, metric):
+    """Compact all-nutrient readout for the tooltip (skips the metric
+    already shown as the main value)."""
+    if not results:
+        return ""
+    parts = []
+
+    lows = []
+    for lab, key in (("N", "n"), ("P", "p"), ("K", "k"), ("OC", "OC")):
+        if _M2V.get(metric, ("",))[0] == key:
+            continue
+        v = _pct_of(results, key, "Low")
+        if v is not None:
+            lows.append(f"{lab} {v}")
+    if lows:
+        parts.append("low%: " + " · ".join(lows))
+
+    if metric != "ph":
+        d = results.get("pH") or {}
+        tot = sum(int(v or 0) for v in d.values())
+        if tot:
+            dom = max(d, key=lambda k: int(d[k] or 0))
+            parts.append(f"pH {dom}")
+
+    defs = []
+    for lab, key in (("S", "S"), ("Zn", "Zn"), ("Fe", "Fe"),
+                     ("B", "B"), ("Mn", "Mn"), ("Cu", "Cu")):
+        if _M2V.get(metric, ("",))[0] == key:
+            continue
+        v = _pct_of(results, key, "Deficient")
+        if v is not None:
+            defs.append(f"{lab} {v}")
+    if defs:
+        parts.append("def%: " + " · ".join(defs))
+
+    return "  ·  ".join(parts)
 
 
 def _village_style(results, metric):

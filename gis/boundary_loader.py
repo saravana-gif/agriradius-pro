@@ -54,6 +54,8 @@ COLUMN_ALIASES = {
                "distname", "dtname11", "dist"],
     "stname": ["stname", "state_name", "state", "st_nm",
                "stname11", "st_name"],
+    "vilcode11": ["vilcode11", "vil_code", "village_code", "vilcode",
+                  "census_code"],
 }
 
 # Column names that hold WKT geometry in CSV datasets

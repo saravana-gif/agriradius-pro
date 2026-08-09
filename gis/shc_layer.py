@@ -10,7 +10,8 @@ folium, no streamlit.
 
 Also provides VILLAGE-resolution rendering: each village polygon in
 the buffer coloured by its own live-fetched lab results (see
-core/shc_api.py).
+core/shc_api.py), and a whole-district soil-score choropleth for
+District mode.
 """
 
 import base64
@@ -385,6 +386,94 @@ def _village_summary(results, metric):
         parts.append("def%: " + " · ".join(defs))
 
     return "  ·  ".join(parts)
+
+
+SCORE_BINS = [
+    (80, "#1a9850", "80+ - very good"),
+    (65, "#a6d96a", "65-79 - good"),
+    (50, "#fee08b", "50-64 - moderate"),
+    (35, "#f46d43", "35-49 - poor"),
+    (0,  "#d73027", "under 35 - very poor"),
+]
+
+
+def _score_color(score):
+    for lo, col, _ in SCORE_BINS:
+        if score >= lo:
+            return col
+    return SCORE_BINS[-1][1]
+
+
+def geojson_district(state_key, district):
+    """Whole-district choropleth: every village coloured by its
+    MEASURED soil-health score (composite of N/P/K/OC adequacy,
+    micronutrients and pH from SHC lab samples). Grey = no samples
+    yet. No circle clipping - the exact district extent."""
+    from core import region_report, shc_api
+    from gis import admin_areas
+
+    gdf = admin_areas.district_villages(state_key, district)
+    if gdf is None or gdf.empty or "vilname11" not in gdf.columns:
+        return None
+
+    slabel = admin_areas.STATE_LABELS.get(state_key, state_key)
+
+    rows = list(gdf.iterrows())
+    pairs = [
+        (str(i), slabel, district,
+         r.get("vilcode11", ""), r.get("vilname11", ""))
+        for i, (_, r) in enumerate(rows)
+    ]
+    try:
+        res_map = shc_api.results_for_villages(pairs)
+    except Exception:
+        res_map = {}
+
+    from shapely.geometry import mapping
+
+    tol = _village_tol(len(rows))
+    feats = []
+    for i, (_, r) in enumerate(rows):
+        try:
+            geom = r.geometry.simplify(tol, preserve_topology=True)
+            if geom.is_empty:
+                continue
+        except Exception:
+            continue
+
+        vname = str(r.get("vilname11", "?")).title()
+        label = f"{vname} ({str(district).title()})"
+
+        key = str(i)
+        if key not in res_map:
+            fill, disp = NO_DATA, "lab data not loaded yet - reopen " \
+                                  "the report to load more"
+        else:
+            results = res_map[key]
+            score, reasons, tot = region_report.soil_score(results)
+            if score is None:
+                fill = NO_DATA
+                disp = "no lab samples in any cycle (2023-26)"
+            else:
+                fill = _score_color(score)
+                cyc = (results or {}).get("_cycle", "")
+                disp = (f"soil score {score}/100  |  "
+                        f"{'; '.join(reasons)}  ·  {tot} samples"
+                        + (f"  ·  cycle {cyc}" if cyc else ""))
+
+        feats.append({
+            "type": "Feature",
+            "geometry": mapping(geom),
+            "properties": {
+                "district": label,
+                "val": disp,
+                "_fill": fill,
+            },
+        })
+
+    if not feats:
+        return None
+    return {"type": "FeatureCollection", "features": feats}
 
 
 def _village_style(results, metric):

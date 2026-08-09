@@ -66,7 +66,7 @@ def _shell(inner):
     st.markdown(
         "<div style='max-width:560px;margin:12vh auto 0;text-align:center'>"
         "<div style='font-size:1.7rem;font-weight:800;color:#0E3D20'>"
-        "\U0001F6F0 OneRoot AgriRadius Pro</div>" + inner + "</div>",
+        "\U0001F6F0 OneRoot Ground Intel</div>" + inner + "</div>",
         unsafe_allow_html=True,
     )
 

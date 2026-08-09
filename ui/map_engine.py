@@ -150,7 +150,14 @@ class MapEngine:
             },
             tooltip=folium.GeoJsonTooltip(
                 fields=["district", "val"],
-                aliases=["District", name],
+                aliases=["Village / District", name],
+                sticky=True,
+                # Wrap into a compact box instead of one endless line
+                # running off the screen (leaflet tooltips default to
+                # white-space: nowrap).
+                style=("max-width: 320px; white-space: normal; "
+                       "word-break: break-word; font-size: 12px; "
+                       "line-height: 1.45; padding: 6px 9px;"),
             ),
         ).add_to(self.map)
 

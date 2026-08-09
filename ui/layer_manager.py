@@ -88,9 +88,11 @@ def layer_manager():
             key="shc_map_res",
             help="Village detail fetches each village's own lab "
                  "results live from the SHC portal for the selected "
-                 "area. First view of an area takes a few seconds "
-                 "and fills in progressively (cached after that). "
-                 "Grey villages have no samples yet. Sample counts "
+                 "area. Covers Karnataka, Tamil Nadu, Kerala, Andhra "
+                 "Pradesh & Maharashtra. Large areas load in batches "
+                 "- click 'Refresh map' to fill in more villages "
+                 "(everything fetched is cached). Grey villages have "
+                 "no samples yet or no boundary match. Sample counts "
                  "per village are small - treat as indicative.",
         )
 

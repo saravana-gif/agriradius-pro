@@ -30,7 +30,11 @@ _CSS = """
 
 /* base type */
 html, body, [class*="css"]{ font-family:'Inter',system-ui,sans-serif; }
-.block-container{ padding-top:1.4rem; padding-bottom:2.5rem; max-width:1400px; }
+/* Use the FULL width available: when the sidebar is collapsed the
+   map and report tables expand into the freed space instead of
+   staying centred in a fixed 1400px column. */
+.block-container{ padding-top:1.4rem; padding-bottom:2.5rem;
+  padding-left:2.2rem; padding-right:2.2rem; max-width:100%; }
 header[data-testid="stHeader"]{ background:transparent; }
 h1,h2,h3,h4{ font-family:'Space Grotesk','Inter',sans-serif;
   color:var(--ink); font-weight:600; letter-spacing:-.01em; }

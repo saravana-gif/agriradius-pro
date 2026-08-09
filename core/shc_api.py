@@ -229,17 +229,37 @@ def _state_maps(state_key, max_new=10):
     return bycode, {n: v for n, v in byname.items() if seen.get(n) == 1}
 
 
+def has_counts(res):
+    """True when a results dict holds at least one non-zero sample
+    count. The portal sometimes returns a results record whose class
+    counts are all zero/empty - that must NOT stop the older-cycle
+    fallback."""
+    if not isinstance(res, dict):
+        return False
+    for k, v in res.items():
+        if k == "_cycle" or not isinstance(v, dict):
+            continue
+        for c in v.values():
+            try:
+                if int(c or 0) > 0:
+                    return True
+            except (TypeError, ValueError):
+                continue
+    return False
+
+
 def _nutri(village_id):
     """Results counts for one village, or None if no samples.
 
     Tries the current cycle first, then falls back through older
-    cycles. The cycle that produced the data is recorded under the
-    "_cycle" key of the returned dict."""
+    cycles until one actually holds samples. The cycle that produced
+    the data is recorded under the "_cycle" key of the returned
+    dict."""
     for cyc in CYCLES:
         rows = _gql(Q_NUTRI, {"village": village_id, "cycle": cyc,
                               "count": True}) or []
         res = (rows[0] or {}).get("results") if rows else None
-        if res:
+        if has_counts(res):
             res["_cycle"] = cyc
             return res
     return None
@@ -323,7 +343,10 @@ def results_for_villages(pairs):
             if vid is None:
                 state_pending.setdefault(st, []).append(
                     (key, code, name))
-            elif vid in ncache:
+            elif vid in ncache and (ncache[vid] is None
+                                    or has_counts(ncache[vid])):
+                # cached zero-count records (from before the
+                # older-cycle fallback existed) are refetched
                 out[key] = ncache[vid]
             else:
                 todo.append((key, vid))
@@ -355,7 +378,8 @@ def results_for_villages(pairs):
                 vid = byname.get(_vn(name))
             if vid is None:
                 out[key] = None
-            elif vid in ncache:
+            elif vid in ncache and (ncache[vid] is None
+                                    or has_counts(ncache[vid])):
                 out[key] = ncache[vid]
             else:
                 todo.append((key, vid))

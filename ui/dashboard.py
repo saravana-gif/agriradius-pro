@@ -234,4 +234,17 @@ def dashboard():
 
     st.divider()
 
+    # Region reports (District / State / Multiple points) render
+    # above the standard analysis tabs.
+    _mode = st.session_state.get("mode", "")
+    if _mode in ("District", "State", "Multiple points"):
+        from ui import region_report as _rr
+        if _mode == "District":
+            _rr.district_report()
+        elif _mode == "State":
+            _rr.state_report()
+        else:
+            _rr.multipoint_report()
+        st.divider()
+
     results()

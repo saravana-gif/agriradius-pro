@@ -8,10 +8,21 @@ raw lab-sample counts per class for each village, e.g.
 
 Everything is cached on disk (data/cache/shc_villages/), so each
 village is fetched from the government portal at most once per cycle.
-Village identity is joined via the CENSUS village code, which the
-portal embeds in its village names ("AMARAHOSAHALLI - 619459") and
-which equals `vilcode11` in the bundled census village boundaries -
-an exact join, no fuzzy name matching.
+
+Village identity join, per boundary dataset:
+
+  * Karnataka & Tamil Nadu boundary files carry the census-2011
+    village code (`vilcode11`), which the portal embeds in its own
+    village names ("AMARAHOSAHALLI - 619459") - an exact code join.
+
+  * The Andhra Pradesh / Kerala / Maharashtra boundary files carry a
+    different (LGD-style) code, so those villages are joined by
+    normalised NAME within the matched district instead (the portal's
+    "(CT)" / "(Part)" markers and trailing code are stripped first).
+
+Telangana's portal id is wired in, but no village boundary file is
+bundled yet - drop one in boundaries/telangana_villages/ to light it
+up (see data/gis_data.py).
 
 Pure python + requests. No streamlit, no folium.
 """
@@ -26,15 +37,20 @@ from config import PROJECT_ROOT
 API = "https://soilhealth4.dac.gov.in/"
 CYCLE = "2025-26"
 TIMEOUT = 8
-WORKERS = 6
-MAX_FETCH = 150        # new villages fetched per render
-BUDGET_S = 25          # stop scheduling new fetches after this
+WORKERS = 8
+MAX_FETCH = 400        # new villages fetched per render
+BUDGET_S = 30          # stop scheduling new fetches after this
 
 CACHE = PROJECT_ROOT / "data" / "cache" / "shc_villages"
 
+# Portal state ids (from the portal's own GetState query).
 STATE_IDS = {
-    "karnataka": "63f99fbd519359b7438a84ca",
-    "tamilnadu": "63f9be9f519359b7438d08bb",
+    "karnataka":     "63f99fbd519359b7438a84ca",
+    "tamilnadu":     "63f9be9f519359b7438d08bb",
+    "andhrapradesh": "63f957b089d86ca9e2c00e14",
+    "kerala":        "63f9bd39519359b7438ce777",
+    "maharashtra":   "63f9322a89d86ca9e2bca5df",
+    "telangana":     "63f871f5c660ddb223457dca",
 }
 
 Q_DISTRICTS = """
@@ -59,6 +75,15 @@ query GetNutrientDashboardForPortal($state: ID, $district: ID, $block: ID, $vill
 def _n(s):
     """Normalise a name for matching (lowercase letters only)."""
     return re.sub(r"[^a-z]", "", str(s or "").lower())
+
+
+def _vn(s):
+    """Normalise a VILLAGE name: drop the trailing census code and
+    any parenthetical markers like (CT) / (Part), then _n()."""
+    s = str(s or "")
+    s = re.sub(r"[-\s]*\d{4,}\s*$", "", s)
+    s = re.sub(r"\([^)]*\)", " ", s)
+    return _n(s)
 
 
 def _gql(query, variables):
@@ -107,12 +132,14 @@ def _district_ids(state_key):
 
 
 def district_id_for(state_name, district_name):
-    """Portal district id from our shapefile names (alias-tolerant)."""
+    """Portal district id from our boundary-file names (alias-tolerant)."""
     key = _n(state_name)
     if key not in STATE_IDS:
         return None
     dmap = _district_ids(key)
     dn = _n(district_name)
+    if not dn:
+        return None
     try:
         from core.allied import DISTRICT_ALIAS, _norm
         dn_alias = _n(DISTRICT_ALIAS.get(_norm(district_name), ""))
@@ -128,25 +155,34 @@ def district_id_for(state_name, district_name):
     return dmap[close[0]] if close else None
 
 
-def _village_ids(district_id):
-    """{census code: portal village id} for a district, disk-cached."""
-    fname = f"villages_{district_id}.json"
+def _village_list(district_id):
+    """Raw portal village rows [{name, _id}] for a district, cached."""
+    fname = f"villagelist_{district_id}.json"
     cached = _load(fname, None)
-    if cached:
+    if cached is not None:
         return cached
     rows = _gql(Q_VILLAGES, {"district": district_id}) or []
-    out = {}
-    for r in rows:
-        if not isinstance(r, dict):
-            continue
-        name = str(r.get("name") or "")
-        vid = r.get("_id")
-        m = re.search(r"(\d{4,})\s*$", name)
-        if m and vid:
-            out[str(int(m.group(1)))] = vid
+    out = [{"name": str(r.get("name") or ""), "_id": r["_id"]}
+           for r in rows if isinstance(r, dict) and r.get("_id")]
     if out:
         _save(fname, out)
     return out
+
+
+def _maps_for_district(district_id):
+    """(by_census_code, by_normalised_name) village-id lookup maps."""
+    bycode, byname = {}, {}
+    for r in _village_list(district_id):
+        name, vid = r.get("name", ""), r.get("_id")
+        if not vid:
+            continue
+        m = re.search(r"(\d{4,})\s*$", name)
+        if m:
+            bycode[str(int(m.group(1)))] = vid
+        nn = _vn(name)
+        if nn:
+            byname.setdefault(nn, vid)
+    return bycode, byname
 
 
 def _nutri(village_id):
@@ -161,52 +197,59 @@ def _nutri(village_id):
 def results_for_villages(pairs):
     """Fetch/lookup village nutrient counts.
 
-    pairs: iterable of (state_name, district_name, census_code).
-    Returns {census_code: results dict | None}. Codes absent from the
-    result were NOT fetched yet (time budget) - rerendering continues
-    where it left off, everything already fetched comes from disk.
+    pairs: iterable of (key, state_name, district_name, census_code,
+    village_name). Returns {key: results dict | None}. None means the
+    village has no match / no samples; keys ABSENT from the result
+    were not fetched yet (time budget) - re-rendering continues where
+    it left off, everything already fetched comes from disk.
     """
     t0 = time.time()
     out = {}
 
     by_dist = {}
-    for st, dt, code in pairs:
-        try:
-            c = str(int(str(code).strip()))
-        except Exception:
-            continue
-        by_dist.setdefault((str(st), str(dt)), []).append(c)
+    for key, st, dt, code, name in pairs:
+        by_dist.setdefault((str(st), str(dt)), []).append(
+            (str(key), code, name))
 
     fetched = 0
-    for (st, dt), codes in by_dist.items():
+    for (st, dt), items in by_dist.items():
+        if time.time() - t0 > BUDGET_S:
+            break  # leave the rest absent -> grey "refresh to load"
+
         try:
             did = district_id_for(st, dt)
         except Exception:
             did = None
         if not did:
-            for c in codes:
-                out[c] = None
+            for key, _, _ in items:
+                out[key] = None
             continue
 
         try:
-            vmap = _village_ids(did)
+            bycode, byname = _maps_for_district(did)
         except Exception:
-            vmap = {}
+            bycode, byname = {}, {}
 
         fname = f"nutri_{did}_{CYCLE}.json"
         ncache = _load(fname, {})
         todo = []
-        for c in codes:
-            vid = vmap.get(c)
+        for key, code, name in items:
+            vid = None
+            try:
+                vid = bycode.get(str(int(str(code).strip())))
+            except Exception:
+                vid = None
             if vid is None:
-                out[c] = None
+                vid = byname.get(_vn(name))
+            if vid is None:
+                out[key] = None
             elif vid in ncache:
-                out[c] = ncache[vid]
+                out[key] = ncache[vid]
             else:
-                todo.append((c, vid))
+                todo.append((key, vid))
 
         # fetch what the time budget allows, in small parallel chunks
-        n_new = 0
+        before = fetched
         for i in range(0, len(todo), WORKERS):
             if time.time() - t0 > BUDGET_S or fetched >= MAX_FETCH:
                 break
@@ -220,14 +263,13 @@ def results_for_villages(pairs):
 
             with ThreadPoolExecutor(max_workers=WORKERS) as ex:
                 results = list(ex.map(safe, [v for _, v in chunk]))
-            for (c, vid), res in zip(chunk, results):
+            for (key, vid), res in zip(chunk, results):
                 if res == "ERR":
                     continue
                 ncache[vid] = res
-                out[c] = res
+                out[key] = res
                 fetched += 1
-                n_new += 1
-        if n_new:
+        if fetched > before:
             _save(fname, ncache)
 
     return out

@@ -121,6 +121,18 @@ div.stButton > button[kind="primary"]:hover{
 
 /* ---------- Sidebar ---------- */
 section[data-testid="stSidebar"]{ background:#FBFDFE; border-right:1px solid var(--line); }
+
+/* Keep the sidebar open/close arrows visible while scrolling
+   (especially on phones, where the header otherwise scrolls away). */
+div[data-testid="stSidebarCollapsedControl"],
+div[data-testid="collapsedControl"]{
+  position:fixed !important; top:10px; left:10px; z-index:9990;
+  background:rgba(255,255,255,.95); border-radius:10px; padding:2px 4px;
+  box-shadow:0 2px 10px rgba(15,23,42,.25);
+}
+section[data-testid="stSidebar"] div[data-testid="stSidebarHeader"]{
+  position:sticky; top:0; z-index:999; background:#FBFDFE;
+}
 section[data-testid="stSidebar"] h1,section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3{ color:var(--ink);
   font-size:1.02rem; padding-left:9px; border-left:3px solid var(--green); }

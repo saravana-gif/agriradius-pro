@@ -54,9 +54,13 @@ def district_report():
     st.caption(
         "Score = weighted adequacy of N/P/K/OC (double weight), "
         "micronutrients, and pH neutrality from measured lab "
-        "samples. Reasons show what drives each score. Small sample "
-        "counts - treat as indicative.")
-    rows = region_report.village_rankings(slabel, [dist], top=0)
+        "samples. Reasons show what drives each score.")
+    min_s = st.select_slider(
+        "Minimum lab samples per village (higher = more reliable "
+        "ranking)", options=[1, 3, 5, 10, 20], value=5,
+        key=f"minsamp_{dist}")
+    rows = region_report.village_rankings(
+        slabel, [dist], top=0, min_samples=min_s)
     _score_table(rows, ["village", "district", "score", "reasons",
                         "samples", "cycle"], height=420)
 
@@ -163,8 +167,10 @@ def state_report():
         "Villages appear here once their lab data has been fetched - "
         "coverage grows every time the SHC map layer or a district "
         "report is used. Each village shows its district and the "
-        "reasons for its score.")
-    vrows = region_report.village_rankings(slabel, districts, top=40)
+        "reasons for its score. Only villages with at least 5 lab "
+        "samples are ranked.")
+    vrows = region_report.village_rankings(
+        slabel, districts, top=40, min_samples=5)
     _score_table(vrows, ["village", "district", "score", "reasons",
                          "samples", "cycle"], height=420)
     if not vrows:

@@ -155,7 +155,8 @@ class MapEngine:
                 # Fixed-width wrapping box: leaflet tooltips default
                 # to a single nowrap line that runs off the screen,
                 # and max-width alone collapses near the map edge.
-                style=("width: 300px; white-space: normal; "
+                # min() keeps it inside small phone screens.
+                style=("width: min(300px, 72vw); white-space: normal; "
                        "font-size: 12px; "
                        "line-height: 1.45; padding: 6px 9px;"),
             ),

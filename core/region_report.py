@@ -81,6 +81,16 @@ def soil_score(results):
 
     score = round(sum(p * w for p, w in zip(parts, weights))
                   / sum(weights))
+
+    # Lead with what's GOOD when the score is decent, so a top-ranked
+    # village never reads as a list of pure negatives.
+    if score >= 60:
+        good = [lab for key, lab in _MACROS
+                if (_pct(results.get(key), "Low")[0] or 0) <= 20
+                and _pct(results.get(key), "Low")[0] is not None]
+        if good:
+            reasons.insert(0, "/".join(good) + " adequate")
+
     if not reasons:
         reasons.append("balanced nutrient profile")
     return score, reasons[:3], max_tot
@@ -92,16 +102,19 @@ def _clean_village(name):
     return re.sub(r"\s+", " ", s).strip().title()
 
 
-def village_rankings(state_label, districts, top=25):
+def village_rankings(state_label, districts, top=25, min_samples=1):
     """Ranked villages across one or many districts, from the SHC
     cache (no network). Returns list of dicts sorted best-first:
-    {village, district, score, reasons, samples, cycle}."""
+    {village, district, score, reasons, samples, cycle}.
+
+    min_samples filters out statistically weak entries (a village
+    with one sample shouldn't outrank one with fifty)."""
     rows = []
     for dist in districts:
         cached = shc_api.village_results_cached(state_label, dist)
         for vname, res in cached.items():
             score, reasons, tot = soil_score(res)
-            if score is None:
+            if score is None or tot < min_samples:
                 continue
             rows.append({
                 "village": _clean_village(vname),

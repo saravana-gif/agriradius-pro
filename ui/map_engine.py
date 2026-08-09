@@ -152,11 +152,11 @@ class MapEngine:
                 fields=["district", "val"],
                 aliases=["Village / District", name],
                 sticky=True,
-                # Wrap into a compact box instead of one endless line
-                # running off the screen (leaflet tooltips default to
-                # white-space: nowrap).
-                style=("max-width: 320px; white-space: normal; "
-                       "word-break: break-word; font-size: 12px; "
+                # Fixed-width wrapping box: leaflet tooltips default
+                # to a single nowrap line that runs off the screen,
+                # and max-width alone collapses near the map edge.
+                style=("width: 300px; white-space: normal; "
+                       "font-size: 12px; "
                        "line-height: 1.45; padding: 6px 9px;"),
             ),
         ).add_to(self.map)

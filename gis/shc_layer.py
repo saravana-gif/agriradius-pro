@@ -321,8 +321,8 @@ def geojson_villages(metric, lat, lon, radius_km):
             if extra:
                 disp = f"{disp}  |  {extra}"
             cyc = (results or {}).get("_cycle")
-            if cyc and cyc != shc_api.CYCLE:
-                disp = f"{disp}  ·  cycle {cyc}"
+            if cyc:
+                disp = f"{disp}  ·  samples from cycle {cyc}"
 
         feats.append({
             "type": "Feature",
@@ -390,13 +390,13 @@ def _village_summary(results, metric):
 def _village_style(results, metric):
     """(fill colour, display text) for one village's counts."""
     if not results:
-        return NO_DATA, "no lab samples this cycle"
+        return NO_DATA, "no lab samples in any cycle (2023-26)"
 
     if metric == "ph":
         d = results.get("pH") or {}
         tot = sum(int(v or 0) for v in d.values())
         if not tot:
-            return NO_DATA, "no lab samples this cycle"
+            return NO_DATA, "no pH samples this cycle"
         dom = max(d, key=lambda k: int(d[k] or 0))
         return (PH_COLORS.get(dom, NO_DATA),
                 f"{dom} ({int(d[dom])}/{tot} samples)")
@@ -405,7 +405,7 @@ def _village_style(results, metric):
     d = results.get(key) or {}
     tot = sum(int(v or 0) for v in d.values())
     if not tot:
-        return NO_DATA, "no lab samples this cycle"
+        return NO_DATA, "no samples for this metric"
     v = int(d.get(cls, 0) or 0)
     pct = round(100 * v / tot)
     return _pct_color(pct), f"{pct}% ({v}/{tot} samples)"

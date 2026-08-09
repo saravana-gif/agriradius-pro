@@ -59,17 +59,32 @@ SOURCES = {
 
 
 def _stream(url, kind):
-    """Yield GeoJSON features one by one without loading the file."""
+    """Yield GeoJSON features one by one without holding the whole
+    file in RAM: download to a temp file on disk first (disk is
+    cheap, RAM is not), then stream-parse it with ijson."""
+    import os
+    import shutil
+    import tempfile
+
     import ijson
     import requests
 
-    r = requests.get(url, stream=True, timeout=120)
-    r.raise_for_status()
-    raw = r.raw
-    raw.decode_content = True
-    if kind == "xz":
-        raw = lzma.open(io.BufferedReader(raw, 1 << 16))
-    yield from ijson.items(raw, "features.item")
+    fd, tmp_path = tempfile.mkstemp(suffix=".part")
+    try:
+        with os.fdopen(fd, "wb") as t:
+            with requests.get(url, stream=True, timeout=120) as r:
+                r.raise_for_status()
+                r.raw.decode_content = True
+                shutil.copyfileobj(r.raw, t, 1 << 16)
+        fh = (lzma.open(tmp_path) if kind == "xz"
+              else open(tmp_path, "rb"))
+        with fh:
+            yield from ijson.items(fh, "features.item")
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _convert(state, cfg):

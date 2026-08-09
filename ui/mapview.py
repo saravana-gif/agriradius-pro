@@ -27,15 +27,43 @@ def _region_geometry(engine, mode):
         return
 
     if mode == "District" and region.get("kind") == "district":
+        from gis import shc_layer
+        gj = None
+        with st.spinner("Painting villages by measured soil health "
+                        "(cached lab data)..."):
+            try:
+                gj = shc_layer.geojson_district(
+                    region["state"], region["district"])
+            except Exception:
+                gj = None
+        if gj:
+            engine.add_choropleth(gj, "Soil health score",
+                                  fill_opacity=0.65)
+            legend = "  ·  ".join(
+                f"{lab}" for _, _, lab in shc_layer.SCORE_BINS)
+            st.caption(
+                f"**{region['district'].title()}** - "
+                f"{len(gj['features']):,} villages coloured by "
+                f"measured soil-health score (green = better): "
+                f"{legend}; grey = no lab samples. Hover any village "
+                "for its score, reasons and sample count. Full "
+                "report below the map.")
+            b = None
+            with st.spinner(""):
+                gdf = _district_gdf(region["state"],
+                                    region["district"])
+                if gdf is not None and not gdf.empty:
+                    b = gdf.total_bounds
+            if b is not None:
+                engine.fit_bounds(b[0], b[1], b[2], b[3])
+            return
+        # Fallback: plain borders if the colour join failed
         with st.spinner("Loading district boundaries..."):
             gdf = _district_gdf(region["state"], region["district"])
         if gdf is None or gdf.empty:
             st.warning("Could not load this district's villages.")
             return
-        show = gdf
-        if len(show) > 1500:
-            show = show.copy().head(1500)
-        show = show.copy()
+        show = gdf.copy()
         show["geometry"] = show.geometry.simplify(
             0.0002, preserve_topology=True)
         engine.add_villages(
@@ -47,8 +75,7 @@ def _region_geometry(engine, mode):
         engine.fit_bounds(b[0], b[1], b[2], b[3])
         st.caption(
             f"**{region['district'].title()}** - {len(gdf):,} village "
-            "boundaries shown with exact borders. The full report is "
-            "below the map.")
+            "boundaries (soil colours unavailable right now).")
         return
 
     if mode == "State" and region.get("kind") == "state":

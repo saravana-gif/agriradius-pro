@@ -15,7 +15,7 @@ BOUNDARIES_DIR = PROJECT_ROOT / "boundaries"
 LOGO_PATH = PROJECT_ROOT / "assets" / "logos" / "oneroot_logo.png"
 
 # --- App defaults ---
-APP_NAME = "OneRoot AgriRadius Pro"
+APP_NAME = "OneRoot Ground Intel"
 COMPANY = "OneRoot (ENP Farms Private Limited)"
 APP_VERSION = "0.9.0"
 DEFAULT_LAT = 11.923456

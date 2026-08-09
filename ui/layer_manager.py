@@ -79,9 +79,19 @@ def layer_manager():
             keys,
             format_func=lambda k: labels[k],
             key="shc_map_metric",
-            help="District averages of lab-tested farmer samples "
-                 "(Soil Health Card scheme). Real measurements - "
-                 "district resolution, not plot-level.",
+            help="Lab-tested farmer samples from the Soil Health "
+                 "Card scheme - real measurements.",
+        )
+        st.radio(
+            "SHC resolution",
+            ["District average", "Village detail (live)"],
+            key="shc_map_res",
+            help="Village detail fetches each village's own lab "
+                 "results live from the SHC portal for the selected "
+                 "area. First view of an area takes a few seconds "
+                 "and fills in progressively (cached after that). "
+                 "Grey villages have no samples yet. Sample counts "
+                 "per village are small - treat as indicative.",
         )
 
     legends()

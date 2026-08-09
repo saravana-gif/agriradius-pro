@@ -273,12 +273,27 @@ def mapview():
             metric = st.session_state.get("shc_map_metric", "n_low")
             label = shc_layer.METRICS.get(
                 metric, shc_layer.METRICS["n_low"])[0]
-            gj = shc_layer.geojson_for(
+            _shc_args = (
                 metric,
                 round(float(st.session_state.lat), 4),
                 round(float(st.session_state.lon), 4),
                 float(st.session_state.get("radius", 10)),
             )
+            res_mode = st.session_state.get(
+                "shc_map_res", "District average")
+
+            gj = None
+            if str(res_mode).startswith("Village"):
+                with st.spinner(
+                        "Fetching village-level SHC lab results..."):
+                    gj = shc_layer.geojson_villages(*_shc_args)
+                if gj is None:
+                    st.caption(
+                        "No village-level SHC data here - showing "
+                        "the district average instead.")
+            if gj is None:
+                gj = shc_layer.geojson_for(*_shc_args)
+
             if gj:
                 engine.add_choropleth(
                     gj, label,

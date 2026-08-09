@@ -251,7 +251,7 @@ def geojson_villages(metric, lat, lon, radius_km):
     more. Returns None when nothing can be drawn.
 
     Coverage: Karnataka, Tamil Nadu, Kerala, Andhra Pradesh,
-    Maharashtra (Telangana pending a boundary file).
+    Maharashtra and Telangana.
     """
     if metric not in METRICS:
         return None
@@ -320,6 +320,9 @@ def geojson_villages(metric, lat, lon, radius_km):
             extra = _village_summary(results, metric)
             if extra:
                 disp = f"{disp}  |  {extra}"
+            cyc = (results or {}).get("_cycle")
+            if cyc and cyc != shc_api.CYCLE:
+                disp = f"{disp}  ·  cycle {cyc}"
 
         feats.append({
             "type": "Feature",

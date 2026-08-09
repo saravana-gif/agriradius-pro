@@ -35,6 +35,9 @@ def villages_in_buffer(lat, lon, radius_km):
     states whose extent cannot overlap it at all.
     """
 
+    from data import gis_data as _gd
+    _gd.refresh()   # pick up boundary files fetched after startup
+
     buffer = _buffer_geometry(lat, lon, radius_km)
     geom = buffer.geometry.iloc[0]
     bounds = tuple(buffer.total_bounds)  # (minx, miny, maxx, maxy)

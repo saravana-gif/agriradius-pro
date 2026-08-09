@@ -7,7 +7,7 @@ features; the PDF in docs/ mirrors it.
 import streamlit as st
 
 GUIDE_MD = """
-### 🌾 AgriRadius Pro — how to use it
+### 🌾 Ground Intel — how to use it
 
 Turn any place in South India into a complete farming report from free
 satellite and government data — crops, soil, rainfall, live weather,
@@ -129,7 +129,7 @@ The sidebar **Service health** panel shows the live EECU compute meter
 """
 
 
-@st.dialog("How to use AgriRadius Pro", width="large")
+@st.dialog("How to use Ground Intel", width="large")
 def _show_guide():
     st.markdown(GUIDE_MD)
 

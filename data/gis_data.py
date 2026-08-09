@@ -57,6 +57,13 @@ def _discover():
 GIS_DATA = _discover()
 
 
+def refresh():
+    """Re-scan boundaries/ so files downloaded AFTER startup (see
+    scripts/fetch_boundaries.py) register without a restart. Cheap -
+    just a small directory scan."""
+    GIS_DATA.update(_discover())
+
+
 def get_layer(state, layer):
     """Return the Path for a registered layer.
 

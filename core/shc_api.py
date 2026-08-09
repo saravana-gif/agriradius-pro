@@ -265,6 +265,96 @@ def _nutri(village_id):
     return None
 
 
+def district_nutrients(state_name, district_name):
+    """District-level nutrient counts straight from the portal (one
+    query per district, multi-cycle fallback, disk-cached). Works for
+    ALL six states - unlike the bundled KA/TN csv."""
+    did = district_id_for(state_name, district_name)
+    if not did:
+        return None
+    fname = f"nutri_district_{did}_multi.json"
+    cached = _load(fname, "MISS")
+    if cached != "MISS" and (cached is None or has_counts(cached)):
+        return cached
+    res = None
+    for cyc in CYCLES:
+        try:
+            rows = _gql(Q_NUTRI, {"district": did, "cycle": cyc,
+                                  "count": True}) or []
+        except Exception:
+            return None   # network trouble - don't cache
+        r = (rows[0] or {}).get("results") if rows else None
+        if has_counts(r):
+            r["_cycle"] = cyc
+            res = r
+            break
+    _save(fname, res)
+    return res
+
+
+def village_results_cached(state_name, district_name):
+    """{portal village name: results} from the on-disk cache ONLY (no
+    network). Used by rankings so they get faster as the map / report
+    is used more."""
+    did = district_id_for(state_name, district_name)
+    if not did:
+        return {}
+    ncache = _load(f"nutri_{did}_multi.json", {})
+    out = {}
+    for r in _village_list_cached(did):
+        vid = r.get("_id")
+        if vid in ncache and has_counts(ncache.get(vid)):
+            out[r.get("name", "")] = ncache[vid]
+    return out
+
+
+def _village_list_cached(district_id):
+    return _load(f"villagelist_{district_id}.json", None) or []
+
+
+def fetch_district_villages(state_name, district_name, budget_s=25,
+                            max_fetch=150):
+    """Progressively fetch nutrient data for a district's villages
+    (cached). Returns how many are now cached vs total listed."""
+    did = district_id_for(state_name, district_name)
+    if not did:
+        return 0, 0
+    try:
+        rows = _village_list(did)
+    except Exception:
+        rows = _village_list_cached(did)
+    fname = f"nutri_{did}_multi.json"
+    ncache = _load(fname, {})
+    todo = [r["_id"] for r in rows
+            if r.get("_id") and not (
+                r["_id"] in ncache and (ncache[r["_id"]] is None
+                                        or has_counts(ncache[r["_id"]])))]
+    t0 = time.time()
+    fetched = 0
+    for i in range(0, len(todo), WORKERS):
+        if time.time() - t0 > budget_s or fetched >= max_fetch:
+            break
+        chunk = todo[i:i + WORKERS]
+
+        def safe(vid):
+            try:
+                return _nutri(vid)
+            except Exception:
+                return "ERR"
+
+        with ThreadPoolExecutor(max_workers=WORKERS) as ex:
+            results = list(ex.map(safe, chunk))
+        for vid, res in zip(chunk, results):
+            if res == "ERR":
+                continue
+            ncache[vid] = res
+            fetched += 1
+    if fetched:
+        _save(fname, ncache)
+    done = sum(1 for r in rows if r.get("_id") in ncache)
+    return done, len(rows)
+
+
 def results_for_villages(pairs):
     """Fetch/lookup village nutrient counts.
 

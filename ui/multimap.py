@@ -2,8 +2,13 @@
 
 Renders each ticked overlay layer in its own Leaflet panel in a grid,
 with synced OR independent pan/zoom (synced follows the top-left master
-panel), a cap on how many panels show, a full-screen button, and a
-translucent info overlay (layer name + measured stat) on each map.
+panel), a full-screen button, and a translucent info overlay (layer
+name + measured stat) on each map.
+
+The panel list is built FROM THE LAYER REGISTRY, so any overlay layer
+added there (with a tile function mapped in `_tile_url`, or handled as
+a vector layer like SHC) automatically becomes comparable - no cap on
+how many panels can be shown.
 
 It reuses the SAME per-layer tile-URL functions the single map uses,
 so what you see here matches the main map exactly.
@@ -14,27 +19,29 @@ import json
 import streamlit as st
 import streamlit.components.v1 as components
 
-# Overlay (tile) layers that can be compared, in display order.
-TILE_LAYERS = [
-    ("dynamic_world", "Dynamic World land cover"),
-    ("cropland_confidence", "Cropland confidence"),
-    ("paddy", "Paddy (radar)"),
-    ("plantation", "Plantations (coconut/arecanut)"),
-    ("banana", "Banana (likely)"),
-    ("maize", "Maize / kharif"),
-    ("worldcereal", "WorldCereal cropland (ESA)"),
-    ("aquaculture", "Aquaculture ponds"),
-    ("soil_ph", "Soil pH"),
-    ("soil_oc", "Soil organic carbon"),
-    ("soil_n", "Soil nitrogen"),
-]
+# Registry layer ids that are map DECORATIONS, not comparable layers.
+_NOT_COMPARABLE = {"marker", "buffer", "villages"}
 
 SAT = "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
 
 
+def comparable_layers():
+    """[(id, label)] of every registry overlay that can be compared -
+    stays in sync with the sidebar automatically."""
+    from data.layer_registry import LAYERS
+    out = []
+    for layers in LAYERS.values():
+        for layer in layers:
+            if layer["id"] in _NOT_COMPARABLE:
+                continue
+            out.append((layer["id"], layer["label"]))
+    return out
+
+
 def _tile_url(layer_id, lat, lon, radius, year):
     """Compute a layer's XYZ tile URL (reuses the app's own functions,
-    which are cached, so repeat views are free)."""
+    which are cached, so repeat views are free). Add new tile layers
+    here when they are added to the registry."""
     from core import usage as _u
     _u.bump("earth_engine")
 
@@ -68,6 +75,22 @@ def _tile_url(layer_id, lat, lon, radius, year):
     return None
 
 
+def _shc_geojson(lat, lon, radius):
+    """The SHC measured layer as vector data for a panel (uses the
+    same resolution setting as the single map)."""
+    from gis import shc_layer
+    metric = st.session_state.get("shc_map_metric", "n_low")
+    res_mode = st.session_state.get("shc_map_res", "District average")
+    args = (metric, round(float(lat), 4), round(float(lon), 4),
+            float(radius))
+    gj = None
+    if str(res_mode).startswith("Village"):
+        gj = shc_layer.geojson_villages(*args)
+    if gj is None:
+        gj = shc_layer.geojson_for(*args)
+    return gj
+
+
 def _stat_for(layer_id):
     """Short measured stat to show on the panel, if we have it."""
     ss = st.session_state
@@ -94,7 +117,8 @@ def multimap_view():
     lat, lon, radius, year = ss.lat, ss.lon, ss.radius, ss.year
     op = float(ss.get("overlay_opacity", 0.6))
 
-    selected = [(lid, lbl) for lid, lbl in TILE_LAYERS if vis.get(lid)]
+    selected = [(lid, lbl) for lid, lbl in comparable_layers()
+                if vis.get(lid)]
 
     st.caption(
         "Compare layers side by side. Tick overlay layers in the sidebar, "
@@ -106,19 +130,20 @@ def multimap_view():
     if not selected:
         st.info(
             "Tick one or more overlay layers in the sidebar "
-            "(Dynamic World, Plantations, Paddy, Maize, Soil, …) — "
-            "they'll appear here as side-by-side maps.")
+            "(Dynamic World, Plantations, Paddy, Maize, Soil, SHC, …) "
+            "— they'll appear here as side-by-side maps.")
         return
 
-    cap = min(12, len(selected))
+    cap = len(selected)   # no artificial limit - every ticked layer
     if cap <= 1:
         maxn = cap
     else:
         maxn = st.slider(
-            "Max panels to show", 1, cap, min(4, cap),
-            help="How many of your ticked layers to render side by side. "
-                 "Each panel is a live Earth Engine layer, so more panels "
-                 "= more compute; raise it as far as you need.")
+            "Max panels to show", 1, cap, min(6, cap),
+            help="How many of your ticked layers to render side by "
+                 "side - up to ALL of them. Each satellite panel is a "
+                 "live Earth Engine layer, so more panels = more "
+                 "compute.")
     show = selected[:maxn]
     if len(selected) > maxn:
         st.caption(f"Showing {maxn} of {len(selected)} ticked layers — "
@@ -132,26 +157,34 @@ def multimap_view():
 
     st.caption(
         "Tip: full-cover layers (Dynamic World, Cropland Confidence, "
-        "Soil) paint the whole area; detection layers (plantation, "
+        "Soil, SHC) paint the whole area; detection layers (plantation, "
         "paddy, maize, banana) only colour the pixels they flag, so "
         "they look sparse — zoom in or raise opacity to see them.")
 
     layers = []
     with st.spinner("Rendering comparison maps (first time is slower)…"):
         for lid, lbl in show:
+            entry = {"name": lbl, "url": "", "geojson": None,
+                     "stat": ""}
             try:
-                url = _tile_url(lid, lat, lon, radius, year)
+                if lid == "shc":
+                    entry["geojson"] = _shc_geojson(lat, lon, radius)
+                    if entry["geojson"] is None:
+                        entry["name"] = lbl + " (no data here)"
+                else:
+                    url = _tile_url(lid, lat, lon, radius, year)
+                    entry["url"] = url or ""
+                    if url:
+                        entry["stat"] = _stat_for(lid)
+                    else:
+                        entry["name"] = lbl + " (unavailable)"
             except Exception as e:
                 from core import usage as _u
                 _u.note_error("earth_engine", e)
-                url = None
-            layers.append({
-                "name": lbl if url else lbl + " (unavailable)",
-                "url": url or "",
-                "stat": _stat_for(lid) if url else "",
-            })
+                entry["name"] = lbl + " (unavailable)"
+            layers.append(entry)
 
-    if not any(l["url"] for l in layers):
+    if not any(l["url"] or l["geojson"] for l in layers):
         st.warning("Couldn't render any layers (Earth Engine may be "
                    "busy). Try fewer panels or Refresh.")
         return
@@ -226,6 +259,17 @@ _HTML = """
     var map = L.map('m' + i, {center:[CFG.lat, CFG.lon], zoom:CFG.zoom, zoomControl:(i===0), doubleClickZoom:false});
     L.tileLayer(CFG.sat, {maxZoom:22, maxNativeZoom:20}).addTo(map);
     if(ly.url){ L.tileLayer(ly.url, {opacity:CFG.opacity, maxZoom:22, minZoom:1, maxNativeZoom:16, zIndex:400}).addTo(map); }
+    if(ly.geojson){
+      L.geoJSON(ly.geojson, {
+        style: function(f){ return {color:'#555', weight:1,
+          fillColor:(f.properties && f.properties._fill) || '#bdbdbd',
+          fillOpacity: Math.min(0.85, CFG.opacity + 0.15)}; },
+        onEachFeature: function(f, l){
+          if(f.properties){ l.bindTooltip('<b>' + (f.properties.district||'') + '</b><br>' + (f.properties.val||''),
+            {sticky:true, className:'', opacity:0.95}); }
+        }
+      }).addTo(map);
+    }
     if(CFG.radius_m > 0){ L.circle([CFG.lat, CFG.lon], {radius:CFG.radius_m, color:'#22D3EE', weight:2, fill:false}).addTo(map); }
     map.on('dblclick', function(){ toggleExpand(i); });
     maps.push(map);

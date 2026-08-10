@@ -75,6 +75,15 @@ def _tile_url(layer_id, lat, lon, radius, year):
     return None
 
 
+def _coconut_geojson(lat, lon, radius):
+    """The measured coconut crop-survey layer as vector data."""
+    from gis import crop_survey_layer
+    metric = st.session_state.get("coconut_survey_metric", "intensity")
+    return crop_survey_layer.geojson_villages(
+        metric, round(float(lat), 4), round(float(lon), 4),
+        float(radius))
+
+
 def _shc_geojson(lat, lon, radius):
     """The SHC measured layer as vector data for a panel (uses the
     same resolution setting as the single map)."""
@@ -109,6 +118,13 @@ def _stat_for(layer_id):
     except Exception:
         return ""
     return ""
+
+
+# Layers drawn as vector polygons rather than Earth Engine tiles.
+_VECTOR = {
+    "shc": _shc_geojson,
+    "coconut_survey": _coconut_geojson,
+}
 
 
 def multimap_view():
@@ -167,8 +183,8 @@ def multimap_view():
             entry = {"name": lbl, "url": "", "geojson": None,
                      "stat": ""}
             try:
-                if lid == "shc":
-                    entry["geojson"] = _shc_geojson(lat, lon, radius)
+                if lid in _VECTOR:
+                    entry["geojson"] = _VECTOR[lid](lat, lon, radius)
                     if entry["geojson"] is None:
                         entry["name"] = lbl + " (no data here)"
                 else:

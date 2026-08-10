@@ -96,6 +96,24 @@ def layer_manager():
                  "per village are small - treat as indicative.",
         )
 
+    # Coconut crop survey: measured, village-level government records.
+    if st.session_state.layer_visibility.get("coconut_survey"):
+        from gis import crop_survey_layer
+        opts = crop_survey_layer.metric_options()
+        keys = [k for k, _ in opts]
+        labels = {k: l for k, l in opts}
+        st.selectbox(
+            "Coconut survey metric",
+            keys,
+            format_func=lambda k: labels[k],
+            key="coconut_survey_metric",
+            help="Village-level coconut records from the Karnataka "
+                 "crop survey (2023-24 Kharif): plot counts, growers "
+                 "and the land attached to them. Ground-recorded, not "
+                 "a satellite estimate. Covers Hassan, Mandya, "
+                 "Tumakuru, Ramanagara, Chitradurga and Mysuru.",
+        )
+
     legends()
 
 
@@ -206,3 +224,13 @@ def legends():
                 f"SHC: {shc_layer.METRICS[metric][0]}",
                 [(lab, col)
                  for lab, col in shc_layer.legend_items(metric)])
+
+    if vis.get("coconut_survey"):
+        from gis import crop_survey_layer
+        metric = st.session_state.get("coconut_survey_metric",
+                                      "intensity")
+        if metric in crop_survey_layer.METRICS:
+            _legend(
+                f"Coconut survey: "
+                f"{crop_survey_layer.METRICS[metric][0]}",
+                crop_survey_layer.legend_items(metric))

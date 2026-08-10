@@ -419,6 +419,33 @@ def mapview():
         except Exception as e:
             st.warning(f"Could not load SHC district layer: {e}")
 
+    if vis.get("coconut_survey"):
+
+        from gis import crop_survey_layer
+
+        try:
+            metric = st.session_state.get(
+                "coconut_survey_metric", "intensity")
+            label = crop_survey_layer.METRICS.get(
+                metric, crop_survey_layer.METRICS["intensity"])[0]
+            gj = crop_survey_layer.geojson_villages(
+                metric,
+                round(float(st.session_state.lat), 4),
+                round(float(st.session_state.lon), 4),
+                float(st.session_state.get("radius", 10)),
+            )
+            if gj:
+                engine.add_choropleth(
+                    gj, f"Coconut survey - {label}",
+                    fill_opacity=min(0.8, _op + 0.1))
+            else:
+                st.caption(
+                    "No coconut crop-survey records inside this area "
+                    "(survey covers Hassan, Mandya, Tumakuru, "
+                    "Ramanagara, Chitradurga and Mysuru).")
+        except Exception as e:
+            st.warning(f"Could not load the coconut survey layer: {e}")
+
     # --- Refresh button: remounts the map so any tiles that failed
     # to load (Earth Engine timeouts at high zoom) are re-requested,
     # without having to nudge the opacity slider. ---
@@ -463,3 +490,11 @@ def mapview():
         st.session_state.lon = clicked["lng"]
 
         st.rerun()
+
+    # Measured coconut records for this area (government crop survey)
+    # - renders only where the survey has coverage.
+    try:
+        from ui.crop_survey_panel import coconut_survey_panel
+        coconut_survey_panel()
+    except Exception:
+        pass

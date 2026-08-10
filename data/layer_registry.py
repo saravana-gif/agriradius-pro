@@ -44,6 +44,9 @@ LAYERS = {
          "default": False},
         {"id": "worldcereal", "label": "WorldCereal Cropland (ESA)",
          "default": False},
+        {"id": "coconut_survey",
+         "label": "Coconut - govt crop survey (measured)",
+         "default": False},
     ],
     "Allied Sectors": [
         {"id": "aquaculture", "label": "Aquaculture ponds (satellite)",

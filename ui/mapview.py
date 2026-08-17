@@ -443,6 +443,68 @@ def mapview():
         except Exception as e:
             st.warning(f"Could not load SHC district layer: {e}")
 
+    # --- Irrigation: four satellite views + the measured district
+    #     source split. Kept as separate layers so you can see where
+    #     independent methods agree. ---
+    _IRR_TILES = (
+        ("irrigation_summer", "gee.irrigation",
+         "summer_green_tile_url",
+         "Irrigated cropland (summer green)"),
+        ("irrigation_multicrop", "gee.irrigation",
+         "multicrop_tile_url", "Multi-crop land (2+ crops/yr)"),
+        ("irrigation_lgrip", "gee.irrigation", "lgrip_tile_url",
+         "LGRIP30 irrigated vs rain-fed"),
+        ("irrigation_worldcereal", "gee.irrigation",
+         "worldcereal_irrigation_tile_url",
+         "WorldCereal irrigation (lower bound)"),
+    )
+    for _lid, _mod, _fn, _label in _IRR_TILES:
+        if not vis.get(_lid):
+            continue
+        try:
+            import importlib
+            from core import usage as _u
+            _u.bump("earth_engine")
+            _f = getattr(importlib.import_module(_mod), _fn)
+            url = fresh_tile_url(
+                _f,
+                st.session_state.lat,
+                st.session_state.lon,
+                st.session_state.radius,
+                st.session_state.year,
+            )
+            _overlay(engine, url, _label, _op)
+        except Exception as e:
+            from core import usage as _u
+            _u.note_error("earth_engine", e)
+            st.warning(_u.friendly(e) or f"Could not load {_label}: {e}")
+
+    if vis.get("irrigation_source"):
+
+        from gis import irrigation_layer
+
+        try:
+            metric = st.session_state.get(
+                "irrigation_metric", "borewell_pct")
+            label = irrigation_layer.METRICS.get(
+                metric, irrigation_layer.METRICS["borewell_pct"])[0]
+            gj = irrigation_layer.geojson_for(
+                metric,
+                round(float(st.session_state.lat), 4),
+                round(float(st.session_state.lon), 4),
+                float(st.session_state.get("radius", 10)),
+            )
+            if gj:
+                engine.add_choropleth(
+                    gj, f"Irrigation source - {label}",
+                    fill_opacity=min(0.8, _op + 0.1))
+            else:
+                st.caption(
+                    "No irrigation-source statistics for this area - "
+                    "the district table covers Karnataka only.")
+        except Exception as e:
+            st.warning(f"Could not load the irrigation layer: {e}")
+
     if vis.get("coconut_survey"):
 
         from gis import crop_survey_layer
@@ -543,5 +605,14 @@ def mapview():
     try:
         from ui.crop_survey_panel import coconut_survey_panel
         coconut_survey_panel()
+    except Exception:
+        pass
+
+    # Irrigation briefing - district source split, targeting advice and
+    # the satellite cross-check. Renders only where the statistics
+    # cover the area (Karnataka).
+    try:
+        from ui.irrigation_panel import irrigation_panel
+        irrigation_panel()
     except Exception:
         pass

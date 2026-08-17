@@ -51,6 +51,9 @@ EXPECTED = [
     ("soil_ph", "Soil pH"),
     ("soil_oc", "Soil organic carbon"),
     ("soil_n", "Soil nitrogen"),
+    ("irrigation_summer", "Irrigated cropland (summer green)"),
+    ("irrigation_multicrop", "Multi-crop land (irrigation proxy)"),
+    ("irrigation_lgrip", "LGRIP30 irrigated vs rain-fed"),
 ]
 
 
@@ -246,7 +249,53 @@ def map_images(lat, lon, radius_km, year):
     except Exception:
         pass
 
-    # 10-12. Painted soil properties (SoilGrids) -----------------------
+    # 10-12. Irrigation -------------------------------------------------
+    try:
+        from gee.irrigation import (multicrop_mask, summer_green_mask)
+        _overlay(out, buffer, year, "irrigation_summer",
+                 "Irrigated cropland (summer green, Feb-May)",
+                 "Cropland still green AND moist through the "
+                 "February-May dry season - the cleanest evidence of "
+                 "applied water in Karnataka. Rabi greenness is not "
+                 "used: rabi crops on black cotton soil in the north "
+                 "are rain-fed on stored vertisol moisture.",
+                 lambda: summer_green_mask(buffer, year),
+                 "#00c2ff", "Irrigated cropland")
+        _overlay(out, buffer, year, "irrigation_multicrop",
+                 "Multi-crop land (2+ crops a year)",
+                 "Two or more crops a year (GCI30). In the semi-arid "
+                 "interior rainfall cannot support double cropping, so "
+                 "this is strong independent evidence of irrigation.",
+                 lambda: multicrop_mask(buffer),
+                 "#7b1fa2", "Two or more crops a year")
+    except Exception:
+        pass
+
+    try:
+        from gee.irrigation import lgrip_masks
+        irr, rain = lgrip_masks()
+        rgb = _s2_rgb(buffer, year)
+        combo = irr.multiply(1).add(rain.multiply(2)).selfMask()
+        cvis = combo.visualize(min=1, max=2,
+                               palette=["00c2ff", "d9a441"])
+        out.append({
+            "kind": "irrigation_lgrip",
+            "title": "LGRIP30 irrigated vs rain-fed cropland (30 m)",
+            "caption": "USGS/NASA Landsat-derived map. Honest caveat: "
+                       "the 91% accuracy headline is continental-US "
+                       "only (V002); India is covered by V001 (2015) "
+                       "and no Indian accuracy figure has been "
+                       "published. Tanks and reservoirs fall in the "
+                       "water class, not rain-fed.",
+            "legend": [("00c2ff", "Irrigated cropland"),
+                       ("d9a441", "Rain-fed cropland"),
+                       ("_base", "Satellite (everything else)")],
+            "png": _thumb(rgb.blend(cvis).clip(buffer), buffer),
+        })
+    except Exception:
+        pass
+
+    # 13-15. Painted soil properties (SoilGrids) ------------------------
     try:
         from gee.soil import SOIL_LAYERS, _rootzone
         for layer_id in ("soil_ph", "soil_oc", "soil_n"):

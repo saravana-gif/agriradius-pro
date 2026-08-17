@@ -96,6 +96,25 @@ def layer_manager():
                  "per village are small - treat as indicative.",
         )
 
+    # Irrigation source: which metric to paint on the districts.
+    if st.session_state.layer_visibility.get("irrigation_source"):
+        from gis import irrigation_layer
+        opts = irrigation_layer.metric_options()
+        keys = [k for k, _ in opts]
+        labels = {k: l for k, l in opts}
+        st.selectbox(
+            "Irrigation metric",
+            keys, index=keys.index("borewell_pct"),
+            format_func=lambda k: labels[k],
+            key="irrigation_metric",
+            help="District irrigation by SOURCE (Land Use Statistics "
+                 "2022-23, Karnataka). The borewell/canal split is the "
+                 "operational one: canal-led districts can be targeted "
+                 "from command-area maps, borewell-led districts "
+                 "cannot - those wells are invisible to infrastructure "
+                 "data.",
+        )
+
     # Coconut crop survey: measured, village-level government records.
     if st.session_state.layer_visibility.get("coconut_survey"):
         from gis import crop_survey_layer
@@ -224,6 +243,28 @@ def legends():
                 f"SHC: {shc_layer.METRICS[metric][0]}",
                 [(lab, col)
                  for lab, col in shc_layer.legend_items(metric)])
+
+    if vis.get("irrigation_source"):
+        from gis import irrigation_layer
+        metric = st.session_state.get("irrigation_metric",
+                                      "borewell_pct")
+        if metric in irrigation_layer.METRICS:
+            _legend(
+                f"Irrigation: {irrigation_layer.METRICS[metric][0]}",
+                irrigation_layer.legend_items(metric))
+
+    if vis.get("irrigation_lgrip"):
+        _legend("LGRIP30 irrigated vs rain-fed",
+                [("Irrigated cropland", "#00c2ff"),
+                 ("Rain-fed cropland", "#d9a441")])
+
+    if vis.get("irrigation_summer"):
+        _legend("Irrigated (green through Feb-May dry season)",
+                [("Irrigated cropland", "#00c2ff")])
+
+    if vis.get("irrigation_multicrop"):
+        _legend("Multi-crop land (2+ crops a year)",
+                [("Two or more crops", "#7b1fa2")])
 
     if vis.get("coconut_survey"):
         from gis import crop_survey_layer

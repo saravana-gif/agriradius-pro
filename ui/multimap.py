@@ -82,6 +82,17 @@ def _tile_url(layer_id, lat, lon, radius, year):
         from gee.soil import soil_tile_url
         return fresh_tile_url(soil_tile_url, lat, lon, radius,
                               layer_id)
+    if layer_id.startswith("irrigation_") \
+            and layer_id != "irrigation_source":
+        from gee import irrigation as _ir
+        fn = {
+            "irrigation_summer": _ir.summer_green_tile_url,
+            "irrigation_multicrop": _ir.multicrop_tile_url,
+            "irrigation_lgrip": _ir.lgrip_tile_url,
+            "irrigation_worldcereal": _ir.worldcereal_irrigation_tile_url,
+        }.get(layer_id)
+        if fn:
+            return fresh_tile_url(fn, lat, lon, radius, year)
     return None
 
 
@@ -90,6 +101,15 @@ def _coconut_geojson(lat, lon, radius):
     from gis import crop_survey_layer
     metric = st.session_state.get("coconut_survey_metric", "intensity")
     return crop_survey_layer.geojson_villages(
+        metric, round(float(lat), 4), round(float(lon), 4),
+        float(radius))
+
+
+def _irrigation_geojson(lat, lon, radius):
+    """District irrigation-source layer as vector data."""
+    from gis import irrigation_layer
+    metric = st.session_state.get("irrigation_metric", "borewell_pct")
+    return irrigation_layer.geojson_for(
         metric, round(float(lat), 4), round(float(lon), 4),
         float(radius))
 
@@ -134,6 +154,7 @@ def _stat_for(layer_id):
 _VECTOR = {
     "shc": _shc_geojson,
     "coconut_survey": _coconut_geojson,
+    "irrigation_source": _irrigation_geojson,
 }
 
 

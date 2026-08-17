@@ -1,0 +1,373 @@
+district,measure,source,subsource,source_label,area_ha
+Bagalkote,Gross Irrigated Area,Canal,Government,Canal (Government),27905.0
+Bagalkote,Gross Irrigated Area,Canal,Private,Canal (Private),
+Bagalkote,Gross Irrigated Area,Other Source,Other Source,Other Source,112179.0
+Bagalkote,Gross Irrigated Area,Tank,Tank,Tank,904.0
+Bagalkote,Gross Irrigated Area,Well,Other Well,Open/Dug Well,3920.0
+Bagalkote,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,292468.0
+Bagalkote,Net Irrigated Area,Canal,Government,Canal (Government),27905.0
+Bagalkote,Net Irrigated Area,Canal,Private,Canal (Private),
+Bagalkote,Net Irrigated Area,Other Source,Other Source,Other Source,95504.0
+Bagalkote,Net Irrigated Area,Tank,Tank,Tank,904.0
+Bagalkote,Net Irrigated Area,Well,Other Well,Open/Dug Well,3273.0
+Bagalkote,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,229545.0
+Ballari,Gross Irrigated Area,Canal,Government,Canal (Government),137288.0
+Ballari,Gross Irrigated Area,Canal,Private,Canal (Private),
+Ballari,Gross Irrigated Area,Other Source,Other Source,Other Source,77379.0
+Ballari,Gross Irrigated Area,Tank,Tank,Tank,574.0
+Ballari,Gross Irrigated Area,Well,Other Well,Open/Dug Well,676.0
+Ballari,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,52854.0
+Ballari,Net Irrigated Area,Canal,Government,Canal (Government),94427.0
+Ballari,Net Irrigated Area,Canal,Private,Canal (Private),
+Ballari,Net Irrigated Area,Other Source,Other Source,Other Source,39044.0
+Ballari,Net Irrigated Area,Tank,Tank,Tank,570.0
+Ballari,Net Irrigated Area,Well,Other Well,Open/Dug Well,391.0
+Ballari,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,33676.0
+Belagavi,Gross Irrigated Area,Canal,Government,Canal (Government),102690.0
+Belagavi,Gross Irrigated Area,Canal,Private,Canal (Private),
+Belagavi,Gross Irrigated Area,Other Source,Other Source,Other Source,208167.0
+Belagavi,Gross Irrigated Area,Tank,Tank,Tank,885.0
+Belagavi,Gross Irrigated Area,Well,Other Well,Open/Dug Well,255557.0
+Belagavi,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,315829.0
+Belagavi,Net Irrigated Area,Canal,Government,Canal (Government),63195.0
+Belagavi,Net Irrigated Area,Canal,Private,Canal (Private),
+Belagavi,Net Irrigated Area,Other Source,Other Source,Other Source,143281.0
+Belagavi,Net Irrigated Area,Tank,Tank,Tank,766.0
+Belagavi,Net Irrigated Area,Well,Other Well,Open/Dug Well,178531.0
+Belagavi,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,232968.0
+Bengaluru Rural,Gross Irrigated Area,Canal,Government,Canal (Government),
+Bengaluru Rural,Gross Irrigated Area,Canal,Private,Canal (Private),
+Bengaluru Rural,Gross Irrigated Area,Other Source,Other Source,Other Source,
+Bengaluru Rural,Gross Irrigated Area,Tank,Tank,Tank,
+Bengaluru Rural,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Bengaluru Rural,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,33086.0
+Bengaluru Rural,Net Irrigated Area,Canal,Government,Canal (Government),
+Bengaluru Rural,Net Irrigated Area,Canal,Private,Canal (Private),
+Bengaluru Rural,Net Irrigated Area,Other Source,Other Source,Other Source,
+Bengaluru Rural,Net Irrigated Area,Tank,Tank,Tank,
+Bengaluru Rural,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Bengaluru Rural,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,27809.0
+Bengaluru South,Gross Irrigated Area,Canal,Government,Canal (Government),9.0
+Bengaluru South,Gross Irrigated Area,Canal,Private,Canal (Private),
+Bengaluru South,Gross Irrigated Area,Other Source,Other Source,Other Source,39.0
+Bengaluru South,Gross Irrigated Area,Tank,Tank,Tank,1357.0
+Bengaluru South,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Bengaluru South,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,40248.0
+Bengaluru South,Net Irrigated Area,Canal,Government,Canal (Government),8.0
+Bengaluru South,Net Irrigated Area,Canal,Private,Canal (Private),
+Bengaluru South,Net Irrigated Area,Other Source,Other Source,Other Source,39.0
+Bengaluru South,Net Irrigated Area,Tank,Tank,Tank,1310.0
+Bengaluru South,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Bengaluru South,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,35184.0
+Bengaluru Urban,Gross Irrigated Area,Canal,Government,Canal (Government),
+Bengaluru Urban,Gross Irrigated Area,Canal,Private,Canal (Private),
+Bengaluru Urban,Gross Irrigated Area,Other Source,Other Source,Other Source,
+Bengaluru Urban,Gross Irrigated Area,Tank,Tank,Tank,
+Bengaluru Urban,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Bengaluru Urban,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,11032.0
+Bengaluru Urban,Net Irrigated Area,Canal,Government,Canal (Government),
+Bengaluru Urban,Net Irrigated Area,Canal,Private,Canal (Private),
+Bengaluru Urban,Net Irrigated Area,Other Source,Other Source,Other Source,
+Bengaluru Urban,Net Irrigated Area,Tank,Tank,Tank,
+Bengaluru Urban,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Bengaluru Urban,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,10622.0
+Bidar,Gross Irrigated Area,Canal,Government,Canal (Government),
+Bidar,Gross Irrigated Area,Canal,Private,Canal (Private),
+Bidar,Gross Irrigated Area,Other Source,Other Source,Other Source,766.0
+Bidar,Gross Irrigated Area,Tank,Tank,Tank,317.0
+Bidar,Gross Irrigated Area,Well,Other Well,Open/Dug Well,20447.0
+Bidar,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,59926.0
+Bidar,Net Irrigated Area,Canal,Government,Canal (Government),
+Bidar,Net Irrigated Area,Canal,Private,Canal (Private),
+Bidar,Net Irrigated Area,Other Source,Other Source,Other Source,659.0
+Bidar,Net Irrigated Area,Tank,Tank,Tank,317.0
+Bidar,Net Irrigated Area,Well,Other Well,Open/Dug Well,15256.0
+Bidar,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,51101.0
+Chamarajanagar,Gross Irrigated Area,Canal,Government,Canal (Government),6741.0
+Chamarajanagar,Gross Irrigated Area,Canal,Private,Canal (Private),
+Chamarajanagar,Gross Irrigated Area,Other Source,Other Source,Other Source,121.0
+Chamarajanagar,Gross Irrigated Area,Tank,Tank,Tank,252.0
+Chamarajanagar,Gross Irrigated Area,Well,Other Well,Open/Dug Well,4395.0
+Chamarajanagar,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,113466.0
+Chamarajanagar,Net Irrigated Area,Canal,Government,Canal (Government),4845.0
+Chamarajanagar,Net Irrigated Area,Canal,Private,Canal (Private),
+Chamarajanagar,Net Irrigated Area,Other Source,Other Source,Other Source,53.0
+Chamarajanagar,Net Irrigated Area,Tank,Tank,Tank,252.0
+Chamarajanagar,Net Irrigated Area,Well,Other Well,Open/Dug Well,3370.0
+Chamarajanagar,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,97634.0
+Chikkaballapura,Gross Irrigated Area,Canal,Government,Canal (Government),
+Chikkaballapura,Gross Irrigated Area,Canal,Private,Canal (Private),
+Chikkaballapura,Gross Irrigated Area,Other Source,Other Source,Other Source,2435.0
+Chikkaballapura,Gross Irrigated Area,Tank,Tank,Tank,86.0
+Chikkaballapura,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Chikkaballapura,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,78122.0
+Chikkaballapura,Net Irrigated Area,Canal,Government,Canal (Government),
+Chikkaballapura,Net Irrigated Area,Canal,Private,Canal (Private),
+Chikkaballapura,Net Irrigated Area,Other Source,Other Source,Other Source,1837.0
+Chikkaballapura,Net Irrigated Area,Tank,Tank,Tank,86.0
+Chikkaballapura,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Chikkaballapura,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,49548.0
+Chikkamagaluru,Gross Irrigated Area,Canal,Government,Canal (Government),7155.0
+Chikkamagaluru,Gross Irrigated Area,Canal,Private,Canal (Private),
+Chikkamagaluru,Gross Irrigated Area,Other Source,Other Source,Other Source,14563.0
+Chikkamagaluru,Gross Irrigated Area,Tank,Tank,Tank,5455.0
+Chikkamagaluru,Gross Irrigated Area,Well,Other Well,Open/Dug Well,1829.0
+Chikkamagaluru,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,89951.0
+Chikkamagaluru,Net Irrigated Area,Canal,Government,Canal (Government),7155.0
+Chikkamagaluru,Net Irrigated Area,Canal,Private,Canal (Private),
+Chikkamagaluru,Net Irrigated Area,Other Source,Other Source,Other Source,14563.0
+Chikkamagaluru,Net Irrigated Area,Tank,Tank,Tank,5455.0
+Chikkamagaluru,Net Irrigated Area,Well,Other Well,Open/Dug Well,1829.0
+Chikkamagaluru,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,89053.0
+Chitradurga,Gross Irrigated Area,Canal,Government,Canal (Government),1059.0
+Chitradurga,Gross Irrigated Area,Canal,Private,Canal (Private),
+Chitradurga,Gross Irrigated Area,Other Source,Other Source,Other Source,28.0
+Chitradurga,Gross Irrigated Area,Tank,Tank,Tank,145.0
+Chitradurga,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Chitradurga,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,235539.0
+Chitradurga,Net Irrigated Area,Canal,Government,Canal (Government),1059.0
+Chitradurga,Net Irrigated Area,Canal,Private,Canal (Private),
+Chitradurga,Net Irrigated Area,Other Source,Other Source,Other Source,28.0
+Chitradurga,Net Irrigated Area,Tank,Tank,Tank,145.0
+Chitradurga,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Chitradurga,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,169727.0
+Dakshina Kannada,Gross Irrigated Area,Canal,Government,Canal (Government),
+Dakshina Kannada,Gross Irrigated Area,Canal,Private,Canal (Private),
+Dakshina Kannada,Gross Irrigated Area,Other Source,Other Source,Other Source,13031.0
+Dakshina Kannada,Gross Irrigated Area,Tank,Tank,Tank,
+Dakshina Kannada,Gross Irrigated Area,Well,Other Well,Open/Dug Well,52670.0
+Dakshina Kannada,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,105868.0
+Dakshina Kannada,Net Irrigated Area,Canal,Government,Canal (Government),
+Dakshina Kannada,Net Irrigated Area,Canal,Private,Canal (Private),
+Dakshina Kannada,Net Irrigated Area,Other Source,Other Source,Other Source,12761.0
+Dakshina Kannada,Net Irrigated Area,Tank,Tank,Tank,
+Dakshina Kannada,Net Irrigated Area,Well,Other Well,Open/Dug Well,51332.0
+Dakshina Kannada,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,104505.0
+Davanagere,Gross Irrigated Area,Canal,Government,Canal (Government),80133.0
+Davanagere,Gross Irrigated Area,Canal,Private,Canal (Private),
+Davanagere,Gross Irrigated Area,Other Source,Other Source,Other Source,27791.0
+Davanagere,Gross Irrigated Area,Tank,Tank,Tank,2343.0
+Davanagere,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Davanagere,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,148902.0
+Davanagere,Net Irrigated Area,Canal,Government,Canal (Government),49094.0
+Davanagere,Net Irrigated Area,Canal,Private,Canal (Private),
+Davanagere,Net Irrigated Area,Other Source,Other Source,Other Source,10396.0
+Davanagere,Net Irrigated Area,Tank,Tank,Tank,1974.0
+Davanagere,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Davanagere,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,116433.0
+Dharwad,Gross Irrigated Area,Canal,Government,Canal (Government),5562.0
+Dharwad,Gross Irrigated Area,Canal,Private,Canal (Private),
+Dharwad,Gross Irrigated Area,Other Source,Other Source,Other Source,3155.0
+Dharwad,Gross Irrigated Area,Tank,Tank,Tank,234.0
+Dharwad,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Dharwad,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,48230.0
+Dharwad,Net Irrigated Area,Canal,Government,Canal (Government),2893.0
+Dharwad,Net Irrigated Area,Canal,Private,Canal (Private),
+Dharwad,Net Irrigated Area,Other Source,Other Source,Other Source,1837.0
+Dharwad,Net Irrigated Area,Tank,Tank,Tank,234.0
+Dharwad,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Dharwad,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,33160.0
+Gadag,Gross Irrigated Area,Canal,Government,Canal (Government),69427.0
+Gadag,Gross Irrigated Area,Canal,Private,Canal (Private),
+Gadag,Gross Irrigated Area,Other Source,Other Source,Other Source,12912.0
+Gadag,Gross Irrigated Area,Tank,Tank,Tank,1896.0
+Gadag,Gross Irrigated Area,Well,Other Well,Open/Dug Well,516.0
+Gadag,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,57550.0
+Gadag,Net Irrigated Area,Canal,Government,Canal (Government),37270.0
+Gadag,Net Irrigated Area,Canal,Private,Canal (Private),
+Gadag,Net Irrigated Area,Other Source,Other Source,Other Source,7313.0
+Gadag,Net Irrigated Area,Tank,Tank,Tank,1175.0
+Gadag,Net Irrigated Area,Well,Other Well,Open/Dug Well,404.0
+Gadag,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,29218.0
+Hassan,Gross Irrigated Area,Canal,Government,Canal (Government),42850.0
+Hassan,Gross Irrigated Area,Canal,Private,Canal (Private),
+Hassan,Gross Irrigated Area,Other Source,Other Source,Other Source,573.0
+Hassan,Gross Irrigated Area,Tank,Tank,Tank,11309.0
+Hassan,Gross Irrigated Area,Well,Other Well,Open/Dug Well,254.0
+Hassan,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,84385.0
+Hassan,Net Irrigated Area,Canal,Government,Canal (Government),42850.0
+Hassan,Net Irrigated Area,Canal,Private,Canal (Private),
+Hassan,Net Irrigated Area,Other Source,Other Source,Other Source,573.0
+Hassan,Net Irrigated Area,Tank,Tank,Tank,5848.0
+Hassan,Net Irrigated Area,Well,Other Well,Open/Dug Well,254.0
+Hassan,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,59120.0
+Haveri,Gross Irrigated Area,Canal,Government,Canal (Government),2178.0
+Haveri,Gross Irrigated Area,Canal,Private,Canal (Private),
+Haveri,Gross Irrigated Area,Other Source,Other Source,Other Source,21436.0
+Haveri,Gross Irrigated Area,Tank,Tank,Tank,3016.0
+Haveri,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Haveri,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,211029.0
+Haveri,Net Irrigated Area,Canal,Government,Canal (Government),1844.0
+Haveri,Net Irrigated Area,Canal,Private,Canal (Private),
+Haveri,Net Irrigated Area,Other Source,Other Source,Other Source,16308.0
+Haveri,Net Irrigated Area,Tank,Tank,Tank,2444.0
+Haveri,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Haveri,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,182445.0
+Kalaburagi,Gross Irrigated Area,Canal,Government,Canal (Government),3737.0
+Kalaburagi,Gross Irrigated Area,Canal,Private,Canal (Private),
+Kalaburagi,Gross Irrigated Area,Other Source,Other Source,Other Source,98668.0
+Kalaburagi,Gross Irrigated Area,Tank,Tank,Tank,12769.0
+Kalaburagi,Gross Irrigated Area,Well,Other Well,Open/Dug Well,1438.0
+Kalaburagi,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,22441.0
+Kalaburagi,Net Irrigated Area,Canal,Government,Canal (Government),3737.0
+Kalaburagi,Net Irrigated Area,Canal,Private,Canal (Private),
+Kalaburagi,Net Irrigated Area,Other Source,Other Source,Other Source,89712.0
+Kalaburagi,Net Irrigated Area,Tank,Tank,Tank,12450.0
+Kalaburagi,Net Irrigated Area,Well,Other Well,Open/Dug Well,1371.0
+Kalaburagi,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,22427.0
+Kodagu,Gross Irrigated Area,Canal,Government,Canal (Government),1384.0
+Kodagu,Gross Irrigated Area,Canal,Private,Canal (Private),
+Kodagu,Gross Irrigated Area,Other Source,Other Source,Other Source,422.0
+Kodagu,Gross Irrigated Area,Tank,Tank,Tank,
+Kodagu,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Kodagu,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,
+Kodagu,Net Irrigated Area,Canal,Government,Canal (Government),1384.0
+Kodagu,Net Irrigated Area,Canal,Private,Canal (Private),
+Kodagu,Net Irrigated Area,Other Source,Other Source,Other Source,422.0
+Kodagu,Net Irrigated Area,Tank,Tank,Tank,
+Kodagu,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Kodagu,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,
+Kolar,Gross Irrigated Area,Canal,Government,Canal (Government),
+Kolar,Gross Irrigated Area,Canal,Private,Canal (Private),
+Kolar,Gross Irrigated Area,Other Source,Other Source,Other Source,43.0
+Kolar,Gross Irrigated Area,Tank,Tank,Tank,9.0
+Kolar,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Kolar,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,70626.0
+Kolar,Net Irrigated Area,Canal,Government,Canal (Government),
+Kolar,Net Irrigated Area,Canal,Private,Canal (Private),
+Kolar,Net Irrigated Area,Other Source,Other Source,Other Source,41.0
+Kolar,Net Irrigated Area,Tank,Tank,Tank,9.0
+Kolar,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Kolar,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,48966.0
+Koppal,Gross Irrigated Area,Canal,Government,Canal (Government),86792.0
+Koppal,Gross Irrigated Area,Canal,Private,Canal (Private),
+Koppal,Gross Irrigated Area,Other Source,Other Source,Other Source,8176.0
+Koppal,Gross Irrigated Area,Tank,Tank,Tank,2709.0
+Koppal,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Koppal,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,139419.0
+Koppal,Net Irrigated Area,Canal,Government,Canal (Government),53570.0
+Koppal,Net Irrigated Area,Canal,Private,Canal (Private),
+Koppal,Net Irrigated Area,Other Source,Other Source,Other Source,5876.0
+Koppal,Net Irrigated Area,Tank,Tank,Tank,2709.0
+Koppal,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Koppal,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,121359.0
+Mandya,Gross Irrigated Area,Canal,Government,Canal (Government),96463.0
+Mandya,Gross Irrigated Area,Canal,Private,Canal (Private),
+Mandya,Gross Irrigated Area,Other Source,Other Source,Other Source,7473.0
+Mandya,Gross Irrigated Area,Tank,Tank,Tank,12802.0
+Mandya,Gross Irrigated Area,Well,Other Well,Open/Dug Well,43200.0
+Mandya,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,52447.0
+Mandya,Net Irrigated Area,Canal,Government,Canal (Government),91396.0
+Mandya,Net Irrigated Area,Canal,Private,Canal (Private),
+Mandya,Net Irrigated Area,Other Source,Other Source,Other Source,6234.0
+Mandya,Net Irrigated Area,Tank,Tank,Tank,11209.0
+Mandya,Net Irrigated Area,Well,Other Well,Open/Dug Well,38623.0
+Mandya,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,47476.0
+Mysuru,Gross Irrigated Area,Canal,Government,Canal (Government),79708.0
+Mysuru,Gross Irrigated Area,Canal,Private,Canal (Private),
+Mysuru,Gross Irrigated Area,Other Source,Other Source,Other Source,570.0
+Mysuru,Gross Irrigated Area,Tank,Tank,Tank,7278.0
+Mysuru,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Mysuru,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,121730.0
+Mysuru,Net Irrigated Area,Canal,Government,Canal (Government),70555.0
+Mysuru,Net Irrigated Area,Canal,Private,Canal (Private),
+Mysuru,Net Irrigated Area,Other Source,Other Source,Other Source,566.0
+Mysuru,Net Irrigated Area,Tank,Tank,Tank,6469.0
+Mysuru,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Mysuru,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,88843.0
+Raichur,Gross Irrigated Area,Canal,Government,Canal (Government),352423.0
+Raichur,Gross Irrigated Area,Canal,Private,Canal (Private),
+Raichur,Gross Irrigated Area,Other Source,Other Source,Other Source,86156.0
+Raichur,Gross Irrigated Area,Tank,Tank,Tank,12627.0
+Raichur,Gross Irrigated Area,Well,Other Well,Open/Dug Well,2001.0
+Raichur,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,8406.0
+Raichur,Net Irrigated Area,Canal,Government,Canal (Government),324734.0
+Raichur,Net Irrigated Area,Canal,Private,Canal (Private),
+Raichur,Net Irrigated Area,Other Source,Other Source,Other Source,77829.0
+Raichur,Net Irrigated Area,Tank,Tank,Tank,10745.0
+Raichur,Net Irrigated Area,Well,Other Well,Open/Dug Well,1847.0
+Raichur,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,7728.0
+Shivamogga,Gross Irrigated Area,Canal,Government,Canal (Government),45488.0
+Shivamogga,Gross Irrigated Area,Canal,Private,Canal (Private),
+Shivamogga,Gross Irrigated Area,Other Source,Other Source,Other Source,5721.0
+Shivamogga,Gross Irrigated Area,Tank,Tank,Tank,34881.0
+Shivamogga,Gross Irrigated Area,Well,Other Well,Open/Dug Well,9750.0
+Shivamogga,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,126340.0
+Shivamogga,Net Irrigated Area,Canal,Government,Canal (Government),37531.0
+Shivamogga,Net Irrigated Area,Canal,Private,Canal (Private),
+Shivamogga,Net Irrigated Area,Other Source,Other Source,Other Source,5212.0
+Shivamogga,Net Irrigated Area,Tank,Tank,Tank,29703.0
+Shivamogga,Net Irrigated Area,Well,Other Well,Open/Dug Well,8420.0
+Shivamogga,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,87593.0
+Tumakuru,Gross Irrigated Area,Canal,Government,Canal (Government),
+Tumakuru,Gross Irrigated Area,Canal,Private,Canal (Private),
+Tumakuru,Gross Irrigated Area,Other Source,Other Source,Other Source,1009.0
+Tumakuru,Gross Irrigated Area,Tank,Tank,Tank,1009.0
+Tumakuru,Gross Irrigated Area,Well,Other Well,Open/Dug Well,653.0
+Tumakuru,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,331486.0
+Tumakuru,Net Irrigated Area,Canal,Government,Canal (Government),
+Tumakuru,Net Irrigated Area,Canal,Private,Canal (Private),
+Tumakuru,Net Irrigated Area,Other Source,Other Source,Other Source,
+Tumakuru,Net Irrigated Area,Tank,Tank,Tank,929.0
+Tumakuru,Net Irrigated Area,Well,Other Well,Open/Dug Well,653.0
+Tumakuru,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,329865.0
+Udupi,Gross Irrigated Area,Canal,Government,Canal (Government),
+Udupi,Gross Irrigated Area,Canal,Private,Canal (Private),
+Udupi,Gross Irrigated Area,Other Source,Other Source,Other Source,2365.0
+Udupi,Gross Irrigated Area,Tank,Tank,Tank,1174.0
+Udupi,Gross Irrigated Area,Well,Other Well,Open/Dug Well,41078.0
+Udupi,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,2676.0
+Udupi,Net Irrigated Area,Canal,Government,Canal (Government),
+Udupi,Net Irrigated Area,Canal,Private,Canal (Private),
+Udupi,Net Irrigated Area,Other Source,Other Source,Other Source,2172.0
+Udupi,Net Irrigated Area,Tank,Tank,Tank,1075.0
+Udupi,Net Irrigated Area,Well,Other Well,Open/Dug Well,37818.0
+Udupi,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,2676.0
+Uttara Kannada,Gross Irrigated Area,Canal,Government,Canal (Government),41.0
+Uttara Kannada,Gross Irrigated Area,Canal,Private,Canal (Private),
+Uttara Kannada,Gross Irrigated Area,Other Source,Other Source,Other Source,5100.0
+Uttara Kannada,Gross Irrigated Area,Tank,Tank,Tank,266.0
+Uttara Kannada,Gross Irrigated Area,Well,Other Well,Open/Dug Well,41252.0
+Uttara Kannada,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,28459.0
+Uttara Kannada,Net Irrigated Area,Canal,Government,Canal (Government),41.0
+Uttara Kannada,Net Irrigated Area,Canal,Private,Canal (Private),
+Uttara Kannada,Net Irrigated Area,Other Source,Other Source,Other Source,4467.0
+Uttara Kannada,Net Irrigated Area,Tank,Tank,Tank,266.0
+Uttara Kannada,Net Irrigated Area,Well,Other Well,Open/Dug Well,39993.0
+Uttara Kannada,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,23981.0
+Vijayanagara,Gross Irrigated Area,Canal,Government,Canal (Government),12865.0
+Vijayanagara,Gross Irrigated Area,Canal,Private,Canal (Private),
+Vijayanagara,Gross Irrigated Area,Other Source,Other Source,Other Source,8900.0
+Vijayanagara,Gross Irrigated Area,Tank,Tank,Tank,2361.0
+Vijayanagara,Gross Irrigated Area,Well,Other Well,Open/Dug Well,1162.0
+Vijayanagara,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,169877.0
+Vijayanagara,Net Irrigated Area,Canal,Government,Canal (Government),11215.0
+Vijayanagara,Net Irrigated Area,Canal,Private,Canal (Private),
+Vijayanagara,Net Irrigated Area,Other Source,Other Source,Other Source,7424.0
+Vijayanagara,Net Irrigated Area,Tank,Tank,Tank,1505.0
+Vijayanagara,Net Irrigated Area,Well,Other Well,Open/Dug Well,522.0
+Vijayanagara,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,88647.0
+Vijayapura,Gross Irrigated Area,Canal,Government,Canal (Government),26484.0
+Vijayapura,Gross Irrigated Area,Canal,Private,Canal (Private),
+Vijayapura,Gross Irrigated Area,Other Source,Other Source,Other Source,20230.0
+Vijayapura,Gross Irrigated Area,Tank,Tank,Tank,1628.0
+Vijayapura,Gross Irrigated Area,Well,Other Well,Open/Dug Well,
+Vijayapura,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,453183.0
+Vijayapura,Net Irrigated Area,Canal,Government,Canal (Government),21433.0
+Vijayapura,Net Irrigated Area,Canal,Private,Canal (Private),
+Vijayapura,Net Irrigated Area,Other Source,Other Source,Other Source,15715.0
+Vijayapura,Net Irrigated Area,Tank,Tank,Tank,1359.0
+Vijayapura,Net Irrigated Area,Well,Other Well,Open/Dug Well,
+Vijayapura,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,410499.0
+Yadgir,Gross Irrigated Area,Canal,Government,Canal (Government),128227.0
+Yadgir,Gross Irrigated Area,Canal,Private,Canal (Private),
+Yadgir,Gross Irrigated Area,Other Source,Other Source,Other Source,74742.0
+Yadgir,Gross Irrigated Area,Tank,Tank,Tank,3982.0
+Yadgir,Gross Irrigated Area,Well,Other Well,Open/Dug Well,12986.0
+Yadgir,Gross Irrigated Area,Well,Tubewell,Borewell/Tubewell,19264.0
+Yadgir,Net Irrigated Area,Canal,Government,Canal (Government),110608.0
+Yadgir,Net Irrigated Area,Canal,Private,Canal (Private),
+Yadgir,Net Irrigated Area,Other Source,Other Source,Other Source,70602.0
+Yadgir,Net Irrigated Area,Tank,Tank,Tank,3944.0
+Yadgir,Net Irrigated Area,Well,Other Well,Open/Dug Well,11785.0
+Yadgir,Net Irrigated Area,Well,Tubewell,Borewell/Tubewell,16981.0

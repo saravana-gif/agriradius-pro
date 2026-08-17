@@ -133,11 +133,47 @@ def coconut_survey_map(lat, lon, radius_km, metric="intensity"):
         return None
 
 
+def irrigation_map(lat, lon, radius_km, metric="borewell_pct"):
+    """District irrigation-source layer as a report image."""
+    try:
+        from gis import irrigation_layer
+        gj = irrigation_layer.geojson_for(
+            metric, round(float(lat), 4), round(float(lon), 4),
+            float(radius_km))
+        if gj is None:
+            return None
+        label = irrigation_layer.METRICS.get(
+            metric, irrigation_layer.METRICS["borewell_pct"])[0]
+        png = _render(gj, label, label)
+        if not png:
+            return None
+        return {
+            "kind": "irrigation_source",
+            "title": f"Irrigation source by district - {label}",
+            "caption": "Land Use Statistics (DES-Agri) 2022-23. The "
+                       "borewell/canal split is the operational one: "
+                       "canal-led districts can be targeted straight "
+                       "from command-area maps, borewell-led "
+                       "districts cannot - those wells are invisible "
+                       "to infrastructure data and are drilled faster "
+                       "than land records update.",
+            "legend": [(c.lstrip("#"), lab) for lab, c in
+                       irrigation_layer.legend_items(metric)],
+            "png": png,
+        }
+    except Exception:
+        return None
+
+
 def vector_maps(lat, lon, radius_km, shc_metric="n_low"):
     """All available vector-layer report images."""
     out = []
     for fn in (lambda: shc_map(lat, lon, radius_km, shc_metric),
-               lambda: coconut_survey_map(lat, lon, radius_km)):
+               lambda: coconut_survey_map(lat, lon, radius_km),
+               lambda: irrigation_map(lat, lon, radius_km,
+                                      "borewell_pct"),
+               lambda: irrigation_map(lat, lon, radius_km,
+                                      "dominant")):
         try:
             item = fn()
         except Exception:

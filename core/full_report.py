@@ -335,6 +335,36 @@ def gather(progress=None):
         bundle["coconut_villages"] = None
         bundle["coconut_validation"] = None
 
+    # 11f. Irrigation - how the land here is watered (district source
+    # statistics) plus the satellite measurement of irrigated cropland.
+    step(99, "Irrigation (source split + satellite)...")
+    try:
+        from core import allied, irrigation
+        pairs = allied.districts_touching(lat, lon, radius) or []
+        names = [d for _s, d in pairs]
+        summary = irrigation.area_summary(names) if names else None
+        bundle["irrigation"] = summary
+        bundle["irrigation_note"] = irrigation.targeting_note(summary)
+        bundle["irrigation_rank"] = (irrigation.rankings(names)
+                                     if summary else None)
+    except Exception as e:
+        bundle["irrigation"] = None
+        bundle["irrigation_note"] = None
+        bundle["irrigation_rank"] = None
+        bundle["notes"].append(f"Irrigation statistics skipped: {e}")
+
+    try:
+        from gee.irrigation import irrigation_stats, verdict
+        st.session_state.irrigation_stats = irrigation_stats(
+            lat, lon, radius, year)
+        bundle["irrigation_sat"] = st.session_state.irrigation_stats
+        bundle["irrigation_verdict"] = verdict(
+            bundle["irrigation_sat"])
+    except Exception as e:
+        bundle["irrigation_sat"] = None
+        bundle["irrigation_verdict"] = None
+        bundle["notes"].append(f"Satellite irrigation skipped: {e}")
+
     # Mandi price trend / variety - only if fetched in the Mandi tab.
     bundle["mandi_hist"] = st.session_state.get("mandi_hist")
     bundle["mandi_var"] = st.session_state.get("mandi_var")
@@ -401,6 +431,11 @@ def pdf_bytes(bundle):
         gt_df=bundle.get("gt_df"),
         cards_df=bundle.get("cards_df"),
         notes=bundle.get("notes"),
+        irrigation=bundle.get("irrigation"),
+        irrigation_note=bundle.get("irrigation_note"),
+        irrigation_rank=bundle.get("irrigation_rank"),
+        irrigation_sat=bundle.get("irrigation_sat"),
+        irrigation_verdict=bundle.get("irrigation_verdict"),
     )
 
 
@@ -476,6 +511,70 @@ def excel_bytes(bundle):
     if coconut_villages:
         coconut_villages = pd.DataFrame(coconut_villages)
 
+    # --- Irrigation sheets: the source split per district, the same
+    # split for the area in view, and the satellite measurement. ---
+    irr = bundle.get("irrigation")
+    irr_area = None
+    if irr:
+        rows = [
+            ("Districts in view", ", ".join(irr.get("districts", []))),
+            ("Net irrigated area (ha)", irr.get("net_ha")),
+            ("Net irrigated area (acres)", irr.get("net_ac")),
+            ("Gross irrigated area (ha)", irr.get("gross_ha")),
+            ("Gross : net (irrigated seasons)", irr.get("intensity")),
+            ("Borewell / tubewell share %", irr.get("borewell_pct")),
+            ("Canal share %", irr.get("canal_pct")),
+            ("Dominant source", irr.get("dominant")),
+            ("Data vintage", irr.get("vintage")),
+            ("How to target field staff here",
+             bundle.get("irrigation_note")),
+        ]
+        for col, label in (
+                [("Borewell/Tubewell", "Borewell / tubewell"),
+                 ("Canal (Government)", "Canal (government)"),
+                 ("Canal (Private)", "Canal (private)"),
+                 ("Open/Dug Well", "Open / dug well"),
+                 ("Tank", "Tank"),
+                 ("Other Source", "Other (mostly lift)")]):
+            rows.append((f"{label} - area (ha)",
+                         (irr.get("sources") or {}).get(col)))
+            rows.append((f"{label} - share %",
+                         (irr.get("shares") or {}).get(col)))
+        irr_area = pd.DataFrame(rows, columns=["Measure", "Value"])
+
+    irr_rank = bundle.get("irrigation_rank")
+    if irr_rank:
+        irr_rank = pd.DataFrame(irr_rank)
+
+    irr_sat = None
+    s = bundle.get("irrigation_sat")
+    if s:
+        labels = [
+            ("cropland_ac", "Cropland in area (ac)"),
+            ("summer_green_ac",
+             "Irrigated - summer green Feb-May (ac)"),
+            ("summer_green_pct", "Irrigated share of cropland (%)"),
+            ("multicrop_ac", "Multi-crop 2+ crops/yr (ac)"),
+            ("lgrip_irrigated_ac", "LGRIP30 irrigated (ac)"),
+            ("lgrip_rainfed_ac", "LGRIP30 rain-fed (ac)"),
+            ("worldcereal_irrigated_ac",
+             "WorldCereal irrigation - lower bound (ac)"),
+            ("confirmed_ac",
+             "Two methods agree - summer green + LGRIP30 (ac)"),
+        ]
+        rows = [(lab, s.get(k)) for k, lab in labels]
+        rows.append(("Verdict", bundle.get("irrigation_verdict")))
+        irr_sat = pd.DataFrame(rows, columns=["Measure", "Value"])
+
+    # Every Karnataka district, so the workbook is useful on its own.
+    irr_all = None
+    try:
+        from core import irrigation as _ir
+        if _ir.available():
+            irr_all = pd.DataFrame(_ir.rankings())
+    except Exception:
+        irr_all = None
+
     shc_rows = None
     s = bundle.get("shc_summary")
     if s:
@@ -500,6 +599,10 @@ def excel_bytes(bundle):
         ("Coconut Survey", coconut_villages),
         ("Measured Soil (SHC)", shc_rows),
         ("Fertiliser Guidance", fert_rows),
+        ("Irrigation - Area", irr_area),
+        ("Irrigation - Districts", irr_rank),
+        ("Irrigation - Satellite", irr_sat),
+        ("Irrigation - All Karnataka", irr_all),
         ("Sourcing Scores", bundle.get("scores_df")),
         ("Village Insights", bundle.get("insights_df")),
         ("Village Soil", bundle.get("village_soil_df")),

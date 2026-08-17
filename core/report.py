@@ -150,7 +150,10 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       fertilizer_crop=None, capability=None,
                       coconut_survey=None, coconut_villages=None,
                       coconut_validation=None,
-                      gt_df=None, cards_df=None, notes=None):
+                      gt_df=None, cards_df=None, notes=None,
+                      irrigation=None, irrigation_note=None,
+                      irrigation_rank=None, irrigation_sat=None,
+                      irrigation_verdict=None):
     """Assemble the full PDF. Returns bytes."""
 
     ss = _styles()
@@ -384,6 +387,119 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                                "irrigated_pct", "intensity_pct"],
                       widths=[3.4 * cm, 2.8 * cm, 2.6 * cm, 2 * cm,
                               1.6 * cm, 1.6 * cm, 1.6 * cm, 1.8 * cm])
+        story.append(Spacer(1, 12))
+
+    # ---------------- Irrigation ----------------
+    if irrigation or irrigation_sat:
+        story.append(Paragraph(
+            "Irrigation - How This Land Is Watered", ss["H2x"]))
+
+    if irrigation:
+        story.append(Paragraph(
+            "District irrigation by SOURCE (Land Use Statistics, "
+            "DES-Agri 2022-23). Karnataka's net irrigated area is "
+            "5.04 million ha and 56.6% of it is borewell/tubewell - "
+            "so the source split, not the total, decides how "
+            "irrigated farms can be found.", ss["Normal"]))
+        story.append(_table([
+            ["Net irrigated", "Borewell share", "Canal share",
+             "Gross : net"],
+            [f"{irrigation['net_ac']:,} ac",
+             (f"{irrigation['borewell_pct']:.0f}%"
+              if irrigation.get("borewell_pct") is not None else "-"),
+             (f"{irrigation['canal_pct']:.0f}%"
+              if irrigation.get("canal_pct") is not None else "-"),
+             (f"{irrigation['intensity']}x"
+              if irrigation.get("intensity") else "-")],
+        ], [4 * cm, 3.5 * cm, 3.5 * cm, 3.5 * cm]))
+        story.append(Spacer(1, 4))
+
+        rows = [["Irrigation source", "Area (ha)", "Share"]]
+        for col, label in [("Borewell/Tubewell", "Borewell / tubewell"),
+                           ("Canal (Government)", "Canal (government)"),
+                           ("Canal (Private)", "Canal (private)"),
+                           ("Open/Dug Well", "Open / dug well"),
+                           ("Tank", "Tank"),
+                           ("Other Source", "Other (mostly lift)")]:
+            area = (irrigation.get("sources") or {}).get(col) or 0
+            share = (irrigation.get("shares") or {}).get(col)
+            if area:
+                rows.append([label, f"{area:,.0f}",
+                             f"{share}%" if share is not None else "-"])
+        if len(rows) > 1:
+            story.append(_table(rows, [6 * cm, 4 * cm, 3 * cm]))
+            try:
+                labs = [r[0] for r in rows[1:]]
+                vals = [float(str(r[2]).rstrip("%") or 0)
+                        for r in rows[1:]]
+                fig, ax = plt.subplots(figsize=(7, 2.6))
+                ax.barh(labs[::-1], vals[::-1], color="#0277bd")
+                ax.set_xlabel("% of net irrigated area")
+                story.append(Spacer(1, 6))
+                story.append(_chart_image(fig, height=5.5 * cm))
+            except Exception:
+                pass
+
+        if irrigation_note:
+            story.append(Spacer(1, 4))
+            story.append(Paragraph(
+                f"<b>How to target field staff here:</b> "
+                f"{irrigation_note}", ss["Normal"]))
+        story.append(Paragraph(
+            f"Districts: {', '.join(irrigation.get('districts', []))} "
+            f"· {irrigation.get('vintage', '')}", ss["Small"]))
+        story.append(Spacer(1, 8))
+
+        if irrigation_rank:
+            try:
+                import pandas as pd
+                story.append(Paragraph(
+                    "District detail", ss["Normal"]))
+                _df_table(story, pd.DataFrame(irrigation_rank),
+                          font_size=8)
+            except Exception:
+                pass
+
+    if irrigation_sat:
+        story.append(Paragraph(
+            "Satellite measurement of irrigated cropland",
+            ss["Normal"]))
+        if irrigation_verdict:
+            story.append(Paragraph(f"<b>{irrigation_verdict}</b>",
+                                   ss["Normal"]))
+        s = irrigation_sat
+        rows = [["Method", "Irrigated area", "Reliability"]]
+        for key, label, note in [
+                ("summer_green_ac", "Summer green (Feb-May, ours)",
+                 "Primary signal - nothing stays green through a "
+                 "Karnataka summer without applied water"),
+                ("multicrop_ac", "Multi-crop (2+ crops/yr)",
+                 "Near-conclusive in the semi-arid interior"),
+                ("lgrip_irrigated_ac", "LGRIP30 irrigated",
+                 "91% accuracy is US-only; India version V001, no "
+                 "published Indian accuracy"),
+                ("lgrip_rainfed_ac", "LGRIP30 rain-fed",
+                 "Rain-fed user's accuracy only 63% in South Asia"),
+                ("worldcereal_irrigated_ac", "WorldCereal irrigation",
+                 "LOWER BOUND - no published accuracy, under-maps "
+                 "Asia"),
+                ("confirmed_ac", "Both methods agree",
+                 "Summer green AND LGRIP30 - the number to quote")]:
+            v = s.get(key)
+            rows.append([label,
+                         f"{v:,.0f} ac" if v is not None else "n/a",
+                         note])
+        story.append(_table(rows, [4.6 * cm, 2.8 * cm, 7.6 * cm],
+                            font_size=7))
+        story.append(Paragraph(
+            "Rabi greenness is deliberately NOT used: rabi jowar, "
+            "chickpea and safflower on black cotton soil in "
+            "Vijayapura, Bagalkote, Kalaburagi, Bidar and "
+            "Vijayanagara are rain-fed on stored vertisol moisture, "
+            "and a 'green in rabi = irrigated' rule mislabels much of "
+            "north Karnataka. Expect 80-90% parcel accuracy in the "
+            "dry interior, 60-75% on the coast and in Malnad.",
+            ss["Small"]))
         story.append(Spacer(1, 12))
 
     # ---------------- Modelled soil ----------------

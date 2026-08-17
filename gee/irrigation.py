@@ -422,8 +422,14 @@ def irrigation_stats(lat, lon, radius_km, year):
     Agreement between two independent methods is the number worth
     quoting; a single method on its own is an estimate.
     """
-    buffer = _buffer(lat, lon, radius_km)
     out = {"year": year}
+    try:
+        buffer = _buffer(lat, lon, radius_km)
+    except Exception as e:
+        # Total Earth Engine outage: return a readable result rather
+        # than raising, so the UI can say so calmly.
+        out["error"] = f"Earth Engine unavailable ({e})"
+        return out
 
     dists = _districts(lat, lon, radius_km)
     ndvi_min, ndmi_min, zone = thresholds(dists)

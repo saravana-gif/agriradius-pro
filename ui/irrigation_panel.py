@@ -60,10 +60,28 @@ def _village_block(lat, lon, radius, year):
 
     key = f"irr_villages_{round(lat, 3)}_{round(lon, 3)}_{radius}"
 
-    auto = radius <= MAX_AUTO_RADIUS_KM
+    # CAREFUL: Streamlit executes the body of EVERY tab on every rerun,
+    # not just the visible one. So this must not auto-run merely
+    # because the page loaded - that would fire a 1-3 minute Earth
+    # Engine job on every visit and drain the shared budget.
+    #
+    # It auto-runs only once the user has actually analysed this area
+    # (the land-cover analysis has produced results), which is exactly
+    # "when we search or mark an area to analyse".
+    analysed = st.session_state.get("results") is not None
+    auto = analysed and radius <= MAX_AUTO_RADIUS_KM
+
     run = st.button("Re-measure now" if key in st.session_state
                     else "Measure irrigation for every village here",
                     key="irr_vill_btn")
+
+    if not analysed and key not in st.session_state:
+        st.info(
+            "Run the area analysis first (or press the button above) "
+            "and this measures every village by itself. It is held "
+            "back until then so simply opening the app never starts a "
+            "heavy Earth Engine job.")
+        return
 
     if run or (auto and key not in st.session_state):
         try:
@@ -369,6 +387,12 @@ def _satellite_block(lat, lon, radius, year, summary):
 
     stats = st.session_state.get("irrigation_stats")
     if not stats:
+        return
+    if stats.get("error"):
+        st.warning(
+            f"The satellite irrigation methods could not run: "
+            f"{stats['error']}. The government district figures above "
+            f"are unaffected.")
         return
 
     from gee.irrigation import source_split_note, verdict

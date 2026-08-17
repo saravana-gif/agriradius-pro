@@ -188,8 +188,12 @@ def _acres(mask, buffer):
                ttl=3600)
 def forest_stats(lat, lon, radius_km, year):
     """Forest vs farmland-trees vs plantation, gross and net."""
-    buffer = _buffer(lat, lon, radius_km)
     out = {"year": year}
+    try:
+        buffer = _buffer(lat, lon, radius_km)
+    except Exception as e:
+        out["error"] = f"Earth Engine unavailable ({e})"
+        return out
 
     try:
         out["forest_ac"] = _acres(forest_mask(), buffer)

@@ -68,6 +68,12 @@ def _forest_block(lat, lon, radius, year):
             "sit side by side.")
         return
 
+    if s.get("error"):
+        st.warning(
+            f"The forest separation could not run: {s['error']}. The "
+            f"department crop figures below are unaffected.")
+        return
+
     from gee.forest import verdict
     v = verdict(s)
     if v:

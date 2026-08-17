@@ -107,6 +107,9 @@ def gather(progress=None):
     try:
         from gee.maize import maize_stats
         bundle["maize"] = maize_stats(lat, lon, radius, year)
+        # Also expose it in session state so the Forest tab can compare
+        # it against the department's district figure.
+        st.session_state.maize_stats = bundle["maize"]
     except Exception:
         bundle["maize"] = None
 

@@ -10,6 +10,8 @@ import streamlit as st
 
 from gee.dynamic_world import dw_crops_mask
 
+from gee.tiles import TILE_TTL
+
 SQM_PER_ACRE = 4046.8564224
 
 # Agreement palette: 1 = only one dataset says cropland (yellow),
@@ -37,7 +39,7 @@ def _layers(lat, lon, radius_km, year):
     return buffer, dw_crops, wc_crops
 
 
-@st.cache_data(show_spinner="Building cropland confidence layer...")
+@st.cache_data(show_spinner="Building cropland confidence layer...", ttl=TILE_TTL)
 def confidence_tile_url(lat, lon, radius_km, year):
     """Tile URL: green = both agree cropland, yellow = only one."""
 

@@ -387,6 +387,65 @@ def _area_report_bytes(df, villages):
         rain = analyze_rainfall(
             rain_df(st.session_state.rainfall_series))
 
+    # Everything already computed in this session goes in - the PDF
+    # should mirror the screen, not a subset of it.
+    ndvi_tbl = None
+    if st.session_state.get("ndvi_series") is not None:
+        try:
+            ndvi_tbl = to_dataframe(st.session_state.ndvi_series)
+        except Exception:
+            ndvi_tbl = None
+
+    rain_tbl = None
+    if st.session_state.get("rainfall_series") is not None:
+        try:
+            from core.rain_insight import to_dataframe as _rdf
+            rain_tbl = _rdf(st.session_state.rainfall_series)
+        except Exception:
+            rain_tbl = None
+
+    extras = {}
+    try:
+        from core import crop_survey
+        extras["coconut_survey"] = crop_survey.radius_summary(
+            meta["lat"], meta["lon"], meta["radius"])
+        extras["coconut_villages"] = crop_survey.top_villages(
+            lat=meta["lat"], lon=meta["lon"],
+            radius_km=meta["radius"], top=0)
+        det = (st.session_state.get("plantation_stats") or {}).get(
+            "plantation_ac")
+        extras["coconut_validation"] = (
+            crop_survey.validate_plantation(
+                meta["lat"], meta["lon"], meta["radius"], det)
+            if det is not None else None)
+    except Exception:
+        pass
+
+    try:
+        from core import allied, shc
+        dists = allied.districts_touching(
+            meta["lat"], meta["lon"], meta["radius"])
+        rows = shc.for_districts(dists) if dists else None
+        summary = (shc.area_summary(rows)
+                   if rows is not None and not rows.empty else None)
+        extras["shc_summary"] = summary
+        crop = st.session_state.get("fert_crop")
+        if summary and crop:
+            extras["fertilizer"] = shc.fertilizer_guidance(
+                summary, crop)
+            extras["fertilizer_crop"] = crop
+    except Exception:
+        pass
+
+    try:
+        from core.ground_truth import load_records, load_soil_cards
+        gt = load_records()
+        cards = load_soil_cards()
+        extras["gt_df"] = gt if not gt.empty else None
+        extras["cards_df"] = cards if not cards.empty else None
+    except Exception:
+        pass
+
     return build_area_report(
         meta,
         landcover_df=df,
@@ -396,6 +455,19 @@ def _area_report_bytes(df, villages):
         rain=rain,
         villages_df=villages,
         insights_df=st.session_state.get("village_insights"),
+        stability=st.session_state.get("stability"),
+        plantation=st.session_state.get("plantation_stats"),
+        soil_verdicts=st.session_state.get("soil_verdicts"),
+        soil_profile=st.session_state.get("soil"),
+        scores_df=st.session_state.get("sourcing_scores"),
+        mandi_df=st.session_state.get("mandi_df"),
+        mandi_hist=st.session_state.get("mandi_hist"),
+        mandi_var=st.session_state.get("mandi_var"),
+        soil_climate_df=st.session_state.get("soil_climate"),
+        village_soil_df=st.session_state.get("village_soil"),
+        ndvi_df=ndvi_tbl,
+        rain_df=rain_tbl,
+        **extras,
     )
 
 

@@ -1,6 +1,10 @@
-"""Area Report - one PDF assembling all analyses for the buffer.
+"""Area Report - one PDF assembling EVERY analysis for the buffer.
 
-Sections appear only if their analysis has been run in the app.
+The rule here is simple: whatever the app shows on screen goes into
+this PDF. Sections appear only if their analysis produced data, tables
+are printed in full (long ones are chunked across pages rather than
+truncated), and every chart the tabs draw is redrawn here.
+
 Charts are rendered with matplotlib (Agg backend, no display needed).
 """
 
@@ -29,6 +33,10 @@ from reportlab.platypus import (
 GREEN = colors.HexColor("#2e7d32")
 LIGHT = colors.HexColor("#f1f8e9")
 
+# Wide tables are printed in full; this is only how many rows go into
+# one Table object before it is split, which keeps memory sane.
+CHUNK = 45
+
 
 def _styles():
     ss = getSampleStyleSheet()
@@ -36,37 +44,70 @@ def _styles():
         "H1x", parent=ss["Heading1"], textColor=GREEN))
     ss.add(ParagraphStyle(
         "H2x", parent=ss["Heading2"], textColor=GREEN))
+    ss.add(ParagraphStyle(
+        "Small", parent=ss["Normal"], fontSize=8,
+        textColor=colors.HexColor("#555555")))
     return ss
 
 
-def _table(data, col_widths=None):
-    t = Table(data, colWidths=col_widths, hAlign="LEFT")
+def _table(data, col_widths=None, font_size=9):
+    t = Table(data, colWidths=col_widths, hAlign="LEFT",
+              repeatRows=1)
     t.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), GREEN),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("FONTSIZE", (0, 0), (-1, -1), font_size),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT]),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.grey),
         ("TOPPADDING", (0, 0), (-1, -1), 3),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     return t
+
+
+def _df_table(story, df, columns=None, widths=None, font_size=8,
+              max_chars=28):
+    """Print a whole DataFrame as one or more tables - no truncation."""
+    if df is None or len(df) == 0:
+        return
+    cols = [c for c in (columns or list(df.columns))
+            if c in df.columns]
+    if not cols:
+        return
+
+    def cell(v):
+        s = "" if v is None else str(v)
+        if s in ("nan", "None", "NaT"):
+            return ""
+        return s[:max_chars]
+
+    rows = df[cols].values.tolist()
+    for i in range(0, len(rows), CHUNK):
+        data = [cols] + [[cell(v) for v in r]
+                         for r in rows[i:i + CHUNK]]
+        story.append(_table(data, widths, font_size=font_size))
+        story.append(Spacer(1, 4))
 
 
 def _legend_table(legend, per_row=3):
     """A small colour-swatch legend: [(hex_or_'_base', label), ...]."""
     if not legend:
         return None
-    items = [("#888888" if h == "_base" else "#" + h, lbl)
-             for h, lbl in legend]
+    items = [("#888888" if h == "_base" else "#" + str(h).lstrip("#"),
+              lbl) for h, lbl in legend]
     data, styles = [], []
     for i in range(0, len(items), per_row):
         chunk = items[i:i + per_row]
         row, r = [], len(data)
         for c, (color, lbl) in enumerate(chunk):
             row += [" ", lbl]
+            try:
+                swatch = colors.HexColor(color)
+            except Exception:
+                swatch = colors.grey
             styles.append(("BACKGROUND", (c * 2, r), (c * 2, r),
-                           colors.HexColor(color)))
+                           swatch))
             styles.append(("BOX", (c * 2, r), (c * 2, r), 0.4,
                            colors.grey))
         while len(row) < per_row * 2:
@@ -102,15 +143,22 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       mandi_df=None, soil_climate_df=None,
                       village_soil_df=None, allied=None,
                       mandi_hist=None, mandi_var=None,
-                      map_images=None):
-    """Assemble the PDF. Returns bytes."""
+                      map_images=None,
+                      ndvi_df=None, rain_df=None, forecast_days=None,
+                      soil_profile=None, maize=None, aquaculture=None,
+                      shc_summary=None, fertilizer=None,
+                      fertilizer_crop=None, capability=None,
+                      coconut_survey=None, coconut_villages=None,
+                      coconut_validation=None,
+                      gt_df=None, cards_df=None, notes=None):
+    """Assemble the full PDF. Returns bytes."""
 
     ss = _styles()
     story = []
 
-    # --- Header ---
     from config import APP_NAME, COMPANY, LOGO_PATH
 
+    # ---------------- Cover ----------------
     if LOGO_PATH.exists():
         story.append(Image(str(LOGO_PATH),
                            width=3.5 * cm, height=3.5 * cm,
@@ -131,26 +179,67 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
     if meta.get("place"):
         header.insert(0, ["Place", meta["place"]])
     story.append(_table(header, [4 * cm, 11 * cm]))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
 
-    # --- Land cover ---
+    # ---------------- At a glance ----------------
+    kv = []
+    if crosscheck:
+        kv.append(["Confirmed cropland",
+                   f"{crosscheck['confirmed_ac']:,.0f} ac "
+                   f"({crosscheck['agreement_pct']}% agreement)"])
+    if stability:
+        kv.append(["Cropland stability", stability["verdict"]])
+    if crop_insight:
+        kv.append(["Cropping pattern",
+                   f"{crop_insight['pattern']} - "
+                   f"{crop_insight['cycles_per_year']} cycles/yr"])
+    if paddy:
+        kv.append(["Paddy", f"{paddy['paddy_ac']:,.0f} ac"])
+    if plantation:
+        kv.append(["Plantation",
+                   f"{plantation['plantation_ac']:,.0f} ac"])
+    if maize:
+        kv.append(["Maize / kharif crop",
+                   f"{maize.get('maize_ac', 0):,.0f} ac"])
+    if aquaculture:
+        kv.append(["Aquaculture ponds",
+                   f"{aquaculture.get('pond_ac', 0):,.0f} ac"])
+    if coconut_survey:
+        kv.append(["Coconut (govt survey)",
+                   f"{coconut_survey['extent_ac']:,} ac recorded"])
+    if rain:
+        kv.append(["Rainfall",
+                   f"{rain['verdict']} - "
+                   f"{rain['mean_annual_mm']:,} mm/yr"])
+    if forecast:
+        kv.append(["Rain next 7 days",
+                   f"{forecast['rain_7d_mm']} mm"])
+    if shc_summary:
+        kv.append(["Measured soil samples",
+                   f"{shc_summary['samples']:,} "
+                   f"(cycle {shc_summary['cycle']})"])
+    if villages_df is not None and len(villages_df):
+        kv.append(["Villages in area", f"{len(villages_df):,}"])
+    if kv:
+        story.append(Paragraph("At a Glance", ss["H2x"]))
+        story.append(_table([["Measure", "Value"]] + kv,
+                            [6 * cm, 9 * cm]))
+        story.append(Spacer(1, 12))
+
+    # ---------------- Land cover ----------------
     if landcover_df is not None and not landcover_df.empty:
-
         story.append(Paragraph("Land Cover", ss["H2x"]))
-
         total = landcover_df["Area (acres)"].sum()
         rows = [["Land Cover", "Area (acres)", "Share"]]
         for _, r in landcover_df.iterrows():
             share = (r["Area (acres)"] / total * 100) if total else 0
-            rows.append([
-                r["Land Cover"],
-                f"{r['Area (acres)']:,.0f}",
-                f"{share:.1f}%",
-            ])
+            rows.append([r["Land Cover"],
+                         f"{r['Area (acres)']:,.0f}",
+                         f"{share:.1f}%"])
         rows.append(["Total", f"{total:,.0f}", "100%"])
         story.append(_table(rows, [6 * cm, 4.5 * cm, 3 * cm]))
 
-        top = landcover_df.nlargest(6, "Area (acres)")
+        top = landcover_df.nlargest(8, "Area (acres)")
         fig, ax = plt.subplots(figsize=(7, 3))
         ax.bar(top["Land Cover"], top["Area (acres)"], color="#2e7d32")
         ax.set_ylabel("Acres")
@@ -159,7 +248,7 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
         story.append(_chart_image(fig))
         story.append(Spacer(1, 12))
 
-    # --- Confidence ---
+    # ---------------- Confidence ----------------
     if crosscheck:
         story.append(Paragraph("Cropland Confidence", ss["H2x"]))
         story.append(Paragraph(
@@ -168,7 +257,7 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             f"({crosscheck['agreement_pct']}% agreement).", ss["Normal"]))
         story.append(Spacer(1, 12))
 
-    # --- Crop cycle ---
+    # ---------------- Crop cycle + NDVI chart ----------------
     if crop_insight:
         story.append(Paragraph("Cropping Pattern (NDVI)", ss["H2x"]))
         story.append(Paragraph(
@@ -180,9 +269,32 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             story.append(Paragraph(
                 "Growth peaks: "
                 + ", ".join(crop_insight["peak_months"]), ss["Normal"]))
+        story.append(Spacer(1, 6))
+
+    if ndvi_df is not None and len(ndvi_df) and "NDVI" in ndvi_df:
+        try:
+            d = ndvi_df.dropna(subset=["NDVI"])
+            if len(d):
+                fig, ax = plt.subplots(figsize=(7, 2.8))
+                ax.plot(range(len(d)), d["NDVI"], marker="o",
+                        color="#2e7d32", lw=1.5, ms=3)
+                labs = [str(x) for x in d.get("Month", d.index)]
+                ax.set_xticks(range(len(d)))
+                ax.set_xticklabels(labs, rotation=60, fontsize=6)
+                ax.set_ylabel("NDVI")
+                ax.grid(alpha=.3)
+                story.append(_chart_image(fig, height=6 * cm))
+                story.append(Paragraph(
+                    "Monthly cropland NDVI - each hump is one crop "
+                    "cycle.", ss["Small"]))
+                story.append(Spacer(1, 6))
+        except Exception:
+            pass
+        _df_table(story, ndvi_df, widths=[5 * cm, 4 * cm],
+                  font_size=8)
         story.append(Spacer(1, 12))
 
-    # --- Stability ---
+    # ---------------- Stability ----------------
     if stability:
         story.append(Paragraph("Cropland Stability (3 years)",
                                ss["H2x"]))
@@ -193,37 +305,181 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             f"<b>{stability['verdict']}</b> "
             f"(year-to-year spread {stability['spread_pct']}%). "
             f"{by_year}. {stability['detail']}", ss["Normal"]))
+        try:
+            ys = sorted(stability["by_year"].items())
+            fig, ax = plt.subplots(figsize=(7, 2.4))
+            ax.bar([str(y) for y, _ in ys], [a for _, a in ys],
+                   color="#558b2f")
+            ax.set_ylabel("Cropland (ac)")
+            story.append(Spacer(1, 6))
+            story.append(_chart_image(fig, height=5 * cm))
+        except Exception:
+            pass
         story.append(Spacer(1, 12))
 
-    # --- Paddy ---
+    # ---------------- Detections ----------------
+    det_rows = []
     if paddy:
-        story.append(Paragraph("Paddy (Radar Detection)", ss["H2x"]))
-        story.append(Paragraph(
-            f"Detected <b>{paddy['paddy_ac']:,.0f} acres</b> of paddy - "
-            f"{paddy['paddy_pct']}% of the buffer's cropland.",
-            ss["Normal"]))
-        story.append(Spacer(1, 12))
-
-    # --- Plantation ---
+        det_rows.append(["Paddy (radar)",
+                         f"{paddy['paddy_ac']:,.0f} ac",
+                         f"{paddy['paddy_pct']}% of cropland"])
     if plantation:
-        story.append(Paragraph("Plantations (coconut/arecanut)",
-                               ss["H2x"]))
-        story.append(Paragraph(
-            f"Likely plantation cover "
-            f"<b>{plantation['plantation_ac']:,.0f} acres</b> - "
-            f"{plantation['plantation_pct']}% of tree cover "
-            f"({plantation['trees_ac']:,.0f} ac).", ss["Normal"]))
+        det_rows.append(["Plantation (coconut/arecanut)",
+                         f"{plantation['plantation_ac']:,.0f} ac",
+                         f"{plantation['plantation_pct']}% of tree "
+                         f"cover ({plantation['trees_ac']:,.0f} ac)"])
+    if maize:
+        det_rows.append(["Maize / kharif crop",
+                         f"{maize.get('maize_ac', 0):,.0f} ac", "-"])
+    if aquaculture:
+        det_rows.append(["Aquaculture ponds",
+                         f"{aquaculture.get('pond_ac', 0):,.0f} ac",
+                         "-"])
+    if det_rows:
+        story.append(Paragraph("Crop & Land-Use Detections", ss["H2x"]))
+        story.append(_table(
+            [["Layer", "Area", "Context"]] + det_rows,
+            [6 * cm, 3.5 * cm, 6 * cm]))
         story.append(Spacer(1, 12))
 
-    # --- Soil ---
+    # ---------------- Coconut crop survey (measured) ----------------
+    if coconut_survey:
+        story.append(Paragraph(
+            "Coconut - Government Crop Survey (measured)", ss["H2x"]))
+        s = coconut_survey
+        story.append(_table([
+            ["Coconut land recorded", "Plots", "Growers", "Villages",
+             "Irrigated"],
+            [f"{s['extent_ac']:,} ac", f"{s['parcels']:,}",
+             f"{s['farmers']:,}", f"{s['villages']:,}",
+             f"{s.get('irrigated_pct', 0)}%"],
+        ], [4 * cm, 2.6 * cm, 2.6 * cm, 2.4 * cm, 2.4 * cm]))
+        story.append(Paragraph(
+            "Every coconut plot logged against its survey number in "
+            "the Karnataka crop survey (2023-24 Kharif), matched to "
+            "its village polygon. Ground records, not satellite.",
+            ss["Small"]))
+        story.append(Spacer(1, 6))
+
+        if coconut_validation:
+            v = coconut_validation
+            story.append(_table([
+                ["Survey coconut land", "Satellite detected",
+                 "Detection vs survey"],
+                [f"{v['survey_ac']:,} ac", f"{v['detected_ac']:,} ac",
+                 f"{v['ratio_pct']}%"],
+            ], [5 * cm, 5 * cm, 5 * cm]))
+            story.append(Paragraph(v["verdict"], ss["Small"]))
+            story.append(Spacer(1, 6))
+
+        if coconut_villages:
+            import pandas as pd
+            cv = pd.DataFrame(coconut_villages)
+            story.append(Paragraph(
+                f"All {len(cv):,} villages with recorded coconut, "
+                "ranked by area:", ss["Normal"]))
+            _df_table(story, cv,
+                      columns=["village", "taluk", "district",
+                               "coconut_ac", "parcels", "farmers",
+                               "irrigated_pct", "intensity_pct"],
+                      widths=[3.4 * cm, 2.8 * cm, 2.6 * cm, 2 * cm,
+                              1.6 * cm, 1.6 * cm, 1.6 * cm, 1.8 * cm])
+        story.append(Spacer(1, 12))
+
+    # ---------------- Modelled soil ----------------
     if soil_verdicts:
-        story.append(Paragraph("Soil Profile (0-30 cm)", ss["H2x"]))
+        story.append(Paragraph("Soil Profile (0-30 cm, modelled)",
+                               ss["H2x"]))
         for label, verdict in soil_verdicts.items():
             story.append(Paragraph(
                 f"<b>{label}:</b> {verdict}", ss["Normal"]))
+        if soil_profile:
+            rows = [["Property", "Value"]]
+            for k, v in soil_profile.items():
+                if v is not None:
+                    rows.append([str(k), str(v)])
+            if len(rows) > 1:
+                story.append(Spacer(1, 4))
+                story.append(_table(rows, [6 * cm, 4 * cm]))
+        story.append(Paragraph(
+            "SoilGrids (ISRIC) modelled estimates at 250 m. Phosphorus "
+            "and potassium cannot be sensed from space - see the "
+            "measured Soil Health Card section below.", ss["Small"]))
         story.append(Spacer(1, 12))
 
-    # --- Soil temperature & moisture ---
+    # ---------------- Measured soil test (SHC) ----------------
+    if shc_summary:
+        story.append(Paragraph(
+            "Measured Soil Test - Soil Health Cards", ss["H2x"]))
+        story.append(Paragraph(
+            f"{shc_summary['samples']:,} lab-tested farmer samples, "
+            f"cycle {shc_summary['cycle']}. Districts: "
+            f"{', '.join(shc_summary.get('districts', []))}.",
+            ss["Normal"]))
+        rows = [["Nutrient", "% Low", "% Medium", "% High",
+                 "Dominant"]]
+        for _, m in (shc_summary.get("macros") or {}).items():
+            rows.append([m["label"], f"{m['low']}%", f"{m['med']}%",
+                         f"{m['high']}%", m["dominant"]])
+        story.append(Spacer(1, 4))
+        story.append(_table(rows, [5 * cm, 2.4 * cm, 2.6 * cm,
+                                   2.4 * cm, 2.6 * cm]))
+
+        ph = shc_summary.get("ph") or {}
+        story.append(Spacer(1, 4))
+        story.append(Paragraph(
+            f"Soil reaction: {ph.get('acid', 0)}% acidic, "
+            f"{ph.get('neut', 0)}% neutral, {ph.get('alk', 0)}% "
+            f"alkaline (dominant: <b>{ph.get('dominant', '-')}</b>). "
+            f"Salinity: {shc_summary.get('ec_saline', 0)}% of samples "
+            f"saline.", ss["Normal"]))
+
+        micros = shc_summary.get("micros") or {}
+        if micros:
+            rows = [["Micronutrient", "% samples deficient", "Advice"]]
+            for _, m in micros.items():
+                rows.append([m["label"], f"{m['deficient_pct']}%",
+                             m.get("advice", "")[:60]])
+            story.append(Spacer(1, 6))
+            story.append(_table(rows, [3.4 * cm, 3.2 * cm, 8.4 * cm],
+                                font_size=8))
+        story.append(Spacer(1, 12))
+
+    # ---------------- Fertiliser guidance ----------------
+    if fertilizer:
+        story.append(Paragraph(
+            f"Fertiliser Guidance - {fertilizer_crop or 'selected crop'}",
+            ss["H2x"]))
+        rows = [["Nutrient", "Soil class", "Recommended dose",
+                 "Adjustment", "Apply"]]
+        for r in fertilizer.get("rows", []):
+            rows.append([r["nutrient"], r["soil_class"],
+                         f"{r['rdf']} {fertilizer.get('unit', '')}",
+                         f"x{r['factor']}",
+                         f"{r['adjusted']} {fertilizer.get('unit', '')}"])
+        story.append(_table(rows, [2.6 * cm, 2.6 * cm, 3.6 * cm,
+                                   2.4 * cm, 3.4 * cm]))
+        for n in fertilizer.get("notes", []):
+            story.append(Paragraph(f"- {n}", ss["Normal"]))
+        story.append(Paragraph(
+            "Soil-test-adjusted doses, area-level. Always prefer the "
+            "farmer's own Soil Health Card and local KVK advice.",
+            ss["Small"]))
+        story.append(Spacer(1, 12))
+
+    # ---------------- Land capability (SLUSI) ----------------
+    if capability is not None and len(capability):
+        story.append(Paragraph("Land Capability (SLUSI)", ss["H2x"]))
+        try:
+            import pandas as pd
+            cap = (capability if isinstance(capability, pd.DataFrame)
+                   else pd.DataFrame(capability))
+            _df_table(story, cap, font_size=8)
+        except Exception:
+            pass
+        story.append(Spacer(1, 12))
+
+    # ---------------- Soil temperature & moisture ----------------
     if soil_climate_df is not None and not soil_climate_df.empty:
         story.append(Paragraph("Soil Temperature & Moisture",
                                ss["H2x"]))
@@ -235,31 +491,40 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                 f"(range {t.min():.1f}-{t.max():.1f} °C); mean soil "
                 f"moisture <b>{w.mean():.1f}%</b>. (ERA5-Land, "
                 f"area-level.)", ss["Normal"]))
+            fig, ax = plt.subplots(figsize=(7, 2.6))
+            ax.plot(range(len(soil_climate_df)),
+                    soil_climate_df["Soil Temp (°C)"],
+                    color="#e65100", label="Soil temp (°C)")
+            ax2 = ax.twinx()
+            ax2.plot(range(len(soil_climate_df)),
+                     soil_climate_df["Soil Moisture (%)"],
+                     color="#1565c0", label="Soil moisture (%)")
+            ax.set_ylabel("°C", color="#e65100")
+            ax2.set_ylabel("%", color="#1565c0")
+            ax.grid(alpha=.3)
+            story.append(Spacer(1, 6))
+            story.append(_chart_image(fig, height=5.5 * cm))
         except Exception:
             pass
+        _df_table(story, soil_climate_df, font_size=8)
         story.append(Spacer(1, 12))
 
-    # --- Per-village soil ---
+    # ---------------- Per-village soil (FULL) ----------------
     if village_soil_df is not None and not village_soil_df.empty:
         story.append(Paragraph("Per-Village Soil Profile", ss["H2x"]))
+        story.append(Paragraph(
+            f"All {len(village_soil_df):,} villages.", ss["Normal"]))
         cols = [c for c in ["Village", "Taluk", "pH", "OC (g/kg)",
                             "N (g/kg)", "CEC", "Texture"]
                 if c in village_soil_df.columns]
-        rows = [cols]
-        for _, r in village_soil_df.head(40).iterrows():
-            rows.append([str(r.get(c, "")) for c in cols])
         widths = [3.2, 2.8, 1.6, 2.0, 1.9, 1.5, 3.2][:len(cols)]
-        story.append(_table(rows, [w * cm for w in widths]))
-        if len(village_soil_df) > 40:
-            story.append(Paragraph(
-                f"...and {len(village_soil_df) - 40} more villages "
-                "(full list in the Excel report).", ss["Normal"]))
+        _df_table(story, village_soil_df, columns=cols,
+                  widths=[w * cm for w in widths])
         story.append(Spacer(1, 12))
 
-    # --- Forecast ---
+    # ---------------- Forecast ----------------
     if forecast:
-        story.append(Paragraph("Weather Outlook (16 days)",
-                               ss["H2x"]))
+        story.append(Paragraph("Weather Outlook (16 days)", ss["H2x"]))
         dry = ""
         if forecast.get("dry_window_days"):
             dry = (f" Longest dry window: "
@@ -272,9 +537,27 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             f"over {forecast['rain_days_7d']} rainy days. "
             f"Temp range {forecast['tmin']}-{forecast['tmax']} C.{dry}",
             ss["Normal"]))
+        story.append(Spacer(1, 6))
+
+    if forecast_days is not None and len(forecast_days):
+        try:
+            fd = forecast_days
+            rain_col = next((c for c in fd.columns
+                             if "rain" in str(c).lower()
+                             or "precip" in str(c).lower()), None)
+            if rain_col:
+                fig, ax = plt.subplots(figsize=(7, 2.4))
+                ax.bar(range(len(fd)), fd[rain_col], color="#0288d1")
+                ax.set_ylabel("mm")
+                ax.set_xlabel("day ahead")
+                story.append(_chart_image(fig, height=5 * cm))
+                story.append(Spacer(1, 4))
+        except Exception:
+            pass
+        _df_table(story, forecast_days, font_size=7)
         story.append(Spacer(1, 12))
 
-    # --- Rainfall ---
+    # ---------------- Rainfall ----------------
     if rain:
         story.append(Paragraph("Rainfall (10-year history)", ss["H2x"]))
         story.append(Paragraph(
@@ -293,9 +576,30 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
         ax.set_ylabel("mm")
         story.append(Spacer(1, 6))
         story.append(_chart_image(fig, height=6 * cm))
+        story.append(Spacer(1, 6))
+
+    if rain_df is not None and len(rain_df):
+        try:
+            col = next((c for c in rain_df.columns
+                        if "rain" in str(c).lower()
+                        or "mm" in str(c).lower()), None)
+            if col:
+                fig, ax = plt.subplots(figsize=(7, 2.4))
+                ax.plot(range(len(rain_df)), rain_df[col],
+                        color="#0d47a1", lw=1)
+                ax.set_ylabel("mm / month")
+                ax.grid(alpha=.3)
+                story.append(_chart_image(fig, height=5 * cm))
+                story.append(Paragraph(
+                    "Monthly rainfall across the full history.",
+                    ss["Small"]))
+                story.append(Spacer(1, 4))
+        except Exception:
+            pass
+        _df_table(story, rain_df, font_size=7)
         story.append(Spacer(1, 12))
 
-    # --- Villages ---
+    # ---------------- Villages (FULL) ----------------
     if villages_df is not None and not villages_df.empty:
         story.append(Paragraph("Villages in Buffer", ss["H2x"]))
         n_t = villages_df["Taluk"].nunique() if "Taluk" in villages_df else 0
@@ -303,60 +607,45 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                if "District" in villages_df else 0)
         story.append(Paragraph(
             f"<b>{len(villages_df)}</b> villages across {n_t} taluks "
-            f"and {n_d} districts.", ss["Normal"]))
+            f"and {n_d} districts - complete list:", ss["Normal"]))
         story.append(Spacer(1, 6))
-
         vcols = [c for c in ["Village", "Taluk", "District", "State"]
                  if c in villages_df.columns]
-        vrows = [vcols]
-        for _, r in villages_df.head(60).iterrows():
-            vrows.append([str(r.get(c, "")) for c in vcols])
         vw = [4.2, 3.8, 4.0, 3.2][:len(vcols)]
-        story.append(_table(vrows, [w * cm for w in vw]))
-        if len(villages_df) > 60:
-            story.append(Paragraph(
-                f"...and {len(villages_df) - 60} more (full list in "
-                "the Excel report).", ss["Normal"]))
+        _df_table(story, villages_df, columns=vcols,
+                  widths=[w * cm for w in vw])
         story.append(Spacer(1, 12))
 
+    # ---------------- Village insights (FULL) ----------------
     if insights_df is not None and not insights_df.empty:
         story.append(Paragraph(
-            "Top Villages by Cropland", ss["H2x"]))
-        top = insights_df.head(15)
-        rows = [["Village", "Taluk", "Cropland (ac)",
-                 "Pattern", "Cycles/Yr"]]
-        for _, r in top.iterrows():
-            rows.append([
-                str(r["Village"])[:24],
-                str(r["Taluk"])[:18],
-                f"{r['Cropland (ac)']:,.0f}",
-                r["Pattern"],
-                r["Cycles/Year"],
-            ])
-        story.append(_table(
-            rows, [4.5 * cm, 3.5 * cm, 2.6 * cm, 4 * cm, 1.8 * cm]))
-        story.append(Spacer(1, 12))
-
-    # --- Sourcing scores ---
-    if scores_df is not None and not scores_df.empty:
+            "Village Cropland & Cropping Pattern", ss["H2x"]))
         story.append(Paragraph(
-            "Top Villages by Sourcing Score", ss["H2x"]))
-        top = scores_df.head(15)
-        rows = [["Rank", "Village", "Score", "Cropland (ac)",
-                 "Pattern"]]
-        for _, r in top.iterrows():
-            rows.append([
-                str(r.get("Rank", "")),
-                str(r["Village"])[:22],
-                str(r.get("Score", "")),
-                f"{r.get('Cropland (ac)', 0):,.0f}",
-                str(r.get("Pattern", ""))[:24],
-            ])
-        story.append(_table(
-            rows, [1.4 * cm, 4 * cm, 1.8 * cm, 2.8 * cm, 5 * cm]))
+            f"All {len(insights_df):,} analysed villages.",
+            ss["Normal"]))
+        cols = [c for c in ["Village", "Taluk", "Cropland (ac)",
+                            "Pattern", "Cycles/Year"]
+                if c in insights_df.columns]
+        _df_table(story, insights_df, columns=cols,
+                  widths=[4.5 * cm, 3.5 * cm, 2.6 * cm, 4 * cm,
+                          1.8 * cm])
         story.append(Spacer(1, 12))
 
-    # --- Allied sectors & agri-economy ---
+    # ---------------- Sourcing scores (FULL) ----------------
+    if scores_df is not None and not scores_df.empty:
+        story.append(Paragraph("Village Sourcing Scores", ss["H2x"]))
+        story.append(Paragraph(
+            f"All {len(scores_df):,} scored villages, best first.",
+            ss["Normal"]))
+        cols = [c for c in ["Rank", "Village", "Score",
+                            "Cropland (ac)", "Pattern"]
+                if c in scores_df.columns]
+        _df_table(story, scores_df, columns=cols,
+                  widths=[1.4 * cm, 4 * cm, 1.8 * cm, 2.8 * cm,
+                          5 * cm])
+        story.append(Spacer(1, 12))
+
+    # ---------------- Allied sectors ----------------
     if allied and allied.get("profile", {}).get("available"):
         p = allied["profile"]
         wr = p.get("within_radius", {})
@@ -379,47 +668,25 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             f"concentrate feed demand: <b>{d.get('total_feed_tpd', 0):,} "
             f"t/day</b> (bovine {d.get('bovine_feed_tpd', 0)} + poultry "
             f"{d.get('poultry_feed_tpd', 0)}).", ss["Normal"]))
-        story.append(Spacer(1, 6))
+        story.append(Spacer(1, 8))
 
-        def _kv_line(dfr, label, cols):
-            if dfr is None or dfr.empty:
-                return
-            parts = []
-            for _, rr in dfr.iterrows():
-                bits = [f"{rr.get(c)}" for c in cols if c in dfr.columns]
-                parts.append(" ".join(str(b) for b in bits))
-            story.append(Paragraph(
-                f"<b>{label}:</b> " + " | ".join(parts), ss["Normal"]))
-
-        _kv_line(allied.get("sericulture"), "Sericulture (state)",
-                 ["state", "raw_silk_mt", "year"])
-        _kv_line(allied.get("fisheries"), "Fisheries (state, inland MT)",
-                 ["state", "inland_fish_mt", "year"])
-        _kv_line(allied.get("fertilizer"), "Fertiliser (NPK kg/ha)",
-                 ["state", "npk_kg_per_ha", "year"])
-        _kv_line(allied.get("horticulture"),
-                 "Horticulture (lakh ha / lakh t)",
-                 ["state", "area_lakh_ha", "production_lakh_tonnes"])
+        for key, label in (("sericulture", "Sericulture (state)"),
+                           ("fisheries", "Fisheries (state)"),
+                           ("fertilizer", "Fertiliser use (state)"),
+                           ("horticulture", "Horticulture (state)")):
+            dfr = allied.get(key)
+            if dfr is not None and len(dfr):
+                story.append(Paragraph(label, ss["Normal"]))
+                _df_table(story, dfr, font_size=8)
         story.append(Spacer(1, 12))
 
-    # --- Mandi prices ---
+    # ---------------- Mandi prices ----------------
     if mandi_df is not None and not mandi_df.empty:
         story.append(Paragraph(
             "Mandi Prices (today, Rs/quintal)", ss["H2x"]))
-        top = mandi_df.head(15)
-        rows = [["Commodity", "Market", "District", "Modal"]]
-        for _, r in top.iterrows():
-            rows.append([
-                str(r.get("Commodity", ""))[:16],
-                str(r.get("Market", ""))[:22],
-                str(r.get("District", ""))[:18],
-                f"{r.get('Modal (Rs/qtl)', 0):,.0f}",
-            ])
-        story.append(_table(
-            rows, [3.5 * cm, 4.5 * cm, 3.5 * cm, 2.5 * cm]))
-        story.append(Spacer(1, 8))
+        _df_table(story, mandi_df, font_size=8)
+        story.append(Spacer(1, 6))
 
-        # Price trend (monthly modal) - compact recent table + summary
         if mandi_hist is not None and not mandi_hist.empty:
             h = mandi_hist.copy()
             first, last = h.iloc[0], h.iloc[-1]
@@ -430,55 +697,63 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                 f"period range Rs{h['Low'].min():,.0f}-"
                 f"{h['High'].max():,.0f}, {pct:+.0f}% since "
                 f"{first['Month'].strftime('%b %Y')}.", ss["Normal"]))
-            recent = h.tail(12)
-            rows = [["Month"] + [m.strftime("%b %y")
-                                 for m in recent["Month"]]]
-            rows.append(["Modal"] + [f"{v:,.0f}"
-                                     for v in recent["Modal"]])
-            story.append(_table(rows))
+            try:
+                fig, ax = plt.subplots(figsize=(7, 2.6))
+                ax.plot(range(len(h)), h["Modal"], color="#6a1b9a",
+                        marker="o", ms=3)
+                ax.fill_between(range(len(h)), h["Low"], h["High"],
+                                color="#ce93d8", alpha=.35)
+                ax.set_xticks(range(len(h)))
+                ax.set_xticklabels([m.strftime("%b %y")
+                                    for m in h["Month"]],
+                                   rotation=60, fontsize=6)
+                ax.set_ylabel("Rs/qtl")
+                ax.grid(alpha=.3)
+                story.append(Spacer(1, 4))
+                story.append(_chart_image(fig, height=5.5 * cm))
+            except Exception:
+                pass
+            story.append(Spacer(1, 4))
+            _df_table(story, h, font_size=7)
             story.append(Spacer(1, 6))
 
-        # Variety / grade breakdown
         if mandi_var is not None and not mandi_var.empty:
             story.append(Paragraph(
                 "Variety / grade breakdown (Rs/qtl):", ss["Normal"]))
-            rows = [["Variety", "Latest", "Median", "Low", "High",
-                     "Mkts"]]
-            for _, r in mandi_var.head(8).iterrows():
-                rows.append([
-                    str(r.get("Variety", ""))[:18],
-                    f"{r.get('Latest', 0):,}",
-                    f"{r.get('Median', 0):,}",
-                    f"{r.get('Low', 0):,}",
-                    f"{r.get('High', 0):,}",
-                    str(r.get("Markets", "")),
-                ])
-            story.append(_table(
-                rows, [4 * cm, 2.4 * cm, 2.4 * cm, 2.2 * cm, 2.2 * cm,
-                       1.6 * cm]))
+            _df_table(story, mandi_var, font_size=8)
         story.append(Spacer(1, 12))
 
-    # --- Detection evidence: satellite maps (visual proof) ---
+    # ---------------- Field data (ground truth) ----------------
+    if gt_df is not None and len(gt_df):
+        story.append(Paragraph(
+            "Field Observations (your team's ground truth)", ss["H2x"]))
+        _df_table(story, gt_df, font_size=7)
+        story.append(Spacer(1, 10))
+
+    if cards_df is not None and len(cards_df):
+        story.append(Paragraph(
+            "Soil Health Cards collected in the field", ss["H2x"]))
+        _df_table(story, cards_df, font_size=7)
+        story.append(Spacer(1, 12))
+
+    # ---------------- Detection evidence: every map ----------------
     if map_images:
-        cap = ParagraphStyle(
-            "cap", parent=ss["Normal"], fontSize=8,
-            textColor=colors.HexColor("#555555"))
+        cap = ss["Small"]
 
         story.append(PageBreak())
         story.append(Paragraph(
-            "Detection Evidence - Satellite Maps", ss["H1x"]))
+            "Map Layers - Visual Evidence", ss["H1x"]))
         story.append(Paragraph(
-            "The maps below are rendered directly from the satellite "
-            "imagery and the same detection layers used for the numbers "
-            "in this report - visual proof of what was measured. Each is "
-            f"clipped to your {meta['radius']} km analysis area around "
+            "Every map layer the app can display, rendered from the "
+            "same imagery and datasets that produced the numbers "
+            "above. Each is clipped to your "
+            f"{meta['radius']} km analysis area around "
             f"{meta['lat']:.4f}, {meta['lon']:.4f} for year "
             f"{meta['year']}.", ss["Normal"]))
         story.append(Spacer(1, 10))
 
         stat_style = ParagraphStyle(
-            "stat", parent=ss["Normal"], fontSize=9,
-            textColor=GREEN)
+            "stat", parent=ss["Normal"], fontSize=9, textColor=GREEN)
 
         def _stat_for(mi):
             k = mi.get("kind")
@@ -492,6 +767,14 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                     return (f"Measured here: {paddy['paddy_ac']:,.0f} "
                             f"acres of paddy ({paddy['paddy_pct']}% of "
                             f"cropland).")
+                if k == "maize" and maize:
+                    return (f"Measured here: "
+                            f"{maize.get('maize_ac', 0):,.0f} acres of "
+                            f"maize / kharif crop.")
+                if k == "aquaculture" and aquaculture:
+                    return (f"Measured here: "
+                            f"{aquaculture.get('pond_ac', 0):,.0f} acres "
+                            f"of ponds.")
                 if k == "landcover" and landcover_df is not None \
                         and not landcover_df.empty:
                     tot = landcover_df["Area (acres)"].sum()
@@ -504,11 +787,18 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                     return (f"Mean cropland NDVI "
                             f"{crop_insight.get('mean_ndvi')}; pattern: "
                             f"{crop_insight.get('pattern')}.")
-                if k == "satellite" and crosscheck:
+                if k in ("satellite", "confidence") and crosscheck:
                     return (f"Confirmed cropland: "
                             f"{crosscheck['confirmed_ac']:,.0f} ac "
                             f"({crosscheck['agreement_pct']}% agreement "
                             f"between two datasets).")
+                if k == "shc" and shc_summary:
+                    return (f"{shc_summary['samples']:,} lab samples, "
+                            f"cycle {shc_summary['cycle']}.")
+                if k == "coconut_survey" and coconut_survey:
+                    return (f"{coconut_survey['extent_ac']:,} ac of "
+                            f"coconut recorded across "
+                            f"{coconut_survey['villages']} villages.")
             except Exception:
                 return None
             return None
@@ -538,20 +828,30 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
 
         story.append(Spacer(1, 6))
         story.append(Paragraph(
-            "How to read these: coloured detection overlays (plantation "
-            "in yellow, paddy in cyan) sit on top of the true-colour "
-            "satellite image, so you can judge the fit against real "
-            "fields. Land cover and NDVI are standalone renders. These "
-            "are model outputs at 10 m - trust the pattern and verify "
-            "edges on the ground.", cap))
+            "How to read these: coloured detection overlays sit on top "
+            "of the true-colour satellite image, so you can judge the "
+            "fit against real fields. Land cover, NDVI and the soil "
+            "layers are standalone renders. The soil-test and coconut "
+            "survey maps are MEASURED ground records, not model "
+            "output. Satellite layers are model outputs at 10 m - "
+            "trust the pattern and verify edges on the ground.", cap))
+
+    # ---------------- Notes / methodology ----------------
+    if notes:
+        story.append(PageBreak())
+        story.append(Paragraph("Notes & Coverage", ss["H2x"]))
+        for n in notes:
+            story.append(Paragraph(f"- {n}", ss["Normal"]))
+        story.append(Spacer(1, 10))
 
     story.append(Spacer(1, 8))
     story.append(Paragraph(
         "Sources: Sentinel-2, Sentinel-1 (ESA), Dynamic World (Google),"
-        " WorldCover (ESA), CHIRPS (UCSB). Generated by "
+        " WorldCover & WorldCereal (ESA), CHIRPS (UCSB), SoilGrids "
+        "(ISRIC), Soil Health Card scheme, Karnataka crop survey, "
+        "Livestock Census 2019, Agmarknet. Generated by "
         f"{APP_NAME} for {COMPANY}.",
-        ParagraphStyle("foot", fontSize=7,
-                       textColor=colors.grey)))
+        ParagraphStyle("foot", fontSize=7, textColor=colors.grey)))
 
     buf = BytesIO()
     doc = SimpleDocTemplate(

@@ -10,6 +10,8 @@ instead of, the plantation layer.
 import ee
 import streamlit as st
 
+from gee.tiles import TILE_TTL
+
 CROPLAND_COLOR = "e6550d"  # orange-brown
 
 
@@ -23,7 +25,7 @@ def _temporary_crops():
     )
 
 
-@st.cache_data(show_spinner="Loading WorldCereal cropland...")
+@st.cache_data(show_spinner="Loading WorldCereal cropland...", ttl=TILE_TTL)
 def worldcereal_tile_url(lat, lon, radius_km):
     """Tile URL showing WorldCereal cropland (value 100)."""
 

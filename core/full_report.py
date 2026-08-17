@@ -102,15 +102,57 @@ def gather(progress=None):
     except Exception:
         bundle["plantation"] = None
 
-    # 6b. Map thumbnails - visual proof for the PDF (satellite + the
-    # detection layers rendered as PNGs). EE-heavy, so guarded.
-    step(56, "Rendering map images for the report...")
+    # 6a. Maize / kharif cereal
+    step(54, "Maize / kharif crop detection...")
+    try:
+        from gee.maize import maize_stats
+        bundle["maize"] = maize_stats(lat, lon, radius, year)
+    except Exception:
+        bundle["maize"] = None
+
+    # 6a-2. Aquaculture ponds
+    step(55, "Aquaculture pond detection...")
+    try:
+        from gee.aquaculture import aquaculture_stats
+        bundle["aquaculture"] = aquaculture_stats(
+            lat, lon, radius, year)
+    except Exception:
+        bundle["aquaculture"] = None
+
+    # 6b. Map thumbnails - visual proof for the PDF. EVERY layer the
+    # app can draw is rendered: satellite, land cover, confidence,
+    # NDVI, plantation, banana, paddy, maize, WorldCereal,
+    # aquaculture and the three painted soil properties, plus the
+    # vector layers (measured soil test, coconut crop survey).
+    step(56, "Rendering every map layer for the report...")
     try:
         from gee.report_maps import map_images
-        bundle["map_images"] = map_images(lat, lon, radius, year)
+        imgs = map_images(lat, lon, radius, year)
     except Exception as e:
-        bundle["map_images"] = None
-        bundle["notes"].append(f"Map images skipped: {e}")
+        imgs = []
+        bundle["notes"].append(f"Satellite map images skipped: {e}")
+    try:
+        from gee.report_maps import missing_layers
+        gaps = missing_layers(imgs)
+        if gaps:
+            bundle["notes"].append(
+                "Map layers Earth Engine could not render this run: "
+                + ", ".join(gaps)
+                + ". Everything else in the report is unaffected; "
+                  "rebuild the report to retry them.")
+    except Exception:
+        pass
+    try:
+        from gis.vector_maps import vector_maps
+        imgs = list(imgs) + vector_maps(
+            lat, lon, radius,
+            st.session_state.get("shc_map_metric", "n_low"))
+    except Exception as e:
+        bundle["notes"].append(f"Measured map images skipped: {e}")
+    bundle["map_images"] = imgs or None
+    if imgs:
+        bundle["notes"].append(
+            f"{len(imgs)} map layers rendered into this report.")
 
     # 7. Rainfall
     step(58, "10-year rainfall history...")
@@ -247,9 +289,58 @@ def gather(progress=None):
         bundle["allied"] = None
         bundle["notes"].append(f"Allied sectors skipped: {e}")
 
+    # 11c. Measured soil test (Soil Health Card) + fertiliser guidance
+    step(98, "Measured soil test & fertiliser guidance...")
+    try:
+        from core import allied, shc
+        dists = allied.districts_touching(lat, lon, radius)
+        rows = shc.for_districts(dists) if dists else None
+        summary = shc.area_summary(rows) if rows is not None \
+            and not rows.empty else None
+        bundle["shc_summary"] = summary
+        crop = st.session_state.get("fert_crop")
+        if summary and not crop:
+            crop = (shc.crops() or [None])[0]
+        bundle["fertilizer"] = (
+            shc.fertilizer_guidance(summary, crop) if summary and crop
+            else None)
+        bundle["fertilizer_crop"] = crop if bundle["fertilizer"] else None
+    except Exception as e:
+        bundle["shc_summary"] = None
+        bundle["fertilizer"] = None
+        bundle["notes"].append(f"Measured soil test skipped: {e}")
+
+    # 11d. Land capability (SLUSI)
+    try:
+        from core import allied, soil_capability
+        dists = allied.districts_touching(lat, lon, radius)
+        bundle["capability"] = (
+            soil_capability.for_districts(dists) if dists else None)
+    except Exception:
+        bundle["capability"] = None
+
+    # 11e. Government coconut crop survey (measured ground records)
+    try:
+        from core import crop_survey
+        bundle["coconut_survey"] = crop_survey.radius_summary(
+            lat, lon, radius)
+        bundle["coconut_villages"] = crop_survey.top_villages(
+            lat=lat, lon=lon, radius_km=radius, top=0)
+        det = (bundle.get("plantation") or {}).get("plantation_ac")
+        bundle["coconut_validation"] = (
+            crop_survey.validate_plantation(lat, lon, radius, det)
+            if det is not None else None)
+    except Exception:
+        bundle["coconut_survey"] = None
+        bundle["coconut_villages"] = None
+        bundle["coconut_validation"] = None
+
     # Mandi price trend / variety - only if fetched in the Mandi tab.
     bundle["mandi_hist"] = st.session_state.get("mandi_hist")
     bundle["mandi_var"] = st.session_state.get("mandi_var")
+
+    # Monthly series so the PDF can chart what the tabs chart.
+    bundle["soil_profile_raw"] = bundle.get("soil_profile")
 
     # 12. Field data
     try:
@@ -293,6 +384,23 @@ def pdf_bytes(bundle):
         mandi_hist=bundle.get("mandi_hist"),
         mandi_var=bundle.get("mandi_var"),
         map_images=bundle.get("map_images"),
+        # everything the screen shows that used to be left out
+        ndvi_df=bundle.get("ndvi_df"),
+        rain_df=bundle.get("rain_df"),
+        forecast_days=bundle.get("forecast_days"),
+        soil_profile=bundle.get("soil_profile"),
+        maize=bundle.get("maize"),
+        aquaculture=bundle.get("aquaculture"),
+        shc_summary=bundle.get("shc_summary"),
+        fertilizer=bundle.get("fertilizer"),
+        fertilizer_crop=bundle.get("fertilizer_crop"),
+        capability=bundle.get("capability"),
+        coconut_survey=bundle.get("coconut_survey"),
+        coconut_villages=bundle.get("coconut_villages"),
+        coconut_validation=bundle.get("coconut_validation"),
+        gt_df=bundle.get("gt_df"),
+        cards_df=bundle.get("cards_df"),
+        notes=bundle.get("notes"),
     )
 
 
@@ -364,9 +472,34 @@ def excel_bytes(bundle):
     summary = pd.DataFrame(summary_rows,
                            columns=["Parameter", "Value"])
 
+    coconut_villages = bundle.get("coconut_villages")
+    if coconut_villages:
+        coconut_villages = pd.DataFrame(coconut_villages)
+
+    shc_rows = None
+    s = bundle.get("shc_summary")
+    if s:
+        rows = [("Cycle", s.get("cycle")),
+                ("Samples", s.get("samples"))]
+        for _, m in (s.get("macros") or {}).items():
+            rows.append((f"{m['label']} - % Low", m["low"]))
+            rows.append((f"{m['label']} - dominant", m["dominant"]))
+        for _, m in (s.get("micros") or {}).items():
+            rows.append((f"{m['label']} - % deficient",
+                         m["deficient_pct"]))
+        shc_rows = pd.DataFrame(rows, columns=["Measure", "Value"])
+
+    fert_rows = None
+    f = bundle.get("fertilizer")
+    if f:
+        fert_rows = pd.DataFrame(f.get("rows", []))
+
     sheets = [
         ("Summary", summary),
         ("Land Cover", bundle.get("landcover_df")),
+        ("Coconut Survey", coconut_villages),
+        ("Measured Soil (SHC)", shc_rows),
+        ("Fertiliser Guidance", fert_rows),
         ("Sourcing Scores", bundle.get("scores_df")),
         ("Village Insights", bundle.get("insights_df")),
         ("Village Soil", bundle.get("village_soil_df")),

@@ -15,6 +15,8 @@ allied sector visible from space, so unlike livestock it IS a map.
 import ee
 import streamlit as st
 
+from gee.tiles import TILE_TTL
+
 SQM_PER_ACRE = 4046.8564224
 
 # Tuning constants
@@ -48,7 +50,7 @@ def aquaculture_mask(buffer):
     return ponds.And(flat).rename("aquaculture")
 
 
-@st.cache_data(show_spinner="Detecting aquaculture ponds...")
+@st.cache_data(show_spinner="Detecting aquaculture ponds...", ttl=TILE_TTL)
 def aquaculture_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL showing likely ponds in blue. (year unused - JRC
     water is a multi-year climatology - kept for a uniform signature.)"""

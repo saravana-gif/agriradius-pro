@@ -10,6 +10,8 @@ Values are root-zone (0-30cm) averages over cropland in the buffer.
 import ee
 import streamlit as st
 
+from gee.tiles import TILE_TTL
+
 # SoilGrids assets: per-property images with per-depth bands.
 # Units: phh2o = pH*10, soc = dg/kg, nitrogen = cg/kg,
 # sand/silt/clay = g/kg
@@ -181,7 +183,7 @@ SOIL_LAYERS = {
 }
 
 
-@st.cache_data(show_spinner="Painting soil layer...")
+@st.cache_data(show_spinner="Painting soil layer...", ttl=TILE_TTL)
 def soil_tile_url(lat, lon, radius_km, layer_id):
     """XYZ tile URL for a painted soil property layer."""
 

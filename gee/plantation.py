@@ -19,6 +19,8 @@ import streamlit as st
 from gee.dynamic_world import dw_class_image
 from gee.features import feature_stack
 
+from gee.tiles import TILE_TTL
+
 SQM_PER_ACRE = 4046.8564224
 
 # --- Tuning constants ---
@@ -167,7 +169,7 @@ def banana_mask(buffer, year):
     return ban.And(_not_paddy(buffer, year)).rename("banana")
 
 
-@st.cache_data(show_spinner="Detecting plantations (coconut/arecanut)...")
+@st.cache_data(show_spinner="Detecting plantations (coconut/arecanut)...", ttl=TILE_TTL)
 def plantation_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL showing likely plantations in bright yellow.
 
@@ -192,7 +194,7 @@ def plantation_tile_url(lat, lon, radius_km, year):
     return mapid["tile_fetcher"].url_format
 
 
-@st.cache_data(show_spinner="Detecting banana plantations...")
+@st.cache_data(show_spinner="Detecting banana plantations...", ttl=TILE_TTL)
 def banana_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL showing likely banana in deep pink."""
 

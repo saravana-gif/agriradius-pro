@@ -41,37 +41,47 @@ def comparable_layers():
 def _tile_url(layer_id, lat, lon, radius, year):
     """Compute a layer's XYZ tile URL (reuses the app's own functions,
     which are cached, so repeat views are free). Add new tile layers
-    here when they are added to the registry."""
+    here when they are added to the registry.
+
+    Every URL goes through fresh_tile_url, which verifies the Earth
+    Engine token still works and regenerates it if not - an expired
+    token used to make the panel render as plain satellite with no
+    explanation."""
     from core import usage as _u
+    from gee.tiles import fresh_tile_url
     _u.bump("earth_engine")
 
     if layer_id == "dynamic_world":
         from gee.dynamic_world import get_tile_url
-        return get_tile_url(lat, lon, radius, year)
+        return fresh_tile_url(get_tile_url, lat, lon, radius, year)
     if layer_id == "cropland_confidence":
         from gee.worldcover import confidence_tile_url
-        return confidence_tile_url(lat, lon, radius, year)
+        return fresh_tile_url(confidence_tile_url, lat, lon, radius,
+                              year)
     if layer_id == "paddy":
         from gee.paddy import paddy_tile_url
-        return paddy_tile_url(lat, lon, radius, year)
+        return fresh_tile_url(paddy_tile_url, lat, lon, radius, year)
     if layer_id == "plantation":
         from gee.plantation import plantation_tile_url
-        return plantation_tile_url(lat, lon, radius, year)
+        return fresh_tile_url(plantation_tile_url, lat, lon, radius,
+                              year)
     if layer_id == "banana":
         from gee.plantation import banana_tile_url
-        return banana_tile_url(lat, lon, radius, year)
+        return fresh_tile_url(banana_tile_url, lat, lon, radius, year)
     if layer_id == "maize":
         from gee.maize import maize_tile_url
-        return maize_tile_url(lat, lon, radius, year)
+        return fresh_tile_url(maize_tile_url, lat, lon, radius, year)
     if layer_id == "worldcereal":
         from gee.worldcereal import worldcereal_tile_url
-        return worldcereal_tile_url(lat, lon, radius)
+        return fresh_tile_url(worldcereal_tile_url, lat, lon, radius)
     if layer_id == "aquaculture":
         from gee.aquaculture import aquaculture_tile_url
-        return aquaculture_tile_url(lat, lon, radius, year)
+        return fresh_tile_url(aquaculture_tile_url, lat, lon, radius,
+                              year)
     if layer_id in ("soil_ph", "soil_oc", "soil_n"):
         from gee.soil import soil_tile_url
-        return soil_tile_url(lat, lon, radius, layer_id)
+        return fresh_tile_url(soil_tile_url, lat, lon, radius,
+                              layer_id)
     return None
 
 

@@ -165,6 +165,25 @@ def health_panel():
                          f"{last['time']}")
             st.markdown(line)
 
+        # --- Map tile health ---------------------------------------
+        # Earth Engine map tokens expire. Every tile URL is probed
+        # before it reaches the browser and regenerated if dead, so a
+        # layer can no longer go silently blank. This shows what that
+        # guard has been doing.
+        th = st.session_state.get("tile_health")
+        if th:
+            dot = ("🔴" if th.get("failed") else
+                   "🟡" if th.get("renewed") else "🟢")
+            st.markdown(
+                f"{dot} **Map tiles** - {th.get('checked', 0)} checked, "
+                f"{th.get('renewed', 0)} token(s) renewed, "
+                f"{th.get('failed', 0)} failed")
+            if th.get("failed"):
+                st.caption(
+                    "A failed tile layer means Earth Engine would not "
+                    "serve that overlay. Click 'Refresh map' on the "
+                    "map to force new tokens.")
+
         if st.button("Check Earth Engine now",
                      use_container_width=True):
             try:

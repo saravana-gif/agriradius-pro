@@ -11,6 +11,8 @@ import streamlit as st
 
 from gee.dynamic_world import dw_crops_mask
 
+from gee.tiles import TILE_TTL
+
 SQM_PER_ACRE = 4046.8564224
 
 # Tuning constants (dB)
@@ -50,7 +52,7 @@ def paddy_mask(buffer, start_date, end_date):
     return flooded.And(growth).And(crops).rename("paddy")
 
 
-@st.cache_data(show_spinner="Detecting paddy fields (radar)...")
+@st.cache_data(show_spinner="Detecting paddy fields (radar)...", ttl=TILE_TTL)
 def paddy_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL showing detected paddy in cyan."""
 

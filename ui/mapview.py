@@ -1,6 +1,7 @@
 import streamlit as st
 from streamlit_folium import st_folium
 
+from gee.tiles import fresh_tile_url
 from ui.map_engine import MapEngine
 
 
@@ -8,6 +9,24 @@ from ui.map_engine import MapEngine
 def _district_gdf(state_key, district):
     from gis import admin_areas
     return admin_areas.district_villages(state_key, district)
+
+
+def _overlay(engine, url, name, opacity):
+    """Add a tile overlay, and SAY SO when a layer cannot be drawn.
+
+    Silence was the old failure mode: an expired Earth Engine token
+    made every layer render as plain satellite with no hint that
+    anything was wrong. Now a missing layer always announces itself.
+    """
+    if not url:
+        st.warning(
+            f"**{name}** could not be drawn just now - Earth Engine "
+            "did not return a usable tile layer. Click **Refresh "
+            "map**; if it persists, the shared compute budget may be "
+            "throttled.")
+        return False
+    engine.add_tile_overlay(url, name, opacity=opacity)
+    return True
 
 
 def _region_geometry(engine, mode):
@@ -210,14 +229,14 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = get_tile_url(
+            url = fresh_tile_url(
+                get_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
                 st.session_state.year
             )
-            engine.add_tile_overlay(url, "Dynamic World",
-                                    opacity=_op)
+            _overlay(engine, url, "Dynamic World", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -230,14 +249,14 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = confidence_tile_url(
+            url = fresh_tile_url(
+                confidence_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
                 st.session_state.year
             )
-            engine.add_tile_overlay(url, "Cropland Confidence",
-                                    opacity=_op)
+            _overlay(engine, url, "Cropland Confidence", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -250,13 +269,14 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = paddy_tile_url(
+            url = fresh_tile_url(
+                paddy_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
                 st.session_state.year
             )
-            engine.add_tile_overlay(url, "Paddy Fields", opacity=_op)
+            _overlay(engine, url, "Paddy Fields", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -269,13 +289,14 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = plantation_tile_url(
+            url = fresh_tile_url(
+                plantation_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
                 st.session_state.year
             )
-            engine.add_tile_overlay(url, "Plantations", opacity=_op)
+            _overlay(engine, url, "Plantations", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -288,13 +309,14 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = banana_tile_url(
+            url = fresh_tile_url(
+                banana_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
                 st.session_state.year
             )
-            engine.add_tile_overlay(url, "Banana", opacity=_op)
+            _overlay(engine, url, "Banana", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -307,13 +329,13 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = worldcereal_tile_url(
+            url = fresh_tile_url(
+                worldcereal_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
             )
-            engine.add_tile_overlay(url, "WorldCereal Cropland",
-                                    opacity=_op)
+            _overlay(engine, url, "WorldCereal Cropland", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -326,13 +348,14 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = maize_tile_url(
+            url = fresh_tile_url(
+                maize_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
                 st.session_state.year
             )
-            engine.add_tile_overlay(url, "Maize", opacity=_op)
+            _overlay(engine, url, "Maize", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -345,13 +368,14 @@ def mapview():
         try:
             from core import usage as _u
             _u.bump("earth_engine")
-            url = aquaculture_tile_url(
+            url = fresh_tile_url(
+                aquaculture_tile_url,
                 st.session_state.lat,
                 st.session_state.lon,
                 st.session_state.radius,
                 st.session_state.year
             )
-            engine.add_tile_overlay(url, "Aquaculture ponds", opacity=_op)
+            _overlay(engine, url, "Aquaculture ponds", _op)
         except Exception as e:
             from core import usage as _u
             _u.note_error("earth_engine", e)
@@ -366,14 +390,14 @@ def mapview():
             try:
                 from core import usage as _u
                 _u.bump("earth_engine")
-                url = soil_tile_url(
+                url = fresh_tile_url(
+                    soil_tile_url,
                     st.session_state.lat,
                     st.session_state.lon,
                     st.session_state.radius,
                     soil_layer
                 )
-                engine.add_tile_overlay(
-                    url, soil_layer, opacity=_op)
+                _overlay(engine, url, soil_layer, _op)
             except Exception as e:
                 from core import usage as _u
                 _u.note_error("earth_engine", e)
@@ -452,14 +476,37 @@ def mapview():
     rc1, rc2 = st.columns([1, 4])
     with rc1:
         if st.button("🔄 Refresh map", use_container_width=True,
-                     help="Reload any missing overlay tiles at the "
-                          "current view"):
+                     help="Rebuild every overlay with a fresh Earth "
+                          "Engine token and reload the tiles"):
+            # Force brand-new tile URLs, not just a map remount: a
+            # stale token is exactly what makes layers look absent.
+            for _mod, _fns in (
+                    ("gee.dynamic_world", ["get_tile_url"]),
+                    ("gee.worldcover", ["confidence_tile_url"]),
+                    ("gee.paddy", ["paddy_tile_url"]),
+                    ("gee.plantation", ["plantation_tile_url",
+                                        "banana_tile_url"]),
+                    ("gee.maize", ["maize_tile_url"]),
+                    ("gee.worldcereal", ["worldcereal_tile_url"]),
+                    ("gee.aquaculture", ["aquaculture_tile_url"]),
+                    ("gee.soil", ["soil_tile_url"])):
+                try:
+                    import importlib
+                    m = importlib.import_module(_mod)
+                    for _fn in _fns:
+                        getattr(m, _fn).clear()
+                except Exception:
+                    continue
+            st.session_state.tile_health = {
+                "checked": 0, "renewed": 0, "failed": 0}
             st.session_state.map_refresh = \
                 st.session_state.get("map_refresh", 0) + 1
     with rc2:
         st.caption(
-            "If overlay tiles are missing after zooming, click "
-            "Refresh map to reload them.")
+            "If an overlay looks missing, click Refresh map - it "
+            "rebuilds each layer with a fresh Earth Engine token. "
+            "Layer health is shown in the sidebar's Service health "
+            "panel.")
 
     map_data = st_folium(
         engine.render(),

@@ -10,6 +10,8 @@ labels miss.
 import ee
 import streamlit as st
 
+from gee.tiles import TILE_TTL
+
 # Class order matches Dynamic World label encoding (0-8)
 PROB_BANDS = [
     "water", "trees", "grass", "flooded_vegetation", "crops",
@@ -86,7 +88,7 @@ def dw_crops_mask(buffer, start_date, end_date):
     return dw_class_image(buffer, start_date, end_date).eq(CROPS_INDEX)
 
 
-@st.cache_data(show_spinner="Loading Dynamic World overlay...")
+@st.cache_data(show_spinner="Loading Dynamic World overlay...", ttl=TILE_TTL)
 def get_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL for the probability-based composite."""
 

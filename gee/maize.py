@@ -18,6 +18,8 @@ import streamlit as st
 
 from gee.ndvi import _mask_clouds
 
+from gee.tiles import TILE_TTL
+
 SQM_PER_ACRE = 4046.8564224
 
 # --- Tuning constants ---
@@ -163,7 +165,7 @@ def maize_mask(buffer, year):
     return mask.rename("maize")
 
 
-@st.cache_data(show_spinner="Detecting maize (kharif crop)...")
+@st.cache_data(show_spinner="Detecting maize (kharif crop)...", ttl=TILE_TTL)
 def maize_tile_url(lat, lon, radius_km, year):
     """XYZ tile URL showing likely maize in orange."""
 

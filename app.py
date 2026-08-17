@@ -18,19 +18,27 @@ from ui.dashboard import dashboard
 
 @st.cache_resource
 def _boundary_bootstrap():
-    """Kick off the one-shot boundary fetcher in the background (it
-    exits immediately when everything is already present). Runs once
-    per server process; never blocks the UI."""
+    """Kick off the one-shot data fetchers in the background (each
+    exits immediately when its data is already present). Runs once per
+    server process; never blocks the UI.
+
+    The server is the only place these can run: it has open internet
+    and an Indian IP, which several of these government services
+    require. Nothing here needs a shell session - a deploy is enough.
+    """
     import subprocess
     import sys as _sys
     from config import PROJECT_ROOT
-    try:
-        subprocess.Popen(
-            ["nice", "-n", "10", _sys.executable,
-             str(PROJECT_ROOT / "scripts" / "fetch_boundaries.py")],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
-        pass
+
+    for script in ("fetch_boundaries.py",
+                   "fetch_wris_command_areas.py"):
+        try:
+            subprocess.Popen(
+                ["nice", "-n", "10", _sys.executable,
+                 str(PROJECT_ROOT / "scripts" / script)],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            continue
     return True
 
 

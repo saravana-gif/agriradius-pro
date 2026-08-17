@@ -38,6 +38,76 @@ def _districts_in_view(lat, lon, radius):
         return []
 
 
+def _command_area_block():
+    """Canal command areas - harvest them from here, no shell needed.
+
+    India-WRIS publishes command areas through an ArcGIS service that
+    only the server can page through. The server also tries this on
+    every restart; this button is here so it can be forced and, more
+    importantly, so the outcome is visible instead of silent.
+    """
+    from gis import command_area_layer as cal
+
+    st.markdown("#### 🚰 Canal command areas (ayakat)")
+
+    if cal.available():
+        st.success(cal.source_note())
+        st.caption(
+            "Tick **Canal command areas (India-WRIS)** in the sidebar "
+            "to draw them. Inside a command area, canal-irrigated "
+            "farmland is located for free - no satellite, no land "
+            "records. Worth using in Raichur, Yadgir, Mandya and "
+            "Koppal; close to useless in Tumakuru or Chitradurga, "
+            "where nearly all irrigation is borewell.")
+        return
+
+    st.caption(
+        "Not harvested yet. The server fetches these itself on "
+        "restart - it needs open internet and an Indian IP, which is "
+        "why it cannot be done from a browser. Press below to run it "
+        "now and see the result.")
+
+    if not st.button("Harvest canal command areas now",
+                     key="wris_fetch"):
+        return
+
+    import subprocess
+    import sys
+
+    from config import PROJECT_ROOT
+    script = PROJECT_ROOT / "scripts" / "fetch_wris_command_areas.py"
+
+    with st.spinner("Paging the India-WRIS service (up to 2 min)..."):
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(script)],
+                capture_output=True, text=True, timeout=240)
+        except subprocess.TimeoutExpired:
+            st.warning(
+                "India-WRIS did not finish in time. The service is "
+                "often slow - try again later; nothing else is "
+                "affected.")
+            return
+        except Exception as e:
+            st.warning(f"Could not run the harvester: {e}")
+            return
+
+    out = ((proc.stdout or "") + "\n" + (proc.stderr or "")).strip()
+    cal._load.cache_clear()
+
+    if cal.available():
+        st.success(f"Done. {cal.source_note()} Tick the layer in the "
+                   f"sidebar to see it.")
+    else:
+        st.warning(
+            "India-WRIS did not return any command-area polygons. It "
+            "renames its layers periodically, so this needs a look at "
+            "what the service currently publishes.")
+    if out:
+        with st.expander("Harvester output", expanded=False):
+            st.code(out[-3000:])
+
+
 def _satellite_block(lat, lon, radius, year, summary):
     st.markdown("#### 🛰️ What the satellite sees")
     st.caption(
@@ -256,6 +326,9 @@ def irrigation_panel():
         st.caption(
             f"Districts in view: {', '.join(summary['districts'])} · "
             f"{irrigation.VINTAGE}.")
+
+        st.divider()
+        _command_area_block()
 
         st.divider()
         _satellite_block(lat, lon, radius, year, summary)

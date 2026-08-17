@@ -663,13 +663,13 @@ def mapview():
     # Panels under the map. Failures are SHOWN, never swallowed - a
     # silent 'except: pass' here once hid a crashed panel completely
     # and it just looked like missing data.
+    # Irrigation and Forest live in their own Analysis Results tabs
+    # (💧 Irrigation, 🌳 Forest vs Farmland). They are deliberately NOT
+    # repeated here: the same widget keys rendering twice in one run
+    # raises a duplicate-key error.
     for _label, _mod, _fn in (
             ("Measured coconut (crop survey)",
-             "ui.crop_survey_panel", "coconut_survey_panel"),
-            ("Irrigation", "ui.irrigation_panel",
-             "irrigation_panel"),
-            ("Forest vs farmland", "ui.forest_panel",
-             "forest_panel")):
+             "ui.crop_survey_panel", "coconut_survey_panel"),):
         try:
             import importlib
             getattr(importlib.import_module(_mod), _fn)()

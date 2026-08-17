@@ -174,8 +174,12 @@ def _dept_block(lat, lon, radius):
             "opportunity against the acreage the satellite finds.")
 
 
-def forest_panel():
-    """Rendered under the map. Quiet until there is something to say."""
+def forest_body(as_tab=False):
+    """Forest-vs-farmland plus the department crop figures.
+
+    as_tab=True renders flat for the Analysis Results tab; otherwise
+    inside a collapsed expander under the map.
+    """
     try:
         lat = float(st.session_state.lat)
         lon = float(st.session_state.lon)
@@ -184,8 +188,18 @@ def forest_panel():
     except (TypeError, ValueError, AttributeError):
         return
 
-    with st.expander("🌳 Forest vs farmland - and the department's crop "
-                     "figures", expanded=False):
+    import contextlib
+    box = (contextlib.nullcontext() if as_tab else st.expander(
+        "🌳 Forest vs farmland - and the department's crop figures",
+        expanded=False))
+    with box:
+        if as_tab:
+            st.markdown("### 🌳 Forest vs farmland")
         _forest_block(lat, lon, radius, year)
         st.divider()
         _dept_block(lat, lon, radius)
+
+
+def forest_panel():
+    """Collapsed panel under the map."""
+    forest_body(as_tab=False)

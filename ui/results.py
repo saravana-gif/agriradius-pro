@@ -2493,6 +2493,20 @@ def _point_details_view():
                 use_container_width=True)
 
 
+def _irrigation_tab():
+    """💧 Irrigation - district source split, village-level measurement,
+    satellite methods, well census and the canal command areas."""
+    from ui.irrigation_panel import irrigation_body
+    irrigation_body(as_tab=True)
+
+
+def _forest_tab():
+    """🌳 Forest vs farmland - plantation acreage with natural forest
+    removed, plus the department's own crop figures."""
+    from ui.forest_panel import forest_body
+    forest_body(as_tab=True)
+
+
 def results():
 
     if st.session_state.get("mode") == "Point location":
@@ -2506,13 +2520,20 @@ def results():
     _data_confidence_panel()
 
     (tab_summary, tab_villages, tab_charts, tab_crop,
-     tab_rain, tab_forecast, tab_soil, tab_allied, tab_mandi, tab_gt,
-     tab_downloads) = st.tabs(
+     tab_irrigation, tab_forest, tab_rain, tab_forecast, tab_soil,
+     tab_allied, tab_mandi, tab_gt, tab_downloads) = st.tabs(
         ["📊 Summary", "🏘️ Villages", "📈 Charts",
-         "🌱 Crop Cycle", "🌧️ Rainfall", "⛅ Forecast",
+         "🌱 Crop Cycle", "💧 Irrigation", "🌳 Forest vs Farmland",
+         "🌧️ Rainfall", "⛅ Forecast",
          "🧪 Soil", "🐄 Allied Sectors", "💰 Mandi",
          "✅ Ground Truth", "📥 Downloads"]
     )
+
+    with tab_irrigation:
+        _safe(_irrigation_tab)
+
+    with tab_forest:
+        _safe(_forest_tab)
 
     with tab_summary:
         _safe(_summary_tab, df)

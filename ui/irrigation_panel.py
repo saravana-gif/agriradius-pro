@@ -493,8 +493,14 @@ def _satellite_block(lat, lon, radius, year, summary):
             f"sources, not as a total for this circle.")
 
 
-def irrigation_panel():
-    """Rendered under the map. Silent outside Karnataka."""
+def irrigation_body(as_tab=False):
+    """The whole irrigation briefing.
+
+    as_tab=True renders it flat (for the Irrigation tab in Analysis
+    Results); otherwise it goes inside a collapsed expander under the
+    map. Streamlit forbids nested expanders, which is why this split
+    exists rather than one function with a container argument.
+    """
     if not irrigation.available():
         return
 
@@ -525,8 +531,13 @@ def irrigation_panel():
             f"{summary['borewell_pct']:.0f}% borewell)"
             if summary.get("borewell_pct") is not None else "")
 
-    with st.expander(f"💧 Irrigation - how this land is watered {head}",
-                     expanded=False):
+    import contextlib
+    box = (contextlib.nullcontext() if as_tab else st.expander(
+        f"💧 Irrigation - how this land is watered {head}",
+        expanded=False))
+    with box:
+        if as_tab:
+            st.markdown(f"### 💧 Irrigation {head}")
 
         st.caption(
             "District irrigation by SOURCE, from the Land Use "
@@ -591,3 +602,8 @@ def irrigation_panel():
                 pd.DataFrame(irrigation.GLOSSARY,
                              columns=["Term", "Meaning"]),
                 use_container_width=True, hide_index=True)
+
+
+def irrigation_panel():
+    """Collapsed briefing under the map."""
+    irrigation_body(as_tab=False)

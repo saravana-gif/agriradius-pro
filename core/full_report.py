@@ -388,6 +388,24 @@ def gather(progress=None):
         bundle["irrigation_villages_summary"] = None
         bundle["notes"].append(f"Village irrigation skipped: {e}")
 
+    # Counted irrigation structures (Minor Irrigation Census) - neither
+    # a district aggregate nor a satellite estimate.
+    try:
+        from core import mi_census
+        if mi_census.available():
+            names = [d for _s, d in
+                     (allied.districts_touching(lat, lon, radius)
+                      or [])]
+            bundle["mi_census"] = mi_census.area_table(names)
+            bundle["mi_census_level"] = mi_census.granularity()
+            bundle["mi_census_note"] = mi_census.source_note()
+        else:
+            bundle["mi_census"] = None
+            bundle["mi_census_note"] = mi_census.source_note()
+    except Exception:
+        bundle["mi_census"] = None
+        bundle["mi_census_note"] = None
+
     # Mandi price trend / variety - only if fetched in the Mandi tab.
     bundle["mandi_hist"] = st.session_state.get("mandi_hist")
     bundle["mandi_var"] = st.session_state.get("mandi_var")
@@ -462,6 +480,9 @@ def pdf_bytes(bundle):
         irrigation_villages=bundle.get("irrigation_villages"),
         irrigation_villages_summary=bundle.get(
             "irrigation_villages_summary"),
+        mi_census=bundle.get("mi_census"),
+        mi_census_level=bundle.get("mi_census_level"),
+        mi_census_note=bundle.get("mi_census_note"),
     )
 
 
@@ -652,6 +673,9 @@ def excel_bytes(bundle):
         ("Irrigation - Satellite", irr_sat),
         ("Irrigation - All Karnataka", irr_all),
         ("Irrigation - By Village", bundle.get("irrigation_villages")),
+        ("Irrigation - Well Census",
+         (pd.DataFrame(bundle["mi_census"])
+          if bundle.get("mi_census") else None)),
         ("Sourcing Scores", bundle.get("scores_df")),
         ("Village Insights", bundle.get("insights_df")),
         ("Village Soil", bundle.get("village_soil_df")),

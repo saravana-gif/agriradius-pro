@@ -38,8 +38,17 @@ def _districts_in_view(lat, lon, radius):
         return []
 
 
+MAX_AUTO_RADIUS_KM = 30
+
+
 def _village_block(lat, lon, radius, year):
-    """Village-by-village irrigation - the finest level open data allows."""
+    """Village-by-village irrigation - the finest level open data allows.
+
+    Runs AUTOMATICALLY for the searched area (cached per area, so a
+    re-render costs nothing). Very large circles still ask first,
+    because hundreds of village polygons is the heaviest call in the
+    app and the Earth Engine budget is shared.
+    """
     st.markdown("#### 🏘️ Irrigation village by village")
     st.caption(
         "The government source split exists only per district. So each "
@@ -50,21 +59,37 @@ def _village_block(lat, lon, radius, year):
         "seasonal Crop Survey, neither of which has an open bulk API.")
 
     key = f"irr_villages_{round(lat, 3)}_{round(lon, 3)}_{radius}"
-    if st.button("Measure irrigation for every village here",
-                 key="irr_vill_btn"):
+
+    auto = radius <= MAX_AUTO_RADIUS_KM
+    run = st.button("Re-measure now" if key in st.session_state
+                    else "Measure irrigation for every village here",
+                    key="irr_vill_btn")
+
+    if run or (auto and key not in st.session_state):
         try:
             from gee.village_irrigation import village_irrigation
             with st.spinner("Measuring each village polygon "
-                            "(1-3 min, then cached)..."):
+                            "(1-3 min the first time, then cached)..."):
                 st.session_state[key] = village_irrigation(
                     lat, lon, radius, year)
         except Exception as e:
+            st.session_state[key] = None
             st.warning(f"Village irrigation run failed: {e}")
             return
+    elif not auto and key not in st.session_state:
+        st.info(
+            f"This circle is {radius:.0f} km - larger than the "
+            f"{MAX_AUTO_RADIUS_KM} km auto-run limit, because village "
+            f"measurement is the heaviest analysis here. Press the "
+            f"button to run it anyway, or reduce the radius and it "
+            f"runs by itself.")
+        return
 
     df = st.session_state.get(key)
-    if df is None or df.empty:
+    if df is None or (hasattr(df, "empty") and df.empty):
         return
+
+    _census_block(df)
 
     from gee.village_irrigation import summary as _vsum
     s = _vsum(df)
@@ -95,6 +120,109 @@ def _village_block(lat, lon, radius, year):
         df.to_csv(index=False).encode(),
         file_name="irrigation_by_village.csv", mime="text/csv",
         key="irr_vill_dl")
+
+
+def _census_block(vdf):
+    """Counted irrigation structures (Minor Irrigation Census).
+
+    The only irrigation evidence here that is neither a district
+    aggregate nor a satellite estimate - enumerators counted the wells.
+    Joined onto the villages just measured, where the census reaches
+    village level.
+    """
+    from core import mi_census
+
+    st.markdown("**Counted irrigation structures (Minor Irrigation "
+                "Census)**")
+
+    if not mi_census.available():
+        st.caption(
+            "Not harvested yet. " + mi_census.source_note()
+            + " It reuses the data.gov.in key the mandi prices already "
+              "use, so nothing new is needed.")
+        if st.button("Harvest the Minor Irrigation Census now",
+                     key="mi_fetch"):
+            import subprocess
+            import sys as _sys
+
+            from config import PROJECT_ROOT
+            from core.secrets import get as _secret
+
+            import os
+            env = dict(os.environ)
+            k = _secret("DATA_GOV_API_KEY")
+            if k:
+                env["DATA_GOV_API_KEY"] = str(k)
+            script = (PROJECT_ROOT / "scripts"
+                      / "fetch_mi_census.py")
+            with st.spinner("Paging data.gov.in - this resource has "
+                            "~190k rows, so give it a few minutes..."):
+                try:
+                    proc = subprocess.run(
+                        [_sys.executable, str(script)],
+                        capture_output=True, text=True, timeout=900,
+                        env=env)
+                except Exception as e:
+                    st.warning(f"Harvest failed: {e}")
+                    return
+            mi_census._load.cache_clear()
+            if mi_census.available():
+                st.success(mi_census.source_note())
+            else:
+                st.warning(
+                    "data.gov.in returned nothing usable. "
+                    + ((proc.stderr or "")[-400:] if proc else ""))
+        return
+
+    st.caption(mi_census.source_note()
+               + f" · {mi_census.VINTAGE}")
+
+    level = mi_census.granularity()
+    if level == "village":
+        lookup = mi_census.village_lookup()
+        import re as _re
+
+        def _k(s):
+            return _re.sub(r"[^a-z0-9]", "", str(s or "").lower())
+
+        rows = []
+        for _, r in vdf.iterrows():
+            hit = lookup.get((_k(r.get("village")),
+                              _k(r.get("district")))) or \
+                lookup.get((_k(r.get("village")), ""))
+            if not hit:
+                continue
+            row = {"village": r.get("village"),
+                   "district": r.get("district"),
+                   "irrigated_ac": r.get("irrigated_ac")}
+            row.update(hit)
+            rows.append(row)
+        if rows:
+            st.dataframe(pd.DataFrame(rows),
+                         use_container_width=True, hide_index=True,
+                         height=300)
+            st.caption(
+                "Counted structures beside the measured irrigated "
+                "area for the same village - two independent kinds of "
+                "evidence. Many wells and little irrigated area can "
+                "mean failed or disused borewells; the reverse "
+                "suggests canal or tank water.")
+        else:
+            st.caption(
+                "None of the villages measured here appear in the "
+                "census extract - village names in the census often "
+                "differ from the census-2011 boundary names.")
+    else:
+        dists = sorted({str(d) for d in vdf.get("district", [])
+                        if str(d) not in ("nan", "None", "")})
+        table = mi_census.area_table(dists)
+        if table:
+            st.dataframe(pd.DataFrame(table),
+                         use_container_width=True, hide_index=True)
+            st.caption(
+                f"This census resource publishes at **{level}** level, "
+                f"so it is shown at that level rather than pretending "
+                f"to be per village.")
 
 
 def _command_area_block():

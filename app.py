@@ -30,13 +30,28 @@ def _boundary_bootstrap():
     import sys as _sys
     from config import PROJECT_ROOT
 
+    import os
+
+    # The Minor Irrigation Census harvester needs the data.gov.in key -
+    # the same one the mandi prices already use.
+    env = dict(os.environ)
+    try:
+        from core.secrets import get as _secret
+        key = _secret("DATA_GOV_API_KEY")
+        if key:
+            env["DATA_GOV_API_KEY"] = str(key)
+    except Exception:
+        pass
+
     for script in ("fetch_boundaries.py",
-                   "fetch_wris_command_areas.py"):
+                   "fetch_wris_command_areas.py",
+                   "fetch_mi_census.py"):
         try:
             subprocess.Popen(
                 ["nice", "-n", "10", _sys.executable,
                  str(PROJECT_ROOT / "scripts" / script)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                env=env)
         except Exception:
             continue
     return True

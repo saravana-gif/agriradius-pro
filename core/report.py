@@ -155,7 +155,9 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       irrigation_rank=None, irrigation_sat=None,
                       irrigation_verdict=None,
                       irrigation_villages=None,
-                      irrigation_villages_summary=None):
+                      irrigation_villages_summary=None,
+                      mi_census=None, mi_census_level=None,
+                      mi_census_note=None):
     """Assemble the full PDF. Returns bytes."""
 
     ss = _styles()
@@ -560,6 +562,23 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                     1.5 * cm],
             font_size=6)
         story.append(Spacer(1, 12))
+
+    if mi_census:
+        try:
+            import pandas as pd
+            story.append(Paragraph(
+                "Counted irrigation structures - Minor Irrigation "
+                "Census", ss["Normal"]))
+            story.append(Paragraph(
+                "Enumerators counted these wells, tubewells and lift "
+                "schemes: the only irrigation evidence in this report "
+                "that is neither a district aggregate nor a satellite "
+                f"estimate. Published at {mi_census_level or 'admin'} "
+                f"level. {mi_census_note or ''}", ss["Small"]))
+            _df_table(story, pd.DataFrame(mi_census), font_size=7)
+            story.append(Spacer(1, 12))
+        except Exception:
+            pass
 
     # ---------------- Modelled soil ----------------
     if soil_verdicts:

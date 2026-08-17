@@ -153,7 +153,9 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       gt_df=None, cards_df=None, notes=None,
                       irrigation=None, irrigation_note=None,
                       irrigation_rank=None, irrigation_sat=None,
-                      irrigation_verdict=None):
+                      irrigation_verdict=None,
+                      irrigation_villages=None,
+                      irrigation_villages_summary=None):
     """Assemble the full PDF. Returns bytes."""
 
     ss = _styles()
@@ -519,6 +521,44 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             "north Karnataka. Expect 80-90% parcel accuracy in the "
             "dry interior, 60-75% on the coast and in Malnad.",
             ss["Small"]))
+        story.append(Spacer(1, 12))
+
+    if irrigation_villages is not None and len(irrigation_villages):
+        story.append(Paragraph(
+            "Irrigation village by village (measured per polygon)",
+            ss["Normal"]))
+        vs = irrigation_villages_summary or {}
+        if vs:
+            story.append(_table([
+                ["Villages", "Irrigated", "Likely borewell-fed",
+                 "2+ methods agree"],
+                [f"{vs.get('villages', 0):,}",
+                 f"{vs.get('irrigated_ac', 0):,} ac"
+                 + (f" ({vs['irrigated_pct']}%)"
+                    if vs.get("irrigated_pct") is not None else ""),
+                 f"{vs.get('borewell_fed_ac', 0):,} ac",
+                 f"{vs.get('agree_2plus_ac', 0):,} ac"],
+            ], [3 * cm, 4.5 * cm, 4 * cm, 4 * cm]))
+            story.append(Paragraph(
+                f"{vs.get('heavily_irrigated_villages', 0)} villages "
+                f"are 40%+ irrigated; "
+                f"{vs.get('rainfed_villages', 0)} are effectively "
+                f"rain-fed. The government source split is published "
+                f"per district only, so these village figures are "
+                f"measured from each village's own polygon.",
+                ss["Small"]))
+            story.append(Spacer(1, 4))
+        _df_table(
+            story, irrigation_villages,
+            columns=["village", "taluk", "district", "cropland_ac",
+                     "irrigated_ac", "irrigated_pct",
+                     "radar_event_ac", "borewell_fed_ac",
+                     "agree_2plus_ac", "district_borewell_pct",
+                     "district_canal_pct"],
+            widths=[2.9 * cm, 2.3 * cm, 2.2 * cm, 1.7 * cm, 1.7 * cm,
+                    1.5 * cm, 1.7 * cm, 1.8 * cm, 1.8 * cm, 1.6 * cm,
+                    1.5 * cm],
+            font_size=6)
         story.append(Spacer(1, 12))
 
     # ---------------- Modelled soil ----------------

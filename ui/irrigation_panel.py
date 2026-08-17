@@ -38,6 +38,65 @@ def _districts_in_view(lat, lon, radius):
         return []
 
 
+def _village_block(lat, lon, radius, year):
+    """Village-by-village irrigation - the finest level open data allows."""
+    st.markdown("#### 🏘️ Irrigation village by village")
+    st.caption(
+        "The government source split exists only per district. So each "
+        "village's irrigated AREA is measured here from its own "
+        "polygon - the same resolution as the SHC village layer. "
+        "Village level is as fine as public data goes: survey-number "
+        "irrigation lives only in the Bhoomi RTC/Pahani and the "
+        "seasonal Crop Survey, neither of which has an open bulk API.")
+
+    key = f"irr_villages_{round(lat, 3)}_{round(lon, 3)}_{radius}"
+    if st.button("Measure irrigation for every village here",
+                 key="irr_vill_btn"):
+        try:
+            from gee.village_irrigation import village_irrigation
+            with st.spinner("Measuring each village polygon "
+                            "(1-3 min, then cached)..."):
+                st.session_state[key] = village_irrigation(
+                    lat, lon, radius, year)
+        except Exception as e:
+            st.warning(f"Village irrigation run failed: {e}")
+            return
+
+    df = st.session_state.get(key)
+    if df is None or df.empty:
+        return
+
+    from gee.village_irrigation import summary as _vsum
+    s = _vsum(df)
+    if s:
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Villages measured", f"{s['villages']:,}")
+        c2.metric("Irrigated",
+                  f"{s['irrigated_ac']:,} ac"
+                  + (f" · {s['irrigated_pct']}%"
+                     if s.get("irrigated_pct") is not None else ""))
+        c3.metric("Likely borewell-fed",
+                  f"{s['borewell_fed_ac']:,} ac")
+        c4.metric("2+ methods agree", f"{s['agree_2plus_ac']:,} ac")
+        st.caption(
+            f"{s['heavily_irrigated_villages']} villages are 40%+ "
+            f"irrigated; {s['rainfed_villages']} are effectively "
+            f"rain-fed. Tick **Irrigation source by district** in the "
+            f"sidebar and set *Irrigation resolution* to **Village "
+            f"detail** to see this painted on the map."
+            + (" Only the villages nearest the centre were measured "
+               "(payload cap) - reduce the radius for full coverage."
+               if s.get("truncated") else ""))
+
+    st.dataframe(df, use_container_width=True, hide_index=True,
+                 height=420)
+    st.download_button(
+        "📥 Village irrigation (CSV)",
+        df.to_csv(index=False).encode(),
+        file_name="irrigation_by_village.csv", mime="text/csv",
+        key="irr_vill_dl")
+
+
 def _command_area_block():
     """Canal command areas - harvest them from here, no shell needed.
 
@@ -326,6 +385,9 @@ def irrigation_panel():
         st.caption(
             f"Districts in view: {', '.join(summary['districts'])} · "
             f"{irrigation.VINTAGE}.")
+
+        st.divider()
+        _village_block(lat, lon, radius, year)
 
         st.divider()
         _command_area_block()

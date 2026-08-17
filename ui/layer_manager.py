@@ -96,24 +96,54 @@ def layer_manager():
                  "per village are small - treat as indicative.",
         )
 
-    # Irrigation source: which metric to paint on the districts.
+    # Irrigation source: village or district resolution, and which
+    # metric to paint.
     if st.session_state.layer_visibility.get("irrigation_source"):
         from gis import irrigation_layer
-        opts = irrigation_layer.metric_options()
-        keys = [k for k, _ in opts]
-        labels = {k: l for k, l in opts}
-        st.selectbox(
-            "Irrigation metric",
-            keys, index=keys.index("borewell_pct"),
-            format_func=lambda k: labels[k],
-            key="irrigation_metric",
-            help="District irrigation by SOURCE (Land Use Statistics "
-                 "2022-23, Karnataka). The borewell/canal split is the "
-                 "operational one: canal-led districts can be targeted "
-                 "from command-area maps, borewell-led districts "
-                 "cannot - those wells are invisible to infrastructure "
-                 "data.",
+
+        res = st.radio(
+            "Irrigation resolution",
+            ["Village detail (measured, live)", "District statistics"],
+            key="irrigation_res",
+            help="Village detail measures each village polygon's OWN "
+                 "irrigated area from satellite - like the SHC "
+                 "village layer. District statistics show the "
+                 "government source split (canal / borewell / tank), "
+                 "which is only published per district.",
         )
+
+        if str(res).startswith("Village"):
+            opts = irrigation_layer.village_metric_options()
+            keys = [k for k, _ in opts]
+            labels = {k: l for k, l in opts}
+            st.selectbox(
+                "Village irrigation metric",
+                keys,
+                format_func=lambda k: labels[k],
+                key="irrigation_village_metric",
+                help="Measured per village for the analysis circle: "
+                     "irrigated share, irrigated acres, likely "
+                     "borewell-fed acres, acres two or more methods "
+                     "agree on, and radar wetting events. First run "
+                     "takes 1-3 minutes, then it is cached.",
+            )
+        else:
+            opts = irrigation_layer.metric_options()
+            keys = [k for k, _ in opts]
+            labels = {k: l for k, l in opts}
+            st.selectbox(
+                "District irrigation metric",
+                keys, index=keys.index("borewell_pct"),
+                format_func=lambda k: labels[k],
+                key="irrigation_metric",
+                help="District irrigation by SOURCE (Land Use "
+                     "Statistics 2022-23, Karnataka). The "
+                     "borewell/canal split is the operational one: "
+                     "canal-led districts can be targeted from "
+                     "command-area maps, borewell-led districts "
+                     "cannot - those wells are invisible to "
+                     "infrastructure data.",
+            )
 
     # Coconut crop survey: measured, village-level government records.
     if st.session_state.layer_visibility.get("coconut_survey"):
@@ -246,12 +276,23 @@ def legends():
 
     if vis.get("irrigation_source"):
         from gis import irrigation_layer
-        metric = st.session_state.get("irrigation_metric",
-                                      "borewell_pct")
-        if metric in irrigation_layer.METRICS:
-            _legend(
-                f"Irrigation: {irrigation_layer.METRICS[metric][0]}",
-                irrigation_layer.legend_items(metric))
+        res = st.session_state.get("irrigation_res", "")
+        if str(res).startswith("Village"):
+            vm = st.session_state.get("irrigation_village_metric",
+                                      "irrigated_pct")
+            if vm in irrigation_layer.VILLAGE_METRICS:
+                _legend(
+                    f"Village irrigation: "
+                    f"{irrigation_layer.VILLAGE_METRICS[vm][0]}",
+                    irrigation_layer.village_legend_items(vm))
+        else:
+            metric = st.session_state.get("irrigation_metric",
+                                          "borewell_pct")
+            if metric in irrigation_layer.METRICS:
+                _legend(
+                    f"Irrigation: "
+                    f"{irrigation_layer.METRICS[metric][0]}",
+                    irrigation_layer.legend_items(metric))
 
     if vis.get("irrigation_lgrip"):
         _legend("LGRIP30 irrigated vs rain-fed",

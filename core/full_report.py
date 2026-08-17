@@ -374,6 +374,20 @@ def gather(progress=None):
         bundle["irrigation_verdict"] = None
         bundle["notes"].append(f"Satellite irrigation skipped: {e}")
 
+    # Village-level irrigation: every village polygon measured on its
+    # own, because the government source split is district-only.
+    step(99, "Irrigation village by village...")
+    try:
+        from gee.village_irrigation import summary as _vsum
+        from gee.village_irrigation import village_irrigation
+        vdf = village_irrigation(lat, lon, radius, year)
+        bundle["irrigation_villages"] = vdf
+        bundle["irrigation_villages_summary"] = _vsum(vdf)
+    except Exception as e:
+        bundle["irrigation_villages"] = None
+        bundle["irrigation_villages_summary"] = None
+        bundle["notes"].append(f"Village irrigation skipped: {e}")
+
     # Mandi price trend / variety - only if fetched in the Mandi tab.
     bundle["mandi_hist"] = st.session_state.get("mandi_hist")
     bundle["mandi_var"] = st.session_state.get("mandi_var")
@@ -445,6 +459,9 @@ def pdf_bytes(bundle):
         irrigation_rank=bundle.get("irrigation_rank"),
         irrigation_sat=bundle.get("irrigation_sat"),
         irrigation_verdict=bundle.get("irrigation_verdict"),
+        irrigation_villages=bundle.get("irrigation_villages"),
+        irrigation_villages_summary=bundle.get(
+            "irrigation_villages_summary"),
     )
 
 
@@ -634,6 +651,7 @@ def excel_bytes(bundle):
         ("Irrigation - Districts", irr_rank),
         ("Irrigation - Satellite", irr_sat),
         ("Irrigation - All Karnataka", irr_all),
+        ("Irrigation - By Village", bundle.get("irrigation_villages")),
         ("Sourcing Scores", bundle.get("scores_df")),
         ("Village Insights", bundle.get("insights_df")),
         ("Village Soil", bundle.get("village_soil_df")),

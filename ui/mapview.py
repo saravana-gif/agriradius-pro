@@ -512,24 +512,50 @@ def mapview():
         from gis import irrigation_layer
 
         try:
-            metric = st.session_state.get(
-                "irrigation_metric", "borewell_pct")
-            label = irrigation_layer.METRICS.get(
-                metric, irrigation_layer.METRICS["borewell_pct"])[0]
-            gj = irrigation_layer.geojson_for(
-                metric,
-                round(float(st.session_state.lat), 4),
-                round(float(st.session_state.lon), 4),
-                float(st.session_state.get("radius", 10)),
-            )
+            _lat = round(float(st.session_state.lat), 4)
+            _lon = round(float(st.session_state.lon), 4)
+            _rad = float(st.session_state.get("radius", 10))
+            res = st.session_state.get(
+                "irrigation_res", "Village detail (measured, live)")
+
+            gj, label = None, ""
+            if str(res).startswith("Village"):
+                vm = st.session_state.get(
+                    "irrigation_village_metric", "irrigated_pct")
+                label = irrigation_layer.VILLAGE_METRICS.get(
+                    vm,
+                    irrigation_layer.VILLAGE_METRICS[
+                        "irrigated_pct"])[0]
+                with st.spinner("Measuring irrigation village by "
+                                "village (first run 1-3 min)..."):
+                    gj = irrigation_layer.geojson_villages(
+                        vm, _lat, _lon, _rad,
+                        int(st.session_state.get("year", 2025)))
+                if gj is None:
+                    st.caption(
+                        "Could not measure village-level irrigation "
+                        "here - falling back to the district "
+                        "statistics.")
+
+            if gj is None:
+                metric = st.session_state.get(
+                    "irrigation_metric", "borewell_pct")
+                label = irrigation_layer.METRICS.get(
+                    metric,
+                    irrigation_layer.METRICS["borewell_pct"])[0]
+                gj = irrigation_layer.geojson_for(
+                    metric, _lat, _lon, _rad)
+
             if gj:
                 engine.add_choropleth(
-                    gj, f"Irrigation source - {label}",
+                    gj, f"Irrigation - {label}",
                     fill_opacity=min(0.8, _op + 0.1))
             else:
                 st.caption(
-                    "No irrigation-source statistics for this area - "
-                    "the district table covers Karnataka only.")
+                    "No irrigation data could be drawn here. The "
+                    "government source split covers Karnataka only; "
+                    "village-level measurement needs cropland and "
+                    "village boundaries in the circle.")
         except Exception as e:
             st.warning(f"Could not load the irrigation layer: {e}")
 

@@ -104,16 +104,34 @@ def _mask_s2(img):
 
 
 def _cropland(buffer, year):
-    """Cropland mask: Dynamic World crops, widened by GFSAD where
-    available. Irrigation is only meaningful on cropland."""
+    """Cropland mask - irrigation is only meaningful on cropland.
+
+    Dynamic World crops, widened by ESA WorldCover's cropland class.
+    Both are OFFICIAL Earth Engine catalogue datasets. The GFSAD
+    community mirror was used here before and silently poisoned every
+    layer built on it: Earth Engine is lazy, so an unreadable asset
+    only errors when the tile is requested, long after the try/except
+    around its construction has passed.
+    """
+    from gee.assets import (GCEP30, WORLDCOVER, WORLDCOVER_CROPLAND,
+                            asset_ok)
     from gee.dynamic_world import dw_crops_mask
+
     dw = dw_crops_mask(buffer, f"{year}-01-01", f"{year}-12-31")
     try:
-        gcep = ee.Image(
-            "projects/sat-io/open-datasets/GFSAD/GCEP30").eq(2)
-        return dw.Or(gcep)
+        wc = (ee.Image(WORLDCOVER).select("Map")
+              .eq(WORLDCOVER_CROPLAND))
+        mask = dw.Or(wc)
     except Exception:
-        return dw
+        mask = dw
+
+    # Only add the community GFSAD layer when it is genuinely readable.
+    if asset_ok(GCEP30):
+        try:
+            mask = mask.Or(ee.Image(GCEP30).eq(2))
+        except Exception:
+            pass
+    return mask
 
 
 def summer_green_mask(buffer, year, ndvi_min=None, ndmi_min=None):
@@ -242,15 +260,36 @@ def evidence_score(buffer, year, ndvi_min=None, ndmi_min=None):
         _cropland(buffer, year))
 
 
+def multicrop_available():
+    from gee.assets import GCI30, asset_ok
+    return asset_ok(GCI30)
+
+
 def multicrop_mask(buffer):
-    """Two or more crops a year (GCI30). 127 is the fill value."""
-    gci = ee.Image("projects/sat-io/open-datasets/GCI30")
+    """Two or more crops a year (GCI30). 127 is the fill value.
+
+    Raises when the community asset is unreadable, so callers report
+    it instead of drawing an empty layer.
+    """
+    from gee.assets import GCI30, asset_ok, missing_note
+    if not asset_ok(GCI30):
+        raise RuntimeError(missing_note(GCI30, "The multi-crop layer"))
+    gci = ee.Image(GCI30)
     return gci.gte(2).And(gci.neq(127)).rename("multicrop")
+
+
+def lgrip_available():
+    from gee.assets import LGRIP30, asset_ok
+    return asset_ok(LGRIP30)
 
 
 def lgrip_masks():
     """(irrigated, rainfed) from LGRIP30. 2=irrigated, 3=rain-fed."""
-    lg = ee.Image("projects/sat-io/open-datasets/GFSAD/LGRIP30")
+    from gee.assets import LGRIP30, asset_ok, missing_note
+    if not asset_ok(LGRIP30):
+        raise RuntimeError(missing_note(
+            LGRIP30, "The LGRIP30 irrigated/rain-fed layer"))
+    lg = ee.Image(LGRIP30)
     return lg.eq(2).rename("lgrip_irrigated"), \
         lg.eq(3).rename("lgrip_rainfed")
 

@@ -454,8 +454,6 @@ def gather(progress=None):
     bundle["mandi_hist"] = st.session_state.get("mandi_hist")
     bundle["mandi_var"] = st.session_state.get("mandi_var")
 
-    # Monthly series so the PDF can chart what the tabs chart.
-    bundle["soil_profile_raw"] = bundle.get("soil_profile")
 
     # 12. Field data
     try:

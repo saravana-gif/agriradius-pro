@@ -233,7 +233,7 @@ def multimap_view():
     with st.spinner("Rendering comparison maps (first time is slower)…"):
         for lid, lbl in show:
             entry = {"name": lbl, "url": "", "geojson": None,
-                     "stat": ""}
+                     "stat": "", "why": None}
             try:
                 if lid in _VECTOR:
                     entry["geojson"] = _VECTOR[lid](lat, lon, radius)
@@ -249,8 +249,21 @@ def multimap_view():
             except Exception as e:
                 from core import usage as _u
                 _u.note_error("earth_engine", e)
-                entry["name"] = lbl + " (unavailable)"
+                msg = str(e)
+                if "cannot read" in msg or "community-catalogue" in msg:
+                    entry["name"] = lbl + " (dataset not available)"
+                    entry["why"] = msg
+                else:
+                    entry["name"] = lbl + " (unavailable)"
+                    entry["why"] = msg[:200]
             layers.append(entry)
+
+    _why = [(l["name"], l.get("why")) for l in layers if l.get("why")]
+    if _why:
+        with st.expander(f"Why {len(_why)} layer(s) did not draw",
+                         expanded=False):
+            for nm, w in _why:
+                st.markdown(f"- **{nm}** - {w}")
 
     if not any(l["url"] or l["geojson"] for l in layers):
         st.warning("Couldn't render any layers (Earth Engine may be "

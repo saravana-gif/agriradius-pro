@@ -276,8 +276,12 @@ def legends():
 
     if vis.get("irrigation_source"):
         from gis import irrigation_layer
+        # Follow what the map ACTUALLY drew - a legend that disagrees
+        # with the map is worse than no legend.
+        drawn = st.session_state.get("irrigation_drawn_res")
         res = st.session_state.get("irrigation_res", "")
-        if str(res).startswith("Village"):
+        if drawn == "village" or (drawn is None
+                                  and str(res).startswith("Village")):
             vm = st.session_state.get("irrigation_village_metric",
                                       "irrigated_pct")
             if vm in irrigation_layer.VILLAGE_METRICS:

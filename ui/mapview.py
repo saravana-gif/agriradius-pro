@@ -538,12 +538,22 @@ def mapview():
                         vm, _lat, _lon, _rad,
                         int(st.session_state.get("year", 2025)))
                 if gj is None:
+                    why = st.session_state.get(
+                        "irrigation_village_reason",
+                        "no reason recorded")
                     st.caption(
-                        "Could not measure village-level irrigation "
-                        "here - falling back to the district "
-                        "statistics.")
+                        f"Village-level irrigation could not be drawn "
+                        f"here because {why}. Showing the district "
+                        f"statistics instead - the legend below "
+                        f"reflects what is actually on the map.")
+                    st.session_state["irrigation_drawn_res"] = \
+                        "district"
+                else:
+                    st.session_state["irrigation_drawn_res"] = \
+                        "village"
 
             if gj is None:
+                st.session_state["irrigation_drawn_res"] = "district"
                 metric = st.session_state.get(
                     "irrigation_metric", "borewell_pct")
                 label = irrigation_layer.METRICS.get(

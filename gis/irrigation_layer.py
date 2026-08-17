@@ -206,23 +206,48 @@ def _village_tooltip(row):
     return "  |  ".join(bits)
 
 
+def _reason(text):
+    """Record WHY the village layer could not draw, for the UI to show.
+
+    Silent fallbacks are indistinguishable from missing data, which
+    wasted real debugging time once. Every early return says why.
+    """
+    try:
+        import streamlit as st
+        st.session_state["irrigation_village_reason"] = text
+    except Exception:
+        pass
+    return None
+
+
 def geojson_villages(metric, lat, lon, radius_km, year):
     """Village polygons coloured by their OWN measured irrigation.
 
     Mirrors the SHC village layer: real per-village numbers, not a
     district value spread across villages. Returns None when nothing
-    could be measured.
+    could be measured - and records the reason.
     """
     if metric not in VILLAGE_METRICS:
         metric = "irrigated_pct"
 
     try:
+        import streamlit as st
+        st.session_state.pop("irrigation_village_reason", None)
+    except Exception:
+        pass
+
+    try:
         from gee.village_irrigation import village_irrigation
         df = village_irrigation(lat, lon, radius_km, year)
-    except Exception:
-        return None
+    except Exception as e:
+        return _reason(
+            f"the per-village Earth Engine pass failed "
+            f"({type(e).__name__}: {e})")
     if df is None or df.empty:
-        return None
+        return _reason(
+            "the per-village Earth Engine pass returned no rows - "
+            "usually no village boundaries or no cropland inside the "
+            "circle")
 
     by_code = {}
     by_name = {}
@@ -238,10 +263,11 @@ def geojson_villages(metric, lat, lon, radius_km, year):
 
     try:
         gdf = villages_in_buffer(lat, lon, radius_km)
-    except Exception:
-        return None
+    except Exception as e:
+        return _reason(f"village boundaries could not be read ({e})")
     if gdf is None or gdf.empty:
-        return None
+        return _reason(
+            "no village boundaries are available for this area")
 
     gdf = gdf.copy()
     dedupe = [c for c in ("stname", "dtname", "vilname11", "vilcode11")
@@ -294,7 +320,10 @@ def geojson_villages(metric, lat, lon, radius_km, year):
         })
 
     if not painted:
-        return None
+        return _reason(
+            f"{len(feats)} village polygons were drawn but none could "
+            f"be matched to a measured row (village name/code mismatch "
+            f"between the boundary file and the measurement)")
     return {"type": "FeatureCollection", "features": feats}
 
 

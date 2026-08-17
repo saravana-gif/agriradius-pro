@@ -115,6 +115,69 @@ VINTAGES = {
                 "(soilhealth.dac.gov.in nutrient dashboard). Real "
                 "measurements, district-average resolution.",
     },
+    "crop_survey": {
+        "label": "Karnataka Crop Survey — coconut plots (measured)",
+        "as_of": "2023-24 Kharif",
+        "kind": "periodic",
+        "note": "Every coconut plot logged against its survey number "
+                "with GPS, aggregated per village (3,318 villages in "
+                "6 districts). Ground records, not a satellite "
+                "estimate — the app's strongest accuracy check.",
+    },
+    "irrigation_stats": {
+        "label": "Irrigation by source — Land Use Statistics "
+                 "(DES-Agri)",
+        "as_of": "2022-23",
+        "kind": "periodic",
+        "note": "Net & gross irrigated area by canal / tank / "
+                "borewell / dug well for all 31 Karnataka districts. "
+                "District aggregates — authoritative for the SOURCE "
+                "mix, not a plot-level flag.",
+    },
+    "irrigation_sat": {
+        "label": "Satellite irrigation detection (summer window + "
+                 "radar)",
+        "as_of": "selected analysis year, Feb–May window",
+        "kind": "modelled",
+        "note": "Our own classifier: cropland green AND moist through "
+                "the dry season, plus Sentinel-1 wetting events. "
+                "80-90% parcel accuracy in the semi-arid interior, "
+                "60-75% on the coast and in Malnad.",
+    },
+    "lgrip": {
+        "label": "LGRIP30 irrigated / rain-fed cropland (USGS/NASA)",
+        "as_of": "V001, 2015",
+        "kind": "periodic",
+        "note": "The 91% accuracy headline is CONTINENTAL US only "
+                "(V002). India is covered by V001 and no Indian "
+                "accuracy figure has ever been published. Class 0 is "
+                "ocean AND inland water, so tanks and reservoirs are "
+                "excluded rather than called rain-fed.",
+    },
+    "worldcereal_irr": {
+        "label": "ESA WorldCereal irrigation product",
+        "as_of": "2021",
+        "kind": "modelled",
+        "note": "LOWER BOUND only. ESA published no accuracy metrics "
+                "for it, the training data is biased toward "
+                "centre-pivot systems, and it under-maps Asia.",
+    },
+    "gci": {
+        "label": "GCI30 cropping intensity (crops per year)",
+        "as_of": "2016-2018 baseline",
+        "kind": "periodic",
+        "note": "Two or more crops a year. In the semi-arid interior "
+                "rainfall cannot support double cropping, so this is "
+                "strong independent evidence of irrigation.",
+    },
+    "wris": {
+        "label": "India-WRIS canal command areas (ayakat)",
+        "as_of": "as published by India-WRIS (undated service)",
+        "kind": "reference",
+        "note": "The land a canal actually serves. Decisive in "
+                "canal-led districts (Raichur 77% canal), close to "
+                "useless where irrigation is borewell-driven.",
+    },
 }
 
 # small icon per freshness kind

@@ -58,9 +58,45 @@ market prices and livestock/allied sectors.
   translucent badge; use the **Overlay opacity** slider to make sparse
   detection layers easier to see.
 
-Layers include: Dynamic World land cover, Cropland Confidence, Paddy,
-Maize, Plantations (coconut/arecanut), Banana, Aquaculture ponds,
-Soil pH / Organic Carbon / Nitrogen.
+**The layers, grouped as they appear in the sidebar:**
+
+*Crops & land cover (satellite):* Dynamic World land cover, Cropland
+Confidence, Paddy (radar), Plantations (coconut/arecanut), Banana,
+Maize / kharif, WorldCereal cropland, Aquaculture ponds.
+
+*Measured ground records (not satellite estimates):*
+- **SHC measured soil-test** — Soil Health Card lab results. Switch
+  *SHC resolution* to **Village detail** to get each village's own
+  samples; hover any village for its full nutrient readout, sample
+  count and the cycle the samples come from.
+- **Coconut — govt crop survey** — every coconut plot logged against
+  its survey number in the Karnataka Crop Survey (2023-24), aggregated
+  to 3,318 villages across Hassan, Mandya, Tumakuru, Ramanagara,
+  Chitradurga and Mysuru. Paint it by intensity, acres, plot count or
+  grower count.
+- **Irrigation source by district** — how the land is watered (canal /
+  tank / borewell / dug well), from Land Use Statistics 2022-23. Seven
+  views via *Irrigation metric*, including **dominant source** and
+  **gross:net** cropping intensity.
+- **Canal command areas (India-WRIS)** — the land a canal actually
+  serves ("ayakat").
+
+*Irrigation from satellite (💧 Irrigation group):*
+- **Irrigation confidence (0-5)** — start here. Colours land by **how
+  many independent methods agree** it is irrigated. 3+ means go look.
+- **Irrigated cropland — summer green** — cropland still green and
+  moist through **February-May**. Nothing survives a Karnataka summer
+  without applied water.
+- **Irrigation events — radar** — Sentinel-1 wetting events. The only
+  layer that **sees through cloud**, so it is the one to trust on the
+  coast and in Malnad.
+- **Canal/tank-fed vs borewell-fed** — irrigated land far from any
+  permanent surface water is almost certainly borewell-fed.
+- **Multi-crop land**, **LGRIP30 irrigated vs rain-fed**, **WorldCereal
+  irrigation** — three independent second opinions.
+
+*Soil (modelled):* Soil pH / Organic Carbon / Nitrogen (SoilGrids,
+250 m).
 
 #### 5. The results tabs (below the map)
 Some tabs fetch data only when you click a button, so nothing loads
@@ -96,21 +132,72 @@ unless you ask.
   to the shared dataset for calibration and the classifier.
 - **Downloads** — build a full **PDF / Excel report** of everything.
 
+#### 5b. Panels that appear under the map
+These show up on their own when the data covers where you are looking,
+and stay quiet when it doesn't:
+- **🥥 Measured coconut — government crop survey** — what the survey
+  actually recorded here: acres, plots, growers, villages, irrigation
+  share, and every village ranked. Run *Plantation Detection* first and
+  it also **scores the satellite against the survey** for the same
+  circle — the app's strongest accuracy check.
+- **💧 Irrigation — how this land is watered** — the source split
+  (borewell / canal / tank / well) with a chart, a district table, and
+  a plain instruction on **how to target field staff here**. Then:
+  - **Canal command areas** — press *Harvest* once and the server
+    fetches them from India-WRIS (it needs open internet and an Indian
+    IP, so a browser can't do it; the server also tries on every
+    restart).
+  - **Measure irrigated area here (satellite)** — runs all the
+    irrigation methods on demand, reports **2+ and 3+ method
+    agreement**, radar events, the borewell-vs-canal split, and how
+    accurate to expect it to be **in this zone**, then cross-checks
+    against the survey's own irrigation flags.
+
+#### 5c. What the irrigation numbers mean
+- **Quote the agreement figure, not one product.** "2+ methods agree"
+  is defensible; a single layer is an estimate.
+- **Borewell vs canal decides your method.** Karnataka is 56.6%
+  borewell-irrigated, and borewells appear on no canal map. In
+  Raichur (77% canal) work from command areas; in Tumakuru (99.5%
+  borewell) don't bother — use the satellite layers.
+- **Accuracy is not uniform.** 80-90% in the semi-arid interior and
+  north; **60-75% on the coast and in Malnad**, where rain keeps
+  everything green. The panel names your zone and its band.
+- **Rabi green ≠ irrigated in north Karnataka.** Rabi jowar and
+  chickpea on black cotton soil live on stored soil moisture. That's
+  why these layers use **February-May**, when nothing survives without
+  applied water.
+
 #### 6. How much to trust it
-Open the **Data & Confidence** box at the top of the results.
-**Measured** things (rainfall, crop vigour, radar detection, prices) are
-reliable; **modelled/classified** things (land-cover class, soil at
-250 m) are best read as **ranges**. Rule of thumb: *trust the direction
-and the ranges; verify the edges on the ground.* It improves as your
-team logs ground truth.
+Open the **Data & Confidence** box at the top of the results — it now
+separates four tiers:
+1. **Measured on the ground** — Soil Health Card lab results, the
+   coconut crop survey, irrigation-by-source statistics, mandi prices,
+   your own ground truth. Not estimates.
+2. **Direct satellite measurement** — crop vigour, rainfall, radar
+   detection and radar irrigation events.
+3. **Modelled / classified — read as ranges** — land-cover class, soil
+   at 250 m, satellite irrigation, LGRIP30, WorldCereal.
+4. **Cross-checks** — independent datasets compared, satellite scored
+   against the surveys, and irrigation scored 0-5 by method agreement.
+
+It also spells out the **two traps** the app avoids (rain-fed rabi on
+black cotton soil, and borewells that appear on no canal map) and the
+**honest limit**: nobody — government or commercial — has a reliable,
+current, plot-level irrigated/rain-fed flag for all of Karnataka.
+
+Rule of thumb: *trust the direction and the ranges; verify the edges on
+the ground.* It improves as your team logs ground truth.
 
 **Know how current each number is.** Every tab shows a small dated
 caption (🟢 live · 🟡 periodic release · 🟠 modelled · ⚪ historical
 reference), and the **Data & Confidence** box lists an *"as of"* date
 for every source. Live weather and mandi prices are today's; the
+coconut crop survey is 2023-24; irrigation-by-source is 2022-23; the
 livestock census is 2019; soil (SoilGrids) is a 2020 modelled baseline;
-the SLUSI land-capability survey is 1960-2018. Always read the date so
-you don't mistake older reference data for today's ground reality.
+LGRIP30 over India is 2015; the SLUSI land-capability survey is
+1960-2018. Always read the date so you don't mistake older reference
+data for today's ground reality.
 
 #### 7. Please test mindfully 🙏
 This is a **free, open-source** setup (Google Earth Engine) with a
@@ -124,7 +211,15 @@ The sidebar **Service health** panel shows the live EECU compute meter
 #### Quick fixes
 - *Slow first open?* It was asleep — wait ~30 s.
 - *"Earth Engine is busy"?* Wait a minute, click Refresh, or use Light.
-- *Tiles missing after zoom?* Click **Refresh map**.
+- *A layer looks missing / nothing painted?* Click **Refresh map** — it
+  rebuilds every overlay with a fresh Earth Engine token. (Tokens
+  expire; the app now checks each one before drawing and renews it
+  automatically, and if a layer truly can't be drawn it says so on the
+  map instead of showing plain satellite. The sidebar **Service
+  health** panel has a *Map tiles* line: checked / renewed / failed.)
+- *Irrigation or coconut panel not showing?* Those cover Karnataka
+  only — the coconut survey covers six districts. Outside their
+  coverage they stay hidden rather than showing blanks.
 - *Map jumped?* Re-search your location.
 """
 

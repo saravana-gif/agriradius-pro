@@ -29,6 +29,19 @@ DATASETS = {
         "source": "DES Fertiliser Statistics / data.gov.in",
         "note": "N+P+K nutrient use - proxy for input-market size.",
     },
+    # District file as well as the state one - it is finer, and was
+    # sitting unused on disk until now.
+    "horticulture_district": {
+        "label": "Horticulture area & production (district)",
+        "level": "district",
+        "file": REF_DIR / "horticulture_district.csv",
+        "source": ("State horticulture departments / "
+                   "'Horticulture Statistics at a Glance'"),
+        "note": "District fruit/veg/plantation area & output - finer "
+                "than the state figure. The bundled file is an empty "
+                "template: drop district rows in and they appear "
+                "automatically (tools/import_agri.py).",
+    },
     "horticulture": {
         "label": "Horticulture area & production",
         "level": "state",

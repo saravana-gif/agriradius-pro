@@ -122,6 +122,47 @@ def _village_block(lat, lon, radius, year):
         key="irr_vill_dl")
 
 
+def _dossier_block():
+    """The source dossier - every irrigation data source, downloadable.
+
+    Eight sheets covering plot-level sources, aggregate statistics,
+    satellite layers, live APIs, real district data, the targeting
+    playbook, commercial vendors and the access-request letters worth
+    writing. Kept alongside the app so the reasoning behind these
+    layers is never lost.
+    """
+    from config import PROJECT_ROOT
+
+    path = (PROJECT_ROOT / "data" / "Karnataka_Irrigation_Toolkit"
+            / "Karnataka_Irrigation_Data_Sources.xlsx")
+    if not path.exists():
+        return
+
+    st.markdown("#### 📚 Where all of this comes from")
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(path, read_only=True)
+        sheets = wb.sheetnames
+        st.caption(
+            "The full irrigation source dossier that this stack was "
+            "built from - " + str(len(sheets)) + " sheets: "
+            + ", ".join(sheets) + ".")
+    except Exception:
+        st.caption("The full irrigation source dossier this stack was "
+                   "built from.")
+
+    try:
+        st.download_button(
+            "📥 Irrigation data-source dossier (Excel)",
+            path.read_bytes(),
+            file_name=path.name,
+            mime="application/vnd.openxmlformats-officedocument."
+                 "spreadsheetml.sheet",
+            key="irr_dossier_dl")
+    except Exception:
+        pass
+
+
 def _census_block(vdf):
     """Counted irrigation structures (Minor Irrigation Census).
 
@@ -522,6 +563,9 @@ def irrigation_panel():
 
         st.divider()
         _satellite_block(lat, lon, radius, year, summary)
+
+        st.divider()
+        _dossier_block()
 
         st.divider()
         with st.expander("How far to trust this, and the land-record "

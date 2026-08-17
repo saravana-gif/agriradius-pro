@@ -284,6 +284,9 @@ def gather(progress=None):
                 "fertilizer", states, dists),
             "horticulture": agri_data.rows_for_area(
                 "horticulture", states, dists),
+            # District horticulture where published - finer than state.
+            "horticulture_district": agri_data.rows_for_area(
+                "horticulture_district", states, dists),
         }
     except Exception as e:
         bundle["allied"] = None

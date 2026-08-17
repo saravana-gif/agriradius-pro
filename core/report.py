@@ -867,6 +867,8 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
         for key, label in (("sericulture", "Sericulture (state)"),
                            ("fisheries", "Fisheries (state)"),
                            ("fertilizer", "Fertiliser use (state)"),
+                           ("horticulture_district",
+                            "Horticulture (district)"),
                            ("horticulture", "Horticulture (state)")):
             dfr = allied.get(key)
             if dfr is not None and len(dfr):

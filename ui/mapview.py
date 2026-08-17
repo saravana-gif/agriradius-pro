@@ -447,9 +447,16 @@ def mapview():
     #     source split. Kept as separate layers so you can see where
     #     independent methods agree. ---
     _IRR_TILES = (
+        ("irrigation_evidence", "gee.irrigation", "evidence_tile_url",
+         "Irrigation confidence (methods agreeing)"),
         ("irrigation_summer", "gee.irrigation",
          "summer_green_tile_url",
          "Irrigated cropland (summer green)"),
+        ("irrigation_events", "gee.irrigation", "s1_event_tile_url",
+         "Irrigation events (radar)"),
+        ("irrigation_water_source", "gee.irrigation",
+         "water_source_tile_url",
+         "Canal/tank-fed vs borewell-fed"),
         ("irrigation_multicrop", "gee.irrigation",
          "multicrop_tile_url", "Multi-crop land (2+ crops/yr)"),
         ("irrigation_lgrip", "gee.irrigation", "lgrip_tile_url",
@@ -478,6 +485,27 @@ def mapview():
             from core import usage as _u
             _u.note_error("earth_engine", e)
             st.warning(_u.friendly(e) or f"Could not load {_label}: {e}")
+
+    if vis.get("irrigation_command"):
+
+        from gis import command_area_layer
+
+        try:
+            gj = command_area_layer.geojson_for(
+                round(float(st.session_state.lat), 4),
+                round(float(st.session_state.lon), 4),
+                float(st.session_state.get("radius", 10)))
+            if gj:
+                engine.add_choropleth(
+                    gj, "Canal command areas (India-WRIS)",
+                    fill_opacity=min(0.55, _op))
+                st.caption(command_area_layer.source_note())
+            else:
+                st.caption(
+                    "No canal command areas here. "
+                    + command_area_layer.source_note())
+        except Exception as e:
+            st.warning(f"Could not load command areas: {e}")
 
     if vis.get("irrigation_source"):
 

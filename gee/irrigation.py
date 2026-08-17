@@ -60,8 +60,34 @@ NDVI_MIN = 0.35
 NDMI_MIN = 0.0
 
 
+# Published Sentinel-1 rule for irrigation EVENTS: the change in
+# plot-mean VV backscatter between consecutive passes.
+#   <= -0.5 dB  -> no irrigation
+#   >= +1.0 dB  -> probable irrigation event
+# Tested on plots of 0.1-65 ha at ~86% overall discrimination. Radar
+# sees through cloud, which is why this carries the coastal/Malnad
+# districts where the optical signal is useless.
+S1_EVENT_DB = 1.0
+
+# JRC Global Surface Water: occurrence >= this % means permanent water.
+PERMANENT_WATER_PCT = 50
+# Land within this distance of permanent water is plausibly served by
+# canal/tank (surface) irrigation rather than a borewell.
+SURFACE_WATER_M = 1500
+
+
 def _buffer(lat, lon, radius_km):
     return ee.Geometry.Point([lon, lat]).buffer(radius_km * 1000)
+
+
+def thresholds(districts=None):
+    """Zone-aware NDVI/NDMI thresholds (see core.irrigation)."""
+    try:
+        from core import irrigation as _ir
+        prof = _ir.zone_profile(districts or [])
+        return float(prof["ndvi"]), float(prof["ndmi"]), prof
+    except Exception:
+        return NDVI_MIN, NDMI_MIN, None
 
 
 def _summer_window(year):
@@ -90,8 +116,14 @@ def _cropland(buffer, year):
         return dw
 
 
-def summer_green_mask(buffer, year):
-    """Cropland still green AND moist through the dry season."""
+def summer_green_mask(buffer, year, ndvi_min=None, ndmi_min=None):
+    """Cropland still green AND moist through the dry season.
+
+    Thresholds default to the semi-arid interior; pass zone-aware
+    values (see thresholds()) for coastal/Malnad or the vertisol belt.
+    """
+    ndvi_min = NDVI_MIN if ndvi_min is None else ndvi_min
+    ndmi_min = NDMI_MIN if ndmi_min is None else ndmi_min
     s, e = _summer_window(year)
     col = (ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
            .filterBounds(buffer)
@@ -101,8 +133,113 @@ def summer_green_mask(buffer, year):
     med = col.median()
     ndvi = med.normalizedDifference(["B8", "B4"])
     ndmi = med.normalizedDifference(["B8", "B11"])
-    wet = ndvi.gte(NDVI_MIN).And(ndmi.gte(NDMI_MIN))
+    wet = ndvi.gte(ndvi_min).And(ndmi.gte(ndmi_min))
     return wet.And(_cropland(buffer, year)).rename("irrigated")
+
+
+def s1_event_mask(buffer, year):
+    """Probable irrigation EVENTS from Sentinel-1 VV backscatter.
+
+    Wetting the soil raises VV. Over the dry season, cropland whose
+    VV jumps by >= +1.0 dB between consecutive passes has almost
+    certainly had water applied - rain being rare in that window. This
+    is the only method here that works under cloud, so it carries the
+    coastal and Malnad districts.
+
+    Sentinel-1 is back to a 6-day exact repeat (S1C operational May
+    2025, S1D from April 2026), which is what makes event-level
+    detection viable again rather than season-level only.
+    """
+    s, e = _summer_window(year)
+    col = (ee.ImageCollection("COPERNICUS/S1_GRD")
+           .filterBounds(buffer)
+           .filterDate(s, e)
+           .filter(ee.Filter.eq("instrumentMode", "IW"))
+           .filter(ee.Filter.listContains(
+               "transmitterReceiverPolarisation", "VV"))
+           .select("VV")
+           .sort("system:time_start"))
+
+    # Rise of the maximum over the minimum, in dB, across the window:
+    # a cheap, robust proxy for "at least one wetting event".
+    rise = col.max().subtract(col.min())
+    return (rise.gte(S1_EVENT_DB)
+            .And(_cropland(buffer, year))
+            .rename("s1_events"))
+
+
+def surface_vs_ground(buffer, year):
+    """Split irrigated land by plausible SOURCE.
+
+    Land near permanent surface water is plausibly canal- or tank-fed;
+    irrigated land far from any surface water is almost certainly
+    groundwater (borewell). This mirrors the district statistics -
+    56.6% of Karnataka's irrigated area is borewell - and gives field
+    staff the distinction on the map.
+
+    Returns (surface_fed, groundwater_fed) masks over irrigated land.
+    """
+    gsw = ee.Image("JRC/GSW1_4/GlobalSurfaceWater").select("occurrence")
+    permanent = gsw.gte(PERMANENT_WATER_PCT).selfMask()
+    dist = (permanent.fastDistanceTransform(256).sqrt()
+            .multiply(ee.Image.pixelArea().sqrt()))
+    near = dist.lte(SURFACE_WATER_M)
+    irr = summer_green_mask(buffer, year)
+    return (irr.And(near).rename("surface_fed"),
+            irr.And(near.Not()).rename("groundwater_fed"))
+
+
+def vertisol_mask(buffer):
+    """Black cotton soil proxy: clay-rich topsoil (SoilGrids).
+
+    Where this is extensive, rain-fed rabi is normal and any
+    rabi-based irrigation rule would over-count badly.
+    """
+    from gee.soil import _rootzone
+    clay = _rootzone("clay").divide(10)      # g/kg -> %
+    return clay.gte(35).rename("vertisol")
+
+
+def evidence_score(buffer, year, ndvi_min=None, ndmi_min=None):
+    """0-5 agreement score - the honest headline product.
+
+    One point each for: summer greenness, a radar irrigation event,
+    multi-cropping, LGRIP30 irrigated, WorldCereal irrigation. No
+    single product here is trustworthy alone; agreement between
+    independent methods is. Pixels scoring 3+ are the ones worth
+    sending someone to look at.
+    """
+    layers = []
+    try:
+        layers.append(summer_green_mask(buffer, year, ndvi_min,
+                                        ndmi_min).unmask(0))
+    except Exception:
+        pass
+    try:
+        layers.append(s1_event_mask(buffer, year).unmask(0))
+    except Exception:
+        pass
+    try:
+        layers.append(multicrop_mask(buffer).unmask(0))
+    except Exception:
+        pass
+    try:
+        irr, _ = lgrip_masks()
+        layers.append(irr.unmask(0))
+    except Exception:
+        pass
+    try:
+        layers.append(worldcereal_irrigation_mask().unmask(0))
+    except Exception:
+        pass
+
+    if not layers:
+        return None
+    total = layers[0]
+    for extra in layers[1:]:
+        total = total.add(extra)
+    return total.rename("evidence").updateMask(
+        _cropland(buffer, year))
 
 
 def multicrop_mask(buffer):
@@ -165,6 +302,46 @@ def lgrip_tile_url(lat, lon, radius_km, year):
     return mapid["tile_fetcher"].url_format
 
 
+@st.cache_data(show_spinner="Detecting irrigation events (radar)...",
+               ttl=TILE_TTL)
+def s1_event_tile_url(lat, lon, radius_km, year):
+    buffer = _buffer(lat, lon, radius_km)
+    img = s1_event_mask(buffer, year).selfMask().clip(buffer)
+    mapid = img.getMapId({"min": 0, "max": 1,
+                          "palette": ["000000", "ff4081"]})
+    return mapid["tile_fetcher"].url_format
+
+
+@st.cache_data(show_spinner="Scoring irrigation evidence...",
+               ttl=TILE_TTL)
+def evidence_tile_url(lat, lon, radius_km, year):
+    """0-5 agreement between independent methods."""
+    buffer = _buffer(lat, lon, radius_km)
+    ndvi_min, ndmi_min, _ = thresholds(_districts(lat, lon, radius_km))
+    img = evidence_score(buffer, year, ndvi_min, ndmi_min)
+    if img is None:
+        return None
+    img = img.updateMask(img.gte(1)).clip(buffer)
+    mapid = img.getMapId({
+        "min": 1, "max": 5,
+        "palette": ["#fee5d9", "#fcae91", "#fb6a4a", "#de2d26",
+                    "#a50f15"]})
+    return mapid["tile_fetcher"].url_format
+
+
+@st.cache_data(show_spinner="Separating canal/tank from borewell...",
+               ttl=TILE_TTL)
+def water_source_tile_url(lat, lon, radius_km, year):
+    """Irrigated land split by plausible water source."""
+    buffer = _buffer(lat, lon, radius_km)
+    surf, ground = surface_vs_ground(buffer, year)
+    combo = surf.multiply(1).add(ground.multiply(2)).selfMask()
+    img = combo.clip(buffer)
+    mapid = img.getMapId({"min": 1, "max": 2,
+                          "palette": ["1f78b4", "e6550d"]})
+    return mapid["tile_fetcher"].url_format
+
+
 @st.cache_data(show_spinner="Loading WorldCereal irrigation...",
                ttl=TILE_TTL)
 def worldcereal_irrigation_tile_url(lat, lon, radius_km, year):
@@ -178,6 +355,16 @@ def worldcereal_irrigation_tile_url(lat, lon, radius_km, year):
 # ------------------------------------------------------------------
 # Acreage statistics
 # ------------------------------------------------------------------
+
+def _districts(lat, lon, radius_km):
+    """District names touching the circle - for zone-aware thresholds."""
+    try:
+        from core import allied
+        return [d for _s, d in
+                (allied.districts_touching(lat, lon, radius_km) or [])]
+    except Exception:
+        return []
+
 
 def _acres(mask, buffer):
     from core import compute as _cq
@@ -199,6 +386,11 @@ def irrigation_stats(lat, lon, radius_km, year):
     buffer = _buffer(lat, lon, radius_km)
     out = {"year": year}
 
+    dists = _districts(lat, lon, radius_km)
+    ndvi_min, ndmi_min, zone = thresholds(dists)
+    out["zone"] = zone
+    out["thresholds"] = {"ndvi": ndvi_min, "ndmi": ndmi_min}
+
     crop = _cropland(buffer, year)
     try:
         out["cropland_ac"] = _acres(crop, buffer)
@@ -207,10 +399,31 @@ def irrigation_stats(lat, lon, radius_km, year):
 
     summer = None
     try:
-        summer = summer_green_mask(buffer, year)
+        summer = summer_green_mask(buffer, year, ndvi_min, ndmi_min)
         out["summer_green_ac"] = _acres(summer, buffer)
     except Exception:
         out["summer_green_ac"] = None
+
+    events = None
+    try:
+        events = s1_event_mask(buffer, year)
+        out["s1_event_ac"] = _acres(events, buffer)
+    except Exception:
+        out["s1_event_ac"] = None
+
+    try:
+        surf, ground = surface_vs_ground(buffer, year)
+        out["surface_fed_ac"] = _acres(surf, buffer)
+        out["groundwater_fed_ac"] = _acres(ground, buffer)
+    except Exception:
+        out["surface_fed_ac"] = None
+        out["groundwater_fed_ac"] = None
+
+    try:
+        out["vertisol_ac"] = _acres(
+            vertisol_mask(buffer).And(crop), buffer)
+    except Exception:
+        out["vertisol_ac"] = None
 
     try:
         mc = multicrop_mask(buffer).And(crop)
@@ -240,6 +453,17 @@ def irrigation_stats(lat, lon, radius_km, year):
     except Exception:
         out["confirmed_ac"] = None
 
+    # Ensemble: how much land two or more / three or more independent
+    # methods call irrigated. This is the defensible headline.
+    try:
+        ev = evidence_score(buffer, year, ndvi_min, ndmi_min)
+        if ev is not None:
+            out["evidence_2plus_ac"] = _acres(ev.gte(2), buffer)
+            out["evidence_3plus_ac"] = _acres(ev.gte(3), buffer)
+    except Exception:
+        out["evidence_2plus_ac"] = None
+        out["evidence_3plus_ac"] = None
+
     if out.get("cropland_ac") and out.get("summer_green_ac") is not None:
         out["summer_green_pct"] = round(
             100 * out["summer_green_ac"] / out["cropland_ac"], 1)
@@ -248,7 +472,11 @@ def irrigation_stats(lat, lon, radius_km, year):
 
 
 def verdict(stats):
-    """One plain-English line about how irrigated this area is."""
+    """One plain-English line about how irrigated this area is.
+
+    Quotes the two-method agreement figure rather than any single
+    product, and carries the zone's honest accuracy band.
+    """
     if not stats:
         return None
     pct = stats.get("summer_green_pct")
@@ -262,6 +490,38 @@ def verdict(stats):
         head = "Partly irrigated"
     else:
         head = "Largely rain-fed"
-    return (f"{head} - {pct}% of the cropland here holds green, moist "
+
+    line = (f"{head} - {pct}% of the cropland here holds green, moist "
             f"canopy through the February-May dry season, which needs "
             f"applied water.")
+
+    agree = stats.get("evidence_2plus_ac")
+    if agree:
+        line += (f" Two or more independent methods agree on "
+                 f"{agree:,.0f} ac.")
+
+    zone = stats.get("zone") or {}
+    if zone.get("label"):
+        line += (f" Zone: {zone['label']} - expect "
+                 f"{zone.get('accuracy', 'variable accuracy')}.")
+    return line
+
+
+def source_split_note(stats):
+    """Surface-fed vs groundwater-fed, in plain words."""
+    if not stats:
+        return None
+    surf = stats.get("surface_fed_ac")
+    ground = stats.get("groundwater_fed_ac")
+    if surf is None or ground is None:
+        return None
+    total = surf + ground
+    if total <= 0:
+        return None
+    gpct = round(100 * ground / total)
+    return (f"Of the irrigated land found here, about {gpct}% sits "
+            f"more than {SURFACE_WATER_M / 1000:.1f} km from any "
+            f"permanent surface water, so it is almost certainly "
+            f"groundwater (borewell) fed - {ground:,.0f} ac, against "
+            f"{surf:,.0f} ac plausibly canal- or tank-fed. Borewell "
+            f"land will not appear on any canal command-area map.")

@@ -73,7 +73,7 @@ def _satellite_block(lat, lon, radius, year, summary):
     if not stats:
         return
 
-    from gee.irrigation import verdict
+    from gee.irrigation import source_split_note, verdict
     v = verdict(stats)
     if v:
         st.success(v)
@@ -85,17 +85,43 @@ def _satellite_block(lat, lon, radius, year, summary):
               f"{(stats.get('summer_green_ac') or 0):,.0f} ac",
               help="Green AND moist through Feb-May. Our primary "
                    "signal.")
-    c3.metric("Multi-crop (2+ crops/yr)",
-              f"{(stats.get('multicrop_ac') or 0):,.0f} ac",
-              help="In the semi-arid interior, rainfall cannot "
-                   "support double cropping - so this is strong "
-                   "independent evidence of irrigation.")
-    c4.metric("Both methods agree",
-              f"{(stats.get('confirmed_ac') or 0):,.0f} ac",
-              help="Summer-green AND LGRIP30 both call it irrigated. "
-                   "This is the number to quote.")
+    c3.metric("2+ methods agree",
+              f"{(stats.get('evidence_2plus_ac') or 0):,.0f} ac",
+              help="At least two of five independent methods call it "
+                   "irrigated. This is the figure to quote.")
+    c4.metric("3+ methods agree",
+              f"{(stats.get('evidence_3plus_ac') or 0):,.0f} ac",
+              help="Three or more agree - send someone here first.")
+
+    # Water source and radar, the two additions that carry the hard
+    # cases (borewell land, and cloudy coastal/Malnad districts).
+    note = source_split_note(stats)
+    if note:
+        st.info(f"**Where the water comes from:** {note}")
+
+    if stats.get("s1_event_ac") is not None:
+        st.caption(
+            f"Radar detected wetting events on "
+            f"**{stats['s1_event_ac']:,.0f} ac** during Feb-May. "
+            f"Sentinel-1 sees through cloud, so this is the method to "
+            f"lean on in coastal Karnataka and Malnad where greenness "
+            f"tells you nothing. Rule used: VV backscatter rise of "
+            f"1 dB or more (~86% discrimination on 0.1-65 ha plots).")
+
+    if stats.get("vertisol_ac"):
+        st.caption(
+            f"⚠ About {stats['vertisol_ac']:,.0f} ac of the cropland "
+            f"here is clay-rich black cotton soil. Rabi crops on that "
+            f"soil are commonly RAIN-FED on stored moisture - which is "
+            f"exactly why this layer ignores rabi and uses the "
+            f"February-May window.")
 
     rows = [
+        ["Radar irrigation events (Sentinel-1)",
+         stats.get("s1_event_ac"),
+         "The only method here that works under cloud. ~86% "
+         "discrimination in published work; carries the coastal and "
+         "Malnad districts."],
         ["Summer green (ours, Feb-May)",
          stats.get("summer_green_ac"),
          "Primary signal. Best in the semi-arid interior; weakest on "
@@ -123,6 +149,37 @@ def _satellite_block(lat, lon, radius, year, summary):
           r[2]] for r in rows],
         columns=["Method", "Irrigated area", "How much to trust it"])
     st.dataframe(df, use_container_width=True, hide_index=True)
+
+    # --- Accuracy: what to expect, and how it did against records ---
+    st.markdown("#### 🎯 How accurate is this here?")
+    try:
+        from core import irrigation_validate as iv
+        exp = iv.zone_expectation(summary.get("districts")
+                                  if summary else [])
+        st.caption(
+            f"**Zone:** {exp['zone']} — expect **{exp['accuracy']}**. "
+            f"{exp['note']}"
+            + (" This circle straddles more than one zone ("
+               + ", ".join(exp.get("zones_present") or [])
+               + "), so the most conservative one is applied."
+               if exp.get("mixed") else "")
+            + f" Thresholds in use: NDVI ≥ {exp['ndvi_threshold']}, "
+              f"NDMI ≥ {exp['ndmi_threshold']}.")
+
+        chk = iv.compare(lat, lon, radius, stats)
+        if chk:
+            a, b, c = st.columns(3)
+            a.metric("Satellite irrigated share",
+                     f"{chk['satellite_pct']}%")
+            b.metric("Crop-survey irrigated share",
+                     f"{chk['survey_pct']}%")
+            c.metric("Gap", f"{chk['gap_pct']:+.1f} pts")
+            st.caption(
+                f"{chk['reading']} Checked against "
+                f"{chk['parcels']:,} surveyed coconut plots across "
+                f"{chk['villages']} villages. {chk['caveat']}")
+    except Exception:
+        pass
 
     # Cross-check against the government statistics.
     if summary and summary.get("net_ac"):

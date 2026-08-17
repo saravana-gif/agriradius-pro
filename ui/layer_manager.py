@@ -262,6 +262,30 @@ def legends():
         _legend("Irrigated (green through Feb-May dry season)",
                 [("Irrigated cropland", "#00c2ff")])
 
+    if vis.get("irrigation_evidence"):
+        _legend("Irrigation confidence - independent methods agreeing",
+                [("1 of 5 methods", "#fee5d9"),
+                 ("2 of 5", "#fcae91"),
+                 ("3 of 5 - worth a field visit", "#fb6a4a"),
+                 ("4 of 5", "#de2d26"),
+                 ("5 of 5 - as certain as remote sensing gets",
+                  "#a50f15")])
+
+    if vis.get("irrigation_events"):
+        _legend("Irrigation events detected by radar (Feb-May)",
+                [("VV backscatter rise >= 1 dB", "#ff4081")])
+
+    if vis.get("irrigation_water_source"):
+        _legend("Inferred water source of irrigated land",
+                [("Near permanent water - canal/tank plausible",
+                  "#1f78b4"),
+                 ("Far from surface water - borewell almost certain",
+                  "#e6550d")])
+
+    if vis.get("irrigation_command"):
+        _legend("Canal command areas (ayakat)",
+                [("Land a canal actually serves", "#1f78b4")])
+
     if vis.get("irrigation_multicrop"):
         _legend("Multi-crop land (2+ crops a year)",
                 [("Two or more crops", "#7b1fa2")])

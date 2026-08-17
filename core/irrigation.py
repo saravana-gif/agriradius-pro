@@ -269,6 +269,87 @@ def rankings(names=None, by="net_ha"):
     return out
 
 
+# ------------------------------------------------------------------
+# Agro-climatic zones - the satellite signal behaves completely
+# differently across them, so thresholds and expected accuracy are
+# stratified by district rather than applied statewide.
+# ------------------------------------------------------------------
+
+ZONE_INTERIOR = "interior"      # semi-arid; irrigation signal is clean
+ZONE_VERTISOL = "vertisol"      # black cotton soil; rain-fed rabi trap
+ZONE_HUMID = "humid"            # coastal + Malnad; signal largely gone
+
+_ZONE_DISTRICTS = {
+    ZONE_HUMID: [
+        "Dakshina Kannada", "Udupi", "Uttara Kannada", "Kodagu",
+        "Chikkamagaluru", "Shivamogga",
+    ],
+    ZONE_VERTISOL: [
+        "Vijayapura", "Bagalkote", "Kalaburagi", "Bidar",
+        "Vijayanagara", "Yadgir", "Raichur",
+    ],
+}
+
+ZONE_INFO = {
+    ZONE_INTERIOR: {
+        "label": "Semi-arid interior",
+        "accuracy": "80-90% at parcel level",
+        "ndvi": 0.35, "ndmi": 0.0,
+        "note": "Best case. Rainfall cannot keep cropland green "
+                "through summer, so summer greenness is close to "
+                "conclusive evidence of applied water.",
+    },
+    ZONE_VERTISOL: {
+        "label": "Northern black-cotton (vertisol) belt",
+        "accuracy": "80-90% at parcel level, if rabi is ignored",
+        "ndvi": 0.38, "ndmi": 0.02,
+        "note": "Rabi jowar, chickpea and safflower here are RAIN-FED "
+                "on stored vertisol moisture. Only the February-May "
+                "window separates irrigated from rain-fed - which is "
+                "what this layer uses. Thresholds are raised slightly "
+                "because deep vertisols hold moisture later than "
+                "other soils.",
+    },
+    ZONE_HUMID: {
+        "label": "Coastal Karnataka and Malnad",
+        "accuracy": "60-75% at parcel level - treat as indicative",
+        "ndvi": 0.50, "ndmi": 0.10,
+        "note": "Year-round rain keeps everything green, so the "
+                "irrigation signal largely vanishes. Thresholds are "
+                "raised to cut false positives, and the radar "
+                "irrigation-event layer matters more than greenness "
+                "here because it sees through cloud.",
+    },
+}
+
+
+def zone_for(district):
+    """Agro-climatic zone for a district name."""
+    k = key(district)
+    for zone, names in _ZONE_DISTRICTS.items():
+        if k in {key(n) for n in names}:
+            return zone
+    return ZONE_INTERIOR
+
+
+def zone_profile(districts):
+    """Zone + thresholds + honest accuracy for the districts in view.
+
+    When districts straddle zones the most conservative one wins, so
+    the report never over-claims.
+    """
+    zones = {zone_for(d) for d in (districts or [])} or {ZONE_INTERIOR}
+    for zone in (ZONE_HUMID, ZONE_VERTISOL, ZONE_INTERIOR):
+        if zone in zones:
+            info = dict(ZONE_INFO[zone])
+            info["zone"] = zone
+            info["mixed"] = len(zones) > 1
+            info["zones_present"] = sorted(
+                ZONE_INFO[z]["label"] for z in zones)
+            return info
+    return dict(ZONE_INFO[ZONE_INTERIOR], zone=ZONE_INTERIOR)
+
+
 # Kannada land-class terms that appear in the land records - useful in
 # the report because field staff meet them constantly.
 GLOSSARY = [

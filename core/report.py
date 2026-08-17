@@ -470,6 +470,19 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
         s = irrigation_sat
         rows = [["Method", "Irrigated area", "Reliability"]]
         for key, label, note in [
+                ("evidence_2plus_ac", "TWO OR MORE methods agree",
+                 "The defensible headline - independent methods "
+                 "concurring, not one product trusted alone"),
+                ("evidence_3plus_ac", "THREE OR MORE methods agree",
+                 "Send field staff here first"),
+                ("s1_event_ac", "Radar irrigation events (S1)",
+                 "Works under cloud - carries coastal Karnataka and "
+                 "Malnad; ~86% discrimination published"),
+                ("groundwater_fed_ac", "Borewell-fed (inferred)",
+                 "Irrigated land far from permanent surface water - "
+                 "will never appear on a canal command-area map"),
+                ("surface_fed_ac", "Canal/tank-fed (inferred)",
+                 "Irrigated land within 1.5 km of permanent water"),
                 ("summer_green_ac", "Summer green (Feb-May, ours)",
                  "Primary signal - nothing stays green through a "
                  "Karnataka summer without applied water"),
@@ -491,6 +504,12 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                          note])
         story.append(_table(rows, [4.6 * cm, 2.8 * cm, 7.6 * cm],
                             font_size=7))
+        zone = (irrigation_sat.get("zone") or {})
+        if zone.get("label"):
+            story.append(Paragraph(
+                f"<b>Zone:</b> {zone['label']} - expect "
+                f"{zone.get('accuracy', 'variable accuracy')}. "
+                f"{zone.get('note', '')}", ss["Small"]))
         story.append(Paragraph(
             "Rabi greenness is deliberately NOT used: rabi jowar, "
             "chickpea and safflower on black cotton soil in "

@@ -354,12 +354,21 @@ def gather(progress=None):
         bundle["notes"].append(f"Irrigation statistics skipped: {e}")
 
     try:
-        from gee.irrigation import irrigation_stats, verdict
+        from gee.irrigation import (irrigation_stats,
+                                    source_split_note, verdict)
         st.session_state.irrigation_stats = irrigation_stats(
             lat, lon, radius, year)
         bundle["irrigation_sat"] = st.session_state.irrigation_stats
         bundle["irrigation_verdict"] = verdict(
             bundle["irrigation_sat"])
+        bundle["irrigation_source_note"] = source_split_note(
+            bundle["irrigation_sat"])
+        try:
+            from core import irrigation_validate as _iv
+            bundle["irrigation_validation"] = _iv.compare(
+                lat, lon, radius, bundle["irrigation_sat"])
+        except Exception:
+            bundle["irrigation_validation"] = None
     except Exception as e:
         bundle["irrigation_sat"] = None
         bundle["irrigation_verdict"] = None
@@ -561,9 +570,31 @@ def excel_bytes(bundle):
              "WorldCereal irrigation - lower bound (ac)"),
             ("confirmed_ac",
              "Two methods agree - summer green + LGRIP30 (ac)"),
+            ("evidence_2plus_ac", "TWO OR MORE methods agree (ac)"),
+            ("evidence_3plus_ac", "THREE OR MORE methods agree (ac)"),
+            ("s1_event_ac", "Radar irrigation events, Feb-May (ac)"),
+            ("surface_fed_ac", "Canal/tank-fed, inferred (ac)"),
+            ("groundwater_fed_ac", "Borewell-fed, inferred (ac)"),
+            ("vertisol_ac", "Black cotton soil in cropland (ac)"),
         ]
         rows = [(lab, s.get(k)) for k, lab in labels]
         rows.append(("Verdict", bundle.get("irrigation_verdict")))
+        z = (s.get("zone") or {})
+        rows.append(("Agro-climatic zone", z.get("label")))
+        rows.append(("Expected accuracy in this zone",
+                     z.get("accuracy")))
+        th = (s.get("thresholds") or {})
+        rows.append(("NDVI threshold used", th.get("ndvi")))
+        rows.append(("NDMI threshold used", th.get("ndmi")))
+        rows.append(("Water-source check",
+                     bundle.get("irrigation_source_note")))
+        chk = bundle.get("irrigation_validation") or {}
+        if chk:
+            rows.append(("Crop-survey cross-check - satellite %",
+                         chk.get("satellite_pct")))
+            rows.append(("Crop-survey cross-check - survey %",
+                         chk.get("survey_pct")))
+            rows.append(("Cross-check reading", chk.get("reading")))
         irr_sat = pd.DataFrame(rows, columns=["Measure", "Value"])
 
     # Every Karnataka district, so the workbook is useful on its own.

@@ -90,6 +90,9 @@ def _tile_url(layer_id, lat, lon, radius, year):
             "irrigation_multicrop": _ir.multicrop_tile_url,
             "irrigation_lgrip": _ir.lgrip_tile_url,
             "irrigation_worldcereal": _ir.worldcereal_irrigation_tile_url,
+            "irrigation_evidence": _ir.evidence_tile_url,
+            "irrigation_events": _ir.s1_event_tile_url,
+            "irrigation_water_source": _ir.water_source_tile_url,
         }.get(layer_id)
         if fn:
             return fresh_tile_url(fn, lat, lon, radius, year)
@@ -151,10 +154,18 @@ def _stat_for(layer_id):
 
 
 # Layers drawn as vector polygons rather than Earth Engine tiles.
+def _command_geojson(lat, lon, radius):
+    """Canal command areas as vector data."""
+    from gis import command_area_layer
+    return command_area_layer.geojson_for(
+        round(float(lat), 4), round(float(lon), 4), float(radius))
+
+
 _VECTOR = {
     "shc": _shc_geojson,
     "coconut_survey": _coconut_geojson,
     "irrigation_source": _irrigation_geojson,
+    "irrigation_command": _command_geojson,
 }
 
 

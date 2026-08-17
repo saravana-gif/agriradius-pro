@@ -391,6 +391,47 @@ def gather(progress=None):
         bundle["irrigation_villages_summary"] = None
         bundle["notes"].append(f"Village irrigation skipped: {e}")
 
+    # Forest vs farmland: strip natural forest out of the plantation
+    # figure, and put the department's own crop numbers beside ours.
+    step(99, "Separating forest from plantation...")
+    try:
+        from gee.forest import forest_stats
+        from gee.forest import verdict as _fverdict
+        bundle["forest"] = forest_stats(lat, lon, radius, year)
+        bundle["forest_verdict"] = _fverdict(bundle["forest"])
+    except Exception as e:
+        bundle["forest"] = None
+        bundle["forest_verdict"] = None
+        bundle["notes"].append(f"Forest separation skipped: {e}")
+
+    try:
+        from core import crop_stats as _cs
+        names = [d for _s, d in
+                 (allied.districts_touching(lat, lon, radius) or [])]
+        taluks = []
+        try:
+            from gis.spatial import villages_in_buffer
+            _g = villages_in_buffer(lat, lon, radius)
+            if _g is not None and not _g.empty and "sdtname" in _g:
+                taluks = sorted({str(x) for x in _g["sdtname"]
+                                 if str(x) not in ("nan", "None", "")})
+        except Exception:
+            pass
+        det = (bundle.get("maize") or {}).get("maize_ac")
+        bundle["dept_maize"] = _cs.compare_maize(names, det)
+        bundle["dept_taluks"] = _cs.top_taluks(taluks) if taluks else None
+        bundle["dept_crop_hint"] = (_cs.crop_hints(taluks)
+                                    if taluks else None)
+        bundle["dept_plantation"] = [
+            r for r in _cs.plantation_production()
+            if any(str(r["place"]).lower() == str(d).lower()
+                   for d in names)] or None
+    except Exception:
+        bundle["dept_maize"] = None
+        bundle["dept_taluks"] = None
+        bundle["dept_crop_hint"] = None
+        bundle["dept_plantation"] = None
+
     # Counted irrigation structures (Minor Irrigation Census) - neither
     # a district aggregate nor a satellite estimate.
     try:
@@ -483,6 +524,12 @@ def pdf_bytes(bundle):
         irrigation_villages=bundle.get("irrigation_villages"),
         irrigation_villages_summary=bundle.get(
             "irrigation_villages_summary"),
+        forest=bundle.get("forest"),
+        forest_verdict=bundle.get("forest_verdict"),
+        dept_maize=bundle.get("dept_maize"),
+        dept_taluks=bundle.get("dept_taluks"),
+        dept_crop_hint=bundle.get("dept_crop_hint"),
+        dept_plantation=bundle.get("dept_plantation"),
         mi_census=bundle.get("mi_census"),
         mi_census_level=bundle.get("mi_census_level"),
         mi_census_note=bundle.get("mi_census_note"),
@@ -676,6 +723,16 @@ def excel_bytes(bundle):
         ("Irrigation - Satellite", irr_sat),
         ("Irrigation - All Karnataka", irr_all),
         ("Irrigation - By Village", bundle.get("irrigation_villages")),
+        ("Forest vs Plantation",
+         (pd.DataFrame(list(bundle["forest"].items()),
+                       columns=["Measure", "Value"])
+          if bundle.get("forest") else None)),
+        ("Dept Crop Figures",
+         (pd.DataFrame(bundle["dept_taluks"])
+          if bundle.get("dept_taluks") else None)),
+        ("Dept Plantation Output",
+         (pd.DataFrame(bundle["dept_plantation"])
+          if bundle.get("dept_plantation") else None)),
         ("Irrigation - Well Census",
          (pd.DataFrame(bundle["mi_census"])
           if bundle.get("mi_census") else None)),

@@ -157,7 +157,10 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       irrigation_villages=None,
                       irrigation_villages_summary=None,
                       mi_census=None, mi_census_level=None,
-                      mi_census_note=None):
+                      mi_census_note=None,
+                      forest=None, forest_verdict=None,
+                      dept_maize=None, dept_taluks=None,
+                      dept_crop_hint=None, dept_plantation=None):
     """Assemble the full PDF. Returns bytes."""
 
     ss = _styles()
@@ -391,6 +394,89 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                                "irrigated_pct", "intensity_pct"],
                       widths=[3.4 * cm, 2.8 * cm, 2.6 * cm, 2 * cm,
                               1.6 * cm, 1.6 * cm, 1.6 * cm, 1.8 * cm])
+        story.append(Spacer(1, 12))
+
+    # ---------------- Forest vs farmland ----------------
+    if forest:
+        story.append(Paragraph(
+            "Forest vs Farmland - Plantation Figures Corrected",
+            ss["H2x"]))
+        story.append(Paragraph(
+            "Tree canopy that stays green through the dry season "
+            "describes both a coconut grove and a Western Ghats "
+            "evergreen patch, and the Forest Survey of India counts "
+            "any canopy over 10% across 1 ha as forest irrespective "
+            "of land use - so shade coffee, arecanut and coastal "
+            "coconut read as forest in the usual products. JRC Global "
+            "Forest Cover 2020 deliberately EXCLUDES agricultural "
+            "plantations, so subtracting it leaves genuine tree-crop "
+            "land.", ss["Normal"]))
+        if forest_verdict:
+            story.append(Paragraph(f"<b>{forest_verdict}</b>",
+                                   ss["Normal"]))
+        rows = [["Measure", "Area"]]
+        for key, label in [
+                ("plantation_gross_ac",
+                 "Plantation detected (gross)"),
+                ("forest_removed_ac", "Natural forest removed"),
+                ("plantation_net_ac",
+                 "PLANTATION NET OF FOREST - use this"),
+                ("farmland_trees_ac",
+                 "Farmland trees (tree crops, not forest)"),
+                ("forest_ac", "Forest cover (GFC2020)"),
+                ("natural_forest_ac",
+                 "- naturally regenerating / primary"),
+                ("planted_forest_ac", "- planted forest (EUDR)"),
+                ("natural_lands_ac", "WRI SBTN natural lands"),
+                ("uniform_canopy_ac",
+                 "Structurally uniform canopy (orchard grid)")]:
+            v = forest.get(key)
+            if v is not None:
+                rows.append([label, f"{v:,.0f} ac"])
+        if len(rows) > 1:
+            story.append(_table(rows, [9 * cm, 4 * cm]))
+        story.append(Paragraph(
+            "No satellite product can establish LEGAL forest status - "
+            "only the Karnataka Forest Department's records can.",
+            ss["Small"]))
+        story.append(Spacer(1, 12))
+
+    if dept_maize or dept_taluks or dept_plantation:
+        story.append(Paragraph(
+            "Department Crop Figures (cross-check)", ss["H2x"]))
+        if dept_maize:
+            story.append(_table([
+                ["Maize detected here", "Dept irrigated maize "
+                                        "(district-wide)",
+                 "Detected vs dept"],
+                [f"{dept_maize['detected_ac']:,} ac",
+                 f"{dept_maize['department_ac']:,} ac",
+                 f"{dept_maize['ratio_pct']}%"],
+            ], [5 * cm, 6 * cm, 4 * cm]))
+            story.append(Paragraph(
+                f"{dept_maize['reading']} {dept_maize['caveat']}",
+                ss["Small"]))
+            story.append(Spacer(1, 6))
+        if dept_crop_hint:
+            story.append(Paragraph(
+                f"<b>Likely crop identity:</b> {dept_crop_hint}",
+                ss["Normal"]))
+            story.append(Spacer(1, 4))
+        try:
+            import pandas as pd
+            if dept_taluks:
+                story.append(Paragraph(
+                    "Leading crops in these taluks", ss["Normal"]))
+                _df_table(story, pd.DataFrame(dept_taluks),
+                          font_size=8)
+            if dept_plantation:
+                story.append(Paragraph(
+                    "Plantation-crop output for these districts",
+                    ss["Normal"]))
+                _df_table(story, pd.DataFrame(dept_plantation),
+                          font_size=8)
+        except Exception:
+            pass
         story.append(Spacer(1, 12))
 
     # ---------------- Irrigation ----------------

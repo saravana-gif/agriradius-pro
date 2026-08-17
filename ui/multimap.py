@@ -82,6 +82,16 @@ def _tile_url(layer_id, lat, lon, radius, year):
         from gee.soil import soil_tile_url
         return fresh_tile_url(soil_tile_url, lat, lon, radius,
                               layer_id)
+    if layer_id in ("plantation_net", "forest_cover",
+                    "farmland_trees"):
+        from gee import forest as _fo
+        fn = {
+            "plantation_net": _fo.plantation_net_tile_url,
+            "forest_cover": _fo.forest_tile_url,
+            "farmland_trees": _fo.farmland_trees_tile_url,
+        }.get(layer_id)
+        if fn:
+            return fresh_tile_url(fn, lat, lon, radius, year)
     if layer_id.startswith("irrigation_") \
             and layer_id != "irrigation_source":
         from gee import irrigation as _ir

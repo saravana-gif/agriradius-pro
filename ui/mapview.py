@@ -447,6 +447,12 @@ def mapview():
     #     source split. Kept as separate layers so you can see where
     #     independent methods agree. ---
     _IRR_TILES = (
+        ("plantation_net", "gee.forest", "plantation_net_tile_url",
+         "Plantation net of forest"),
+        ("forest_cover", "gee.forest", "forest_tile_url",
+         "Forest - natural vs planted (GFC2020)"),
+        ("farmland_trees", "gee.forest", "farmland_trees_tile_url",
+         "Farmland trees (tree crops, not forest)"),
         ("irrigation_evidence", "gee.irrigation", "evidence_tile_url",
          "Irrigation confidence (methods agreeing)"),
         ("irrigation_summer", "gee.irrigation",
@@ -654,19 +660,20 @@ def mapview():
 
         st.rerun()
 
-    # Measured coconut records for this area (government crop survey)
-    # - renders only where the survey has coverage.
-    try:
-        from ui.crop_survey_panel import coconut_survey_panel
-        coconut_survey_panel()
-    except Exception:
-        pass
-
-    # Irrigation briefing - district source split, targeting advice and
-    # the satellite cross-check. Renders only where the statistics
-    # cover the area (Karnataka).
-    try:
-        from ui.irrigation_panel import irrigation_panel
-        irrigation_panel()
-    except Exception:
-        pass
+    # Panels under the map. Failures are SHOWN, never swallowed - a
+    # silent 'except: pass' here once hid a crashed panel completely
+    # and it just looked like missing data.
+    for _label, _mod, _fn in (
+            ("Measured coconut (crop survey)",
+             "ui.crop_survey_panel", "coconut_survey_panel"),
+            ("Irrigation", "ui.irrigation_panel",
+             "irrigation_panel"),
+            ("Forest vs farmland", "ui.forest_panel",
+             "forest_panel")):
+        try:
+            import importlib
+            getattr(importlib.import_module(_mod), _fn)()
+        except Exception as e:
+            st.caption(
+                f"⚠ The **{_label}** panel could not render here: "
+                f"{type(e).__name__}: {e}")

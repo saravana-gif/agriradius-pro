@@ -54,6 +54,8 @@ EXPECTED = [
     ("irrigation_summer", "Irrigated cropland (summer green)"),
     ("irrigation_multicrop", "Multi-crop land (irrigation proxy)"),
     ("irrigation_lgrip", "LGRIP30 irrigated vs rain-fed"),
+    ("plantation_net", "Plantation net of forest"),
+    ("farmland_trees", "Farmland trees (tree crops, not forest)"),
 ]
 
 
@@ -292,6 +294,30 @@ def map_images(lat, lon, radius_km, year):
                        ("_base", "Satellite (everything else)")],
             "png": _thumb(rgb.blend(cvis).clip(buffer), buffer),
         })
+    except Exception:
+        pass
+
+    # Forest correction ------------------------------------------------
+    try:
+        from gee.forest import (farmland_trees_mask,
+                                plantation_net_mask)
+        _overlay(out, buffer, year, "plantation_net",
+                 "Plantation NET of forest",
+                 "The plantation detection with natural forest "
+                 "removed (JRC GFC2020, which excludes agricultural "
+                 "plantations). This is the figure to use for "
+                 "sourcing - the raw detection counts Western Ghats "
+                 "forest as plantation.",
+                 lambda: plantation_net_mask(buffer, year),
+                 "#ffe000", "Genuine plantation / tree crop")
+        _overlay(out, buffer, year, "farmland_trees",
+                 "Farmland trees (tree crops, not forest)",
+                 "Canopy that GFC2020 excludes from forest - in "
+                 "Karnataka overwhelmingly arecanut, coconut, coffee, "
+                 "mango, cashew, rubber and eucalyptus woodlots. This "
+                 "layer IS the tree-crop opportunity.",
+                 lambda: farmland_trees_mask(),
+                 "#ffa000", "Tree crops / farmland trees")
     except Exception:
         pass
 

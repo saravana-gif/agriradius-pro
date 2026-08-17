@@ -1,0 +1,116 @@
+dataset,level,unit,year,area_or_district_or_taluk,crop,value,source_resource_id
+maize_irrigated_area,district,hectares,2022-2023,Bagalkote,Maize,68315,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Ballari,Maize,17808,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Belagavi,Maize,149019,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Bengaluru Rural,Maize,598,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Bengaluru South,Maize,3743,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Bengaluru Urban,Maize,630,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Bidar,Maize,519,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Chamarajanagar,Maize,31000,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Chikkaballapura,Maize,13039,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Chikkamagaluru,Maize,2649,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Chitradurga,Maize,37248,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Dakshina Kannada,Maize,,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Davanagere,Maize,18872,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Dharwad,Maize,13594,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Gadag,Maize,37886,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Hassan,Maize,17705,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Haveri,Maize,108234,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Kalaburagi,Maize,735,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Kodagu,Maize,,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Kolar,Maize,3777,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Koppal,Maize,41595,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Mandya,Maize,4466,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Mysuru,Maize,5566,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Raichur,Maize,2221,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Shivamogga,Maize,18680,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Tumakuru,Maize,5623,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Udupi,Maize,28,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Uttara Kannada,Maize,2936,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Vijayanagara,Maize,51109,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Vijayapura,Maize,88110,0fb99c18-a1f7-46f0-b40d-ddffca021319
+maize_irrigated_area,district,hectares,2022-2023,Yadgir,Maize,262,0fb99c18-a1f7-46f0-b40d-ddffca021319
+horticulture_state_total,state,hectares,2018-19,Karnataka,Banana,79944,bfc85e6a-7165-4758-9143-080db4fddfd1
+horticulture_state_total,state,hectares,2018-19,Karnataka,Mango,172855,bfc85e6a-7165-4758-9143-080db4fddfd1
+horticulture_state_total,state,hectares,2018-19,Karnataka,Lemon,15701,bfc85e6a-7165-4758-9143-080db4fddfd1
+horticulture_state_total,state,hectares,2018-19,Karnataka,Pineapple,2260,bfc85e6a-7165-4758-9143-080db4fddfd1
+horticulture_state_total,state,hectares,2018-19,Karnataka,Guava,4922,bfc85e6a-7165-4758-9143-080db4fddfd1
+horticulture_state_total,state,hectares,2018-19,Karnataka,Grapes,23474,bfc85e6a-7165-4758-9143-080db4fddfd1
+horticulture_state_total,state,hectares,2018-19,Karnataka,Tomato,66053,4543cdc5-6939-46cc-8c6c-142143ebad1e
+horticulture_state_total,state,hectares,2018-19,Karnataka,Brinjal,13401,4543cdc5-6939-46cc-8c6c-142143ebad1e
+horticulture_state_total,state,hectares,2018-19,Karnataka,Cucumber,7312,4543cdc5-6939-46cc-8c6c-142143ebad1e
+horticulture_state_total,state,hectares,2018-19,Karnataka,Beans,10395,4543cdc5-6939-46cc-8c6c-142143ebad1e
+horticulture_state_total,state,hectares,2018-19,Karnataka,Clustered Beans,2136,4543cdc5-6939-46cc-8c6c-142143ebad1e
+horticulture_state_total,state,hectares,2018-19,Karnataka,Cabbage,10196,4543cdc5-6939-46cc-8c6c-142143ebad1e
+horticulture_state_total,state,hectares,2018-19,Karnataka,Ridge Gourd,4339,4543cdc5-6939-46cc-8c6c-142143ebad1e
+horticulture_state_total,state,hectares,2018-19,Karnataka,Radish,2838,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+horticulture_state_total,state,hectares,2018-19,Karnataka,Onion,214941,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+horticulture_state_total,state,hectares,2018-19,Karnataka,Beetroot,2692,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+horticulture_state_total,state,hectares,2018-19,Karnataka,Carrot,3862,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+horticulture_state_total,state,hectares,2018-19,Karnataka,Knol Khol,2048,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+horticulture_state_total,state,hectares,2018-19,Karnataka,Okra (Ladies Finger),6553,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+horticulture_state_total,state,hectares,2018-19,Karnataka,Green Chillies,41021,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+horticulture_state_total,state,hectares,2018-19,Karnataka,Snake Gourd,434,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_banana,taluk,hectares,2018-19,Chamarajanagara,Banana,8158,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Heggadadevanakote,Banana,4121,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Nanjangud,Banana,3667,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Holalkere,Banana,2612,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Gundlupet,Banana,2422,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Sirsi,Banana,1996,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Hospet,Banana,1814,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Sagara,Banana,1772,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_banana,taluk,hectares,2018-19,Davanagere,Banana,1676,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Srinivaspura,Mango,26190,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Ramanagar,Mango,12757,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Mulabagilu,Mango,11622,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Magadi,Mango,9623,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Gubbi,Mango,7069,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Chinthamani,Mango,6680,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Kolar,Mango,6448,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Tumkur,Mango,6249,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_mango,taluk,hectares,2018-19,Dharwad,Mango,5836,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Tikota,Grapes,6057,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Athani,Grapes,2328,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Chikballapur,Grapes,2015,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Bijapur,Grapes,1721,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Jamakhandi,Grapes,1701,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Babaleshwara,Grapes,1586,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Chadachana,Grapes,948,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Basavan Bagewadi,Grapes,821,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_grapes,taluk,hectares,2018-19,Indi,Grapes,750,bfc85e6a-7165-4758-9143-080db4fddfd1
+top_taluk_tomato,taluk,hectares,2018-19,Mulabagilu,Tomato,4466,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Srinivaspura,Tomato,3180,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Kolar,Tomato,3052,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Bangarpet,Tomato,2800,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Pavagada,Tomato,2528,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Gundlupet,Tomato,2157,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Chinthamani,Tomato,2015,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Malur,Tomato,1931,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_tomato,taluk,hectares,2018-19,Chamarajanagara,Tomato,1918,4543cdc5-6939-46cc-8c6c-142143ebad1e
+top_taluk_onion,taluk,hectares,2018-19,Bagalkote,Onion,13263,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Kukanuru,Onion,12297,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Gadag,Onion,12166,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Challakere,Onion,10481,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Navalgund,Onion,9481,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Rona,Onion,8500,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Annigeri,Onion,8487,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Yelburga,Onion,6938,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+top_taluk_onion,taluk,hectares,2018-19,Kolhara,Onion,6938,02ad6bf0-218a-401b-9e37-a3f5b699dbac
+plantation_production,district,tonnes,2018-19,Shivamogga,Arecanut (processed),169305,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Dakshina Kannada,Arecanut (processed),140053,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Davanagere,Arecanut (processed),116451,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Tumkur,Arecanut (processed),100294,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Uttara Kannada,Arecanut (processed),87282,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Chitradurga,Arecanut (processed),75946,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Chikmagalur,Arecanut (processed),67140,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Udupi,Arecanut (processed),32310,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,tonnes,2018-19,Kodagu,Arecanut (processed),13777,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,thousand nuts,2018-19,Tumkur,Coconut,1305171,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,thousand nuts,2018-19,Chikmagalur,Coconut,480862,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,thousand nuts,2018-19,Udupi,Coconut,393989,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,thousand nuts,2018-19,Chitradurga,Coconut,343102,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,district,thousand nuts,2018-19,Dakshina Kannada,Coconut,295263,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,state,thousand nuts,2018-19,Karnataka,Coconut,4321762,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,state,tonnes,2018-19,Karnataka,Arecanut (processed),850698,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,state,tonnes,2018-19,Karnataka,Cardamom,207,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0
+plantation_production,state,tonnes,2018-19,Karnataka,Cashewnut (processed),14250,11654dc5-4d33-4c7d-96ba-ecfd013ec2e0

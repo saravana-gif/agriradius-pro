@@ -48,6 +48,17 @@ LAYERS = {
          "label": "Coconut - govt crop survey (measured)",
          "default": False},
     ],
+    "Forest vs farmland": [
+        {"id": "plantation_net",
+         "label": "Plantation NET of forest (forest removed)",
+         "default": False},
+        {"id": "forest_cover",
+         "label": "Forest - natural vs planted (JRC GFC2020)",
+         "default": False},
+        {"id": "farmland_trees",
+         "label": "Farmland trees (tree crops, not forest)",
+         "default": False},
+    ],
     "Irrigation": [
         {"id": "irrigation_evidence",
          "label": "Irrigation confidence - methods agreeing (0-5)",

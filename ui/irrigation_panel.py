@@ -331,9 +331,9 @@ def _command_area_block():
             "India-WRIS did not return any command-area polygons. It "
             "renames its layers periodically, so this needs a look at "
             "what the service currently publishes.")
-    if out:
-        with st.expander("Harvester output", expanded=False):
-            st.code(out[-3000:])
+    if out and st.checkbox("Show harvester output",
+                           key="wris_out"):
+        st.code(out[-3000:])
 
 
 def _satellite_block(lat, lon, radius, year, summary):
@@ -509,6 +509,16 @@ def irrigation_panel():
     names = _districts_in_view(lat, lon, radius)
     summary = irrigation.area_summary(names) if names else None
     if not summary:
+        # Say why rather than vanishing - "nothing there" and "not
+        # covered" look identical to a user, and only one is a problem.
+        where = (", ".join(names) if names
+                 else "no district could be resolved for this point")
+        st.caption(
+            f"💧 **Irrigation** - no government irrigation-source "
+            f"statistics for this area ({where}). The source split is "
+            f"published for Karnataka's 31 districts only. The "
+            f"satellite irrigation layers in the sidebar still work "
+            f"anywhere.")
         return
 
     head = (f"({summary['net_ac']:,} ac net irrigated · "
@@ -568,8 +578,12 @@ def irrigation_panel():
         _dossier_block()
 
         st.divider()
-        with st.expander("How far to trust this, and the land-record "
-                         "words you will meet", expanded=False):
+        # NOTE: no st.expander here - this whole panel is already
+        # inside one, and Streamlit refuses nested expanders (that
+        # mistake silently killed this panel once).
+        if st.checkbox("Show how far to trust this, and the "
+                       "land-record words you will meet",
+                       key="irr_caveats"):
             for c in irrigation.CAVEATS:
                 st.markdown(f"- {c}")
             st.markdown("**Land-record terminology**")

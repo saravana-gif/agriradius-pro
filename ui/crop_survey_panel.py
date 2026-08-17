@@ -64,6 +64,15 @@ def coconut_survey_panel():
     except Exception:
         return
     if not summary:
+        # Explain the gap rather than disappearing - the survey covers
+        # six districts, and "no coverage" is not the same as "no
+        # coconut here".
+        st.caption(
+            "🥥 **Measured coconut (crop survey)** - no recorded "
+            "coconut plots inside this circle. The 2023-24 crop-survey "
+            "extract loaded here covers Hassan, Mandya, Tumakuru, "
+            "Ramanagara, Chitradurga and Mysuru; elsewhere use the "
+            "satellite plantation layer instead.")
         return
 
     with st.expander(

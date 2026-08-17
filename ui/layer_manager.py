@@ -303,6 +303,20 @@ def legends():
         _legend("Irrigated (green through Feb-May dry season)",
                 [("Irrigated cropland", "#00c2ff")])
 
+    if vis.get("forest_cover"):
+        _legend("Forest cover (JRC GFC2020 - excludes tree crops)",
+                [("Natural / primary forest", "#1b5e20"),
+                 ("Planted forest (EUDR subtype)", "#8d6e63")])
+
+    if vis.get("farmland_trees"):
+        _legend("Farmland trees - canopy that is NOT forest",
+                [("Arecanut, coconut, coffee, mango, cashew, rubber, "
+                  "woodlots", "#ffa000")])
+
+    if vis.get("plantation_net"):
+        _legend("Plantation with natural forest removed",
+                [("Genuine plantation / tree crop", "#ffe000")])
+
     if vis.get("irrigation_evidence"):
         _legend("Irrigation confidence - independent methods agreeing",
                 [("1 of 5 methods", "#fee5d9"),

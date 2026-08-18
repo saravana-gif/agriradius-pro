@@ -11,6 +11,8 @@ Every render is wrapped so a single failed layer is simply omitted and
 never breaks the report.
 """
 
+import time as _time
+
 import ee
 import requests
 
@@ -65,18 +67,70 @@ def missing_layers(images):
     return [label for kind, label in EXPECTED if kind not in got]
 
 
+def budget_was_spent():
+    """True if the last run stopped because it ran out of time.
+
+    Lets the report say WHY layers are missing: a spent budget on a
+    large radius is a different message from a layer that genuinely
+    failed, and the user's fix is different too (smaller radius vs
+    rebuild to retry).
+    """
+    return bool(_LAST_BUDGET_SPENT)
+
+
 def _buffer(lat, lon, radius_km):
     return ee.Geometry.Point([lon, lat]).buffer(radius_km * 1000)
 
 
-def _thumb(image, region, dimensions=560):
+# The whole map-rendering phase gets a wall-clock budget. Eighteen
+# layers x up to 90 s each is 27 minutes in the worst case, and at a
+# 38 km radius enough of them are slow that the report build simply
+# ended with no PDF and no error. A budget means a large area yields
+# a report with the maps that rendered plus a note naming the rest,
+# instead of nothing at all.
+BUDGET_S = 420          # 7 minutes for the whole set
+PER_LAYER_TIMEOUT_S = 45
+
+
+class _Budget:
+    """Wall-clock allowance shared by every layer in one report."""
+
+    def __init__(self, seconds=BUDGET_S):
+        self.deadline = _time.monotonic() + seconds
+        self.skipped = []
+
+    def left(self):
+        return self.deadline - _time.monotonic()
+
+    def spent(self):
+        return self.left() <= 0
+
+    def skip(self, title, why="time budget for map rendering was spent"):
+        self.skipped.append((title, why))
+
+
+# The budget in force for the current map_images() call. Checked
+# inside _thumb so the fifteen existing per-layer try/excepts skip
+# remaining layers instantly once time is up - no restructuring, and
+# no layer can start a fresh 45 s request after the deadline.
+_CURRENT = None
+_LAST_BUDGET_SPENT = False
+
+
+class BudgetSpent(RuntimeError):
+    pass
+
+
+def _thumb(image, region, dimensions=560, timeout=None):
     """Fetch a PNG render of a visualised image over a region."""
+    if _CURRENT is not None and _CURRENT.spent():
+        raise BudgetSpent("map rendering budget spent")
     url = image.getThumbURL({
         "region": region,
         "dimensions": dimensions,
         "format": "png",
     })
-    r = requests.get(url, timeout=90)
+    r = requests.get(url, timeout=timeout or PER_LAYER_TIMEOUT_S)
     r.raise_for_status()
     return r.content
 
@@ -106,11 +160,14 @@ def _overlay(out, buffer, year, kind, title, caption, mask_fn, colour,
         pass
 
 
-def map_images(lat, lon, radius_km, year):
+def map_images(lat, lon, radius_km, year, budget_s=BUDGET_S):
     """Return a list of {kind, title, caption, legend, png} covering
     every map layer. Each layer is guarded independently so one
-    failure omits just that map."""
+    failure omits just that map, and the whole set shares a wall-clock
+    budget so a large radius cannot stall the report indefinitely."""
 
+    global _CURRENT
+    _CURRENT = _Budget(budget_s)
     out = []
     buffer = _buffer(lat, lon, radius_km)
 
@@ -348,4 +405,7 @@ def map_images(lat, lon, radius_km, year):
     except Exception:
         pass
 
+    global _LAST_BUDGET_SPENT
+    _LAST_BUDGET_SPENT = _CURRENT.spent() if _CURRENT else False
+    _CURRENT = None
     return out

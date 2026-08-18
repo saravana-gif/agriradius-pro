@@ -135,9 +135,21 @@ def gather(progress=None):
         imgs = []
         bundle["notes"].append(f"Satellite map images skipped: {e}")
     try:
-        from gee.report_maps import missing_layers
+        from gee.report_maps import budget_was_spent, missing_layers
         gaps = missing_layers(imgs)
-        if gaps:
+        if gaps and budget_was_spent():
+            # A spent budget and a failed layer need different advice.
+            bundle["notes"].append(
+                f"Map rendering ran out of time after {len(imgs)} of "
+                f"{len(imgs) + len(gaps)} layers, so these were not "
+                f"drawn: " + ", ".join(gaps)
+                + ". This is the radius, not a fault: each layer is "
+                  "computed live over the whole circle, and "
+                  f"{radius} km is a large area. Every number in this "
+                  "report is unaffected. For the full set of maps, "
+                  "rebuild at a smaller radius (20 km renders all of "
+                  "them comfortably).")
+        elif gaps:
             bundle["notes"].append(
                 "Map layers Earth Engine could not render this run: "
                 + ", ".join(gaps)

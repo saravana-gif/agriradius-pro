@@ -107,6 +107,16 @@ unless you ask.
 - **Charts** — visual breakdown.
 - **Crop Cycle** — sowing→peak→harvest pattern; paddy & plantation
   checks.
+- **💧 Irrigation** — the full irrigation stack for this area (see 5c).
+  The government source split loads straight away; the two heavy parts
+  (**village-by-village** and **satellite measurement**) each wait for
+  a button, so opening the tab never starts an Earth Engine job.
+- **🌳 Forest vs Farmland** — separates natural forest from tree crops
+  using JRC GFC2020 (which excludes agricultural plantations by
+  definition), so plantation area can be reported **net of forest**.
+  It also cross-checks detected area against the department's own
+  district crop figures. Matters most in Malnad, Kodagu, Shivamogga,
+  Chikkamagaluru and the coastal belt.
 - **Rainfall** — 10-year history.
 - **Forecast** — **Live conditions now** (rain, temperature, humidity,
   wind, sun/solar, UV, soil moisture & temp, evapotranspiration, and a
@@ -130,7 +140,17 @@ unless you ask.
   **📄 upload a CSV/Excel** of many points at once (lat, lon, crop;
   village/acreage/notes optional; template provided). Everything saves
   to the shared dataset for calibration and the classifier.
-- **Downloads** — build a full **PDF / Excel report** of everything.
+- **Downloads** — build a full **PDF / Excel report**. It carries
+  *everything the app holds for the circle you selected*: every map
+  layer as an image, land cover, villages, crop cycle, the full
+  irrigation stack (district split, village table, satellite figures,
+  and which methods ran), forest vs farmland, the coconut survey and
+  its accuracy scoring, department crop cross-checks, Minor Irrigation
+  Census, rainfall, forecast, soil incl. SHC and land capability,
+  allied sectors, mandi prices with MSP and history, and your ground
+  truth. Anything that could not be computed is written as **n/a with
+  the reason**, never silently dropped — so the report never looks
+  more complete than it is. Excel gets the same content as sheets.
 
 #### 5b. Panels that appear under the map
 These show up on their own when the data covers where you are looking,
@@ -140,20 +160,39 @@ and stay quiet when it doesn't:
   share, and every village ranked. Run *Plantation Detection* first and
   it also **scores the satellite against the survey** for the same
   circle — the app's strongest accuracy check.
-- **💧 Irrigation — how this land is watered** — the source split
-  (borewell / canal / tank / well) with a chart, a district table, and
-  a plain instruction on **how to target field staff here**. Then:
-  - **Canal command areas** — press *Harvest* once and the server
-    fetches them from India-WRIS (it needs open internet and an Indian
-    IP, so a browser can't do it; the server also tries on every
-    restart).
-  - **Measure irrigated area here (satellite)** — runs all the
-    irrigation methods on demand, reports **2+ and 3+ method
-    agreement**, radar events, the borewell-vs-canal split, and how
-    accurate to expect it to be **in this zone**, then cross-checks
-    against the survey's own irrigation flags.
+Irrigation and Forest vs Farmland used to sit here; both are now full
+**tabs** in Analysis Results, so nothing is duplicated under the map.
 
-#### 5c. What the irrigation numbers mean
+#### 5c. The Irrigation tab, and what its numbers mean
+Open **💧 Irrigation** in Analysis Results. Top to bottom:
+- **District source split** (loads immediately) — borewell / canal /
+  tank / well from Land Use Statistics 2022-23, with a chart, a
+  district table and a plain instruction on **how to target field
+  staff here**.
+- **🏘️ Irrigation village by village** — press *Measure irrigation for
+  every village here* and each village's irrigated area is measured
+  from its own polygon, the same resolution as the SHC village layer.
+  Village level is as fine as public data goes: survey-number
+  irrigation exists only in the Bhoomi RTC/Pahani and the seasonal
+  Crop Survey, neither of which has an open bulk API.
+- **🚰 Canal command areas** — press *Harvest* once and the server
+  fetches them from India-WRIS (needs open internet and an Indian IP,
+  so a browser can't; the server also tries on every restart).
+- **🛰️ What the satellite sees** — press *Measure irrigated area here
+  (satellite)*. Takes ~40-60 s; **wait for the spinner to finish, and
+  don't click twice** — a second click while it is working is ignored.
+  You get cropland area, summer-green irrigated area, **2+ and 3+
+  method agreement**, radar events, the borewell-vs-canal split, the
+  black-cotton-soil warning, and the accuracy band **for your zone**.
+
+**Read the "(N/5 ran)" label on the agreement figure.** The five
+methods are summer greenness, radar events, multi-cropping, LGRIP30
+and WorldCereal. If a method cannot run the panel now says so and
+names it, and if the agreement figures cannot be computed at all they
+read **n/a — never 0**. A zero means "measured, and it is zero"; n/a
+means "not measured". They used to look identical, which made a
+missing number read as a real one.
+
 - **Quote the agreement figure, not one product.** "2+ methods agree"
   is defensible; a single layer is an estimate.
 - **Borewell vs canal decides your method.** Karnataka is 56.6%

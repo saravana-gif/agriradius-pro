@@ -244,10 +244,17 @@ def evidence_score(buffer, year, ndvi_min=None, ndmi_min=None):
          lambda: worldcereal_irrigation_mask()),
     ]
 
+    # Every contributor is forced to exactly ONE band with the SAME
+    # name before anything is added. Earth Engine matches bands by
+    # name, and a single method arriving with two bands made the sum
+    # two-wide, so rename("evidence") failed with "number of names (1)
+    # must match the number of bands (2)" - which except: pass then
+    # hid, leaving "2+ methods agree: 0 ac" and a blank confidence
+    # layer with no error anywhere.
     layers, report = [], {}
     for name, build in methods:
         try:
-            layers.append(build().unmask(0))
+            layers.append(build().unmask(0).select([0]).rename("evidence"))
             report[name] = None
         except Exception as e:
             report[name] = str(e) or e.__class__.__name__
@@ -257,8 +264,8 @@ def evidence_score(buffer, year, ndvi_min=None, ndmi_min=None):
     total = layers[0]
     for extra in layers[1:]:
         total = total.add(extra)
-    return (total.rename("evidence").updateMask(_cropland(buffer, year)),
-            report)
+    return (total.select([0]).rename("evidence")
+            .updateMask(_cropland(buffer, year)), report)
 
 
 def multicrop_available():
@@ -502,22 +509,30 @@ def irrigation_stats(lat, lon, radius_km, year):
 
     # Ensemble: how much land two or more / three or more independent
     # methods call irrigated. This is the defensible headline.
+    # Two distinct failures, kept distinct: a METHOD that could not be
+    # built, and the ENSEMBLE ARITHMETIC over the methods that were.
+    # Lumping them together previously reported "5 of 5 methods ran"
+    # beside "1 did not run", which is nonsense and hid a real bug.
     try:
         ev, report = evidence_score(buffer, year, ndvi_min, ndmi_min)
-        # Record which methods actually contributed. Without this a
-        # "2+ methods agree: 0 ac" reads as a measurement when it can
-        # equally mean four of the five methods never ran.
         out["methods_ok"] = sorted(k for k, v in report.items()
                                    if v is None)
         out["methods_failed"] = {k: v for k, v in report.items()
                                  if v is not None}
-        if ev is not None:
+    except Exception as e:
+        ev = None
+        out["methods_ok"] = []
+        out["methods_failed"] = {}
+        out["evidence_error"] = str(e)
+
+    if ev is not None:
+        try:
             out["evidence_2plus_ac"] = _acres(ev.gte(2), buffer)
             out["evidence_3plus_ac"] = _acres(ev.gte(3), buffer)
-    except Exception as e:
-        out["evidence_2plus_ac"] = None
-        out["evidence_3plus_ac"] = None
-        out["methods_failed"] = {"Evidence ensemble": str(e)}
+        except Exception as e:
+            out["evidence_2plus_ac"] = None
+            out["evidence_3plus_ac"] = None
+            out["evidence_error"] = str(e)
 
     if out.get("cropland_ac") and out.get("summer_green_ac") is not None:
         out["summer_green_pct"] = round(

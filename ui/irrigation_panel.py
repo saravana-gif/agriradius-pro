@@ -409,21 +409,30 @@ def _satellite_block(lat, lon, radius, year, summary):
                    "signal.")
     ok = stats.get("methods_ok") or []
     failed = stats.get("methods_failed") or {}
+    ens_err = stats.get("evidence_error")
     n_ok = len(ok) if (ok or failed) else 5
+    agree2 = stats.get("evidence_2plus_ac")
     c3.metric(f"2+ methods agree ({n_ok}/5 ran)",
-              f"{(stats.get('evidence_2plus_ac') or 0):,.0f} ac",
+              "n/a" if agree2 is None
+              else f"{agree2:,.0f} ac",
               help="At least two of five independent methods call it "
                    "irrigated. This is the figure to quote - but only "
                    "if enough methods actually ran.")
+    agree3 = stats.get("evidence_3plus_ac")
     c4.metric("3+ methods agree",
-              f"{(stats.get('evidence_3plus_ac') or 0):,.0f} ac",
+              "n/a" if agree3 is None else f"{agree3:,.0f} ac",
               help="Three or more agree - send someone here first.")
 
-    # A low agreement figure means one of two very different things:
-    # genuinely little irrigation, or methods that never ran. Say
-    # which, rather than letting a missing-data artefact look like a
-    # measurement.
-    if failed:
+    # Three different situations, told apart. Showing 0 ac for all
+    # three is how a broken ensemble passed for "almost no irrigation
+    # here" for weeks.
+    if ens_err:
+        st.error(
+            f"All {n_ok} methods ran, but combining them failed, so "
+            f"the agreement figures are unavailable (shown as n/a, "
+            f"not as zero). Use **summer greenness** and the radar "
+            f"figure below - both are unaffected. Details: {ens_err}")
+    elif failed:
         if n_ok < 2:
             st.error(
                 f"Only {n_ok} of 5 methods ran, so the agreement "

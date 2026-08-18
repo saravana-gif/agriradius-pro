@@ -84,8 +84,20 @@ def dw_class_image(buffer, start_date, end_date):
 
 
 def dw_crops_mask(buffer, start_date, end_date):
-    """Binary cropland mask from the probability classification."""
-    return dw_class_image(buffer, start_date, end_date).eq(CROPS_INDEX)
+    """Binary cropland mask from the probability classification.
+
+    unmask(0) because this is a BINARY mask and callers negate it,
+    OR it and AND it. A collection mean is masked where no image
+    covers the pixel, and a masked pixel poisons every one of those
+    operations - `.Not()` of masked stays masked, so "not cropland"
+    silently becomes "nothing". That is exactly how the forest
+    subtraction came to report 0 ac. Here the gaps are rare rather
+    than systematic, but the fix is free and the failure is silent.
+    For area sums and updateMask, masked and 0 behave identically,
+    so nothing else changes.
+    """
+    return (dw_class_image(buffer, start_date, end_date)
+            .eq(CROPS_INDEX).unmask(0))
 
 
 @st.cache_data(show_spinner="Loading Dynamic World overlay...", ttl=TILE_TTL)

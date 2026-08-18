@@ -71,7 +71,12 @@ def forest_subtypes():
 
     1 = naturally regenerating, 10 = primary, 20 = planted forest.
     """
-    sub = ee.Image("JRC/GFC2020_subtypes/V1")
+    # .select("Map") is explicit here to match forest_mask(). Both
+    # images carry a single band called Map, so the arithmetic that
+    # combines them (natural + 2*planted) matches by name; leaving it
+    # implicit is the kind of thing that silently produces a two-band
+    # image the moment a dataset gains a band.
+    sub = ee.Image("JRC/GFC2020_subtypes/V1").select("Map")
     natural = sub.eq(1).Or(sub.eq(10))
     planted = sub.eq(20)
     return natural, planted

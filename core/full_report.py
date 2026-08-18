@@ -13,8 +13,16 @@ from core.rain_insight import analyze_rainfall
 from core.rain_insight import to_dataframe as rain_to_df
 
 
-def gather(progress=None):
-    """Run everything. progress(pct, label) reports steps."""
+def gather(progress=None, with_maps=True):
+    """Run everything. progress(pct, label) reports steps.
+
+    with_maps=False skips ONLY the map thumbnails. Every number,
+    table and chart is still gathered and printed - the maps are the
+    slow part (each is computed live over the whole circle), not the
+    data. This is what makes a large radius practical: a 38 km report
+    without maps builds in a couple of minutes, with maps it may run
+    out of the rendering budget.
+    """
 
     def step(pct, label):
         if progress:
@@ -127,16 +135,27 @@ def gather(progress=None):
     # NDVI, plantation, banana, paddy, maize, WorldCereal,
     # aquaculture and the three painted soil properties, plus the
     # vector layers (measured soil test, coconut crop survey).
-    step(56, "Rendering every map layer for the report...")
-    try:
-        from gee.report_maps import map_images
-        imgs = map_images(lat, lon, radius, year)
-    except Exception as e:
+    if not with_maps:
+        step(56, "Skipping map images (data-only report)...")
         imgs = []
-        bundle["notes"].append(f"Satellite map images skipped: {e}")
+        bundle["notes"].append(
+            "This is the DATA-ONLY report: map images were skipped on "
+            "purpose, so it builds quickly at any radius. Every "
+            "number, table and chart below is the full set - nothing "
+            "is abbreviated. Rebuild with 'Include map images' to add "
+            "the rendered layers.")
+    else:
+        step(56, "Rendering every map layer for the report...")
+        try:
+            from gee.report_maps import map_images
+            imgs = map_images(lat, lon, radius, year)
+        except Exception as e:
+            imgs = []
+            bundle["notes"].append(
+                f"Satellite map images skipped: {e}")
     try:
         from gee.report_maps import budget_was_spent, missing_layers
-        gaps = missing_layers(imgs)
+        gaps = missing_layers(imgs) if with_maps else []
         if gaps and budget_was_spent():
             # A spent budget and a failed layer need different advice.
             bundle["notes"].append(
@@ -157,13 +176,15 @@ def gather(progress=None):
                   "rebuild the report to retry them.")
     except Exception:
         pass
-    try:
-        from gis.vector_maps import vector_maps
-        imgs = list(imgs) + vector_maps(
-            lat, lon, radius,
-            st.session_state.get("shc_map_metric", "n_low"))
-    except Exception as e:
-        bundle["notes"].append(f"Measured map images skipped: {e}")
+    if with_maps:
+        try:
+            from gis.vector_maps import vector_maps
+            imgs = list(imgs) + vector_maps(
+                lat, lon, radius,
+                st.session_state.get("shc_map_metric", "n_low"))
+        except Exception as e:
+            bundle["notes"].append(
+                f"Measured map images skipped: {e}")
     bundle["map_images"] = imgs or None
     if imgs:
         bundle["notes"].append(

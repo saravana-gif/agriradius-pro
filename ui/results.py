@@ -471,7 +471,7 @@ def _area_report_bytes(df, villages):
     )
 
 
-def _build_full_report(kind):
+def _build_full_report(kind, with_maps=True):
     """Run every analysis, then build a PDF or Excel and save to disk.
 
     kind is 'pdf' or 'excel'. Stores bytes + path in session state.
@@ -487,7 +487,7 @@ def _build_full_report(kind):
     def report_progress(pct, label):
         bar.progress(int(pct), text=label)
 
-    bundle = gather(progress=report_progress)
+    bundle = gather(progress=report_progress, with_maps=with_maps)
 
     place = (bundle["meta"].get("place") or "area").replace(" ", "_")
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -522,10 +522,38 @@ def _downloads_tab(df):
 
     st.caption(
         "One click runs every analysis for the current location and "
-        "radius, then builds a complete report. The full suite can "
-        "take 1-3 minutes (village insights is the slow part). Each "
-        "report is also saved to your project's 'reports' folder."
+        "radius, then builds a complete report. Each report is also "
+        "saved to your project's 'reports' folder."
     )
+
+    # Maps are the slow part - each layer is computed live over the
+    # whole circle - and at a large radius they can exhaust the
+    # rendering budget. The DATA is never the bottleneck, so it is
+    # offered separately rather than making a big area unusable.
+    radius = st.session_state.get("radius", 10)
+    choice = st.radio(
+        "What should the PDF contain?",
+        ["Report only - all data, no map images (fast)",
+         "Report + map images (slower)"],
+        index=0,
+        key="pdf_with_maps",
+        help="Both contain exactly the same numbers, tables and "
+             "charts. The only difference is the rendered map "
+             "layers, which are computed live and are what makes a "
+             "large radius slow.")
+    with_maps = choice.startswith("Report + map")
+
+    if with_maps and radius and float(radius) > 25:
+        st.warning(
+            f"At {radius} km each map layer is computed live over "
+            f"{3.14159 * float(radius) ** 2:,.0f} km2. Rendering has "
+            f"a 7-minute budget, so some layers may not be drawn - "
+            f"the report will name any that were skipped. All the "
+            f"data is unaffected either way.")
+
+    st.caption(
+        "Data-only builds in about 1-2 minutes. With maps, allow "
+        "5-10 minutes and leave the tab open.")
 
     c1, c2 = st.columns(2)
 
@@ -533,7 +561,7 @@ def _downloads_tab(df):
         if st.button("📄 Build Full PDF Report",
                      use_container_width=True, type="primary"):
             try:
-                _build_full_report("pdf")
+                _build_full_report("pdf", with_maps=with_maps)
             except Exception as e:
                 st.error(f"PDF build failed: {e}")
 
@@ -541,7 +569,8 @@ def _downloads_tab(df):
         if st.button("📊 Build Full Excel Report",
                      use_container_width=True, type="primary"):
             try:
-                _build_full_report("excel")
+                # Excel has no images at all, so maps never apply.
+                _build_full_report("excel", with_maps=False)
             except Exception as e:
                 st.error(f"Excel build failed: {e}")
 

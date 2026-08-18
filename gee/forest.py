@@ -62,8 +62,20 @@ def _buffer(lat, lon, radius_km):
 
 
 def forest_mask():
-    """JRC GFC2020 forest - agricultural plantations already excluded."""
-    return ee.Image("JRC/GFC2020/V3").select("Map").eq(1)
+    """JRC GFC2020 forest - agricultural plantations already excluded.
+
+    unmask(0) is essential, not cosmetic. GFC2020 publishes ONE class
+    value (1 = Forest); every non-forest pixel is MASKED, not zero.
+    So `.eq(1)` is 1 on forest and masked everywhere else, and
+    `.Not()` on that is masked everywhere - not "non-forest". Any
+    `plantation.And(forest_mask().Not())` therefore came out empty,
+    which is why the panel reported 340,166 ac of plantation, 340,166
+    ac "removed" as forest, and 0 ac left - while the same panel
+    measured only 256,655 ac of forest in total. You cannot subtract
+    more forest than exists; the subtraction was deleting the layer,
+    not measuring it.
+    """
+    return ee.Image("JRC/GFC2020/V3").select("Map").eq(1).unmask(0)
 
 
 def forest_subtypes():
@@ -252,7 +264,37 @@ def forest_stats(lat, lon, radius_km, year):
     except Exception:
         out["natural_lands_ac"] = None
 
+    _sanity_check(out)
     return out
+
+
+def _sanity_check(out):
+    """Catch impossible arithmetic before it reaches the screen.
+
+    You cannot remove more forest from the plantation layer than
+    exists in the whole circle. When a masked image sneaks into a
+    `.Not()` the subtraction silently deletes the layer instead of
+    measuring it, and the result looks like a confident "100.0% was
+    forest, 0 ac left". The numbers contradict each other, so say so
+    rather than presenting them as a finding.
+    """
+    removed = out.get("forest_removed_ac")
+    forest = out.get("forest_ac")
+    gross = out.get("plantation_gross_ac")
+    if removed is None or forest is None:
+        return
+    # 2% tolerance: the layers are at different resolutions, so a
+    # small overshoot is legitimate rounding, not a broken mask.
+    if forest > 0 and removed > forest * 1.02:
+        out["warning"] = (
+            f"These figures contradict each other: {removed:,.0f} ac "
+            f"of forest was subtracted from the plantation layer, but "
+            f"only {forest:,.0f} ac of forest exists in this whole "
+            f"circle. More was removed than is present, so the "
+            f"subtraction is faulty and 'plantation net of forest' "
+            f"cannot be trusted here. The gross plantation figure "
+            f"({gross:,.0f} ac) and the forest figure are each still "
+            f"valid on their own.")
 
 
 def verdict(stats):

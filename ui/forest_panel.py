@@ -74,10 +74,15 @@ def _forest_block(lat, lon, radius, year):
             f"department crop figures below are unaffected.")
         return
 
-    from gee.forest import verdict
-    v = verdict(s)
-    if v:
-        st.success(v)
+    # A contradiction outranks the verdict: never print a confident
+    # "100% of it was forest" over numbers that cannot both be true.
+    if s.get("warning"):
+        st.error(s["warning"])
+    else:
+        from gee.forest import verdict
+        v = verdict(s)
+        if v:
+            st.success(v)
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Plantation detected (gross)",

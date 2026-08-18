@@ -166,6 +166,10 @@ def _village_insights_section():
         st.info("No villages found.")
         return
 
+    cap_note = (vi.attrs or {}).get("cap_note")
+    if cap_note:
+        st.warning(cap_note)
+
     c1, c2, c3 = st.columns(3)
 
     double = (vi["Pattern"] == "Double / Multiple Cropping").sum()

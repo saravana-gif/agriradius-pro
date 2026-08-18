@@ -262,6 +262,10 @@ def gather(progress=None, with_maps=True):
         st.session_state.village_insights = village_insights(
             lat, lon, radius, year)
         bundle["insights_df"] = st.session_state.village_insights
+        # A capped table must say so in the report, not just on screen.
+        cap = (bundle["insights_df"].attrs or {}).get("cap_note")
+        if cap:
+            bundle["notes"].append(cap)
     except Exception as e:
         bundle["insights_df"] = None
         bundle["notes"].append(f"Village insights skipped: {e}")

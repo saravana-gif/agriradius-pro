@@ -16,9 +16,48 @@ from gis.spatial import villages_in_buffer
 
 SQM_PER_ACRE = 4046.8564224
 
-# Above this many villages the per-village reduction gets very slow;
-# ask the user to shrink the radius instead.
+# Above this many villages the per-village reduction gets very slow.
+# Rather than refuse (which made a 38 km report simply lose its
+# village table), rank the villages and analyse the largest
+# MAX_VILLAGES of them.
 MAX_VILLAGES = 300
+
+
+def _rank_and_cap(gdf, max_villages):
+    """Keep the largest `max_villages` polygons; report what was cut.
+
+    Ranked by POLYGON AREA, not by distance from the centre. Taking
+    the nearest N would quietly shrink a 38 km request back to ~27 km
+    and hide the fact; taking the largest keeps the full footprint and
+    drops only the smallest villages, which carry the least farmland.
+    Cropland area would be the ideal ranking, but that is the very
+    thing the expensive Earth Engine call computes - polygon area is
+    the best proxy available before paying for it.
+    """
+    total = len(gdf)
+    if total <= max_villages:
+        return gdf, None
+
+    ranked = gdf.copy()
+    try:
+        # Project before measuring: degrees are not an area.
+        ranked["_area"] = ranked.to_crs(
+            ranked.estimate_utm_crs()).geometry.area
+    except Exception:
+        ranked["_area"] = ranked.geometry.area   # last resort
+    ranked = ranked.sort_values("_area", ascending=False)
+    kept = ranked.head(max_villages).drop(columns=["_area"])
+
+    note = (
+        f"{total} villages fall inside this radius, above the "
+        f"{max_villages} the per-village analysis can handle. The "
+        f"{max_villages} LARGEST by area are analysed here and "
+        f"{total - max_villages} smaller ones are not - ranked by "
+        f"village area, so the full radius is still covered rather "
+        f"than quietly cropped to a smaller circle. The village "
+        f"table below is therefore the largest {max_villages}, not "
+        f"every village in the circle.")
+    return kept.reset_index(drop=True), note
 
 
 def _to_feature_collection(gdf):
@@ -42,11 +81,7 @@ def village_insights(lat, lon, radius_km, year):
     if gdf.empty:
         return pd.DataFrame()
 
-    if len(gdf) > MAX_VILLAGES:
-        raise ValueError(
-            f"{len(gdf)} villages in buffer - too many for per-village "
-            f"analysis (max {MAX_VILLAGES}). Reduce the radius."
-        )
+    gdf, cap_note = _rank_and_cap(gdf, MAX_VILLAGES)
 
     point = ee.Geometry.Point([lon, lat])
     buffer = point.buffer(radius_km * 1000)
@@ -129,7 +164,12 @@ def village_insights(lat, lon, radius_km, year):
         })
 
     df = pd.DataFrame(rows)
+    df = df.sort_values(
+        "Cropland (ac)", ascending=False).reset_index(drop=True)
 
-    return df.sort_values(
-        "Cropland (ac)", ascending=False
-    ).reset_index(drop=True)
+    # Carried on the frame so the UI and the PDF can both say the
+    # table is a capped subset. A truncated table that does not admit
+    # it is worse than no table.
+    df.attrs["cap_note"] = cap_note
+    df.attrs["villages_analysed"] = len(df)
+    return df

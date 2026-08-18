@@ -559,6 +559,8 @@ def pdf_bytes(bundle):
         irrigation_rank=bundle.get("irrigation_rank"),
         irrigation_sat=bundle.get("irrigation_sat"),
         irrigation_verdict=bundle.get("irrigation_verdict"),
+        irrigation_source_note=bundle.get("irrigation_source_note"),
+        irrigation_validation=bundle.get("irrigation_validation"),
         irrigation_villages=bundle.get("irrigation_villages"),
         irrigation_villages_summary=bundle.get(
             "irrigation_villages_summary"),

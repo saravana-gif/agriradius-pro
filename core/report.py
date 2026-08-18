@@ -154,6 +154,8 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       irrigation=None, irrigation_note=None,
                       irrigation_rank=None, irrigation_sat=None,
                       irrigation_verdict=None,
+                      irrigation_source_note=None,
+                      irrigation_validation=None,
                       irrigation_villages=None,
                       irrigation_villages_summary=None,
                       mi_census=None, mi_census_level=None,
@@ -587,13 +589,38 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                  "LOWER BOUND - no published accuracy, under-maps "
                  "Asia"),
                 ("confirmed_ac", "Both methods agree",
-                 "Summer green AND LGRIP30 - the number to quote")]:
+                 "Summer green AND LGRIP30 - the number to quote"),
+                ("vertisol_ac", "Black cotton soil in cropland",
+                 "Rabi crops here are commonly RAIN-FED on stored "
+                 "moisture - the trap this stack is built to avoid")]:
             v = s.get(key)
             rows.append([label,
                          f"{v:,.0f} ac" if v is not None else "n/a",
                          note])
         story.append(_table(rows, [4.6 * cm, 2.8 * cm, 7.6 * cm],
                             font_size=7))
+        # How many methods actually ran. The agreement rows above are
+        # meaningless without it: "2+ methods agree: 0 ac" reads as a
+        # measurement when it can equally mean the methods never ran.
+        ok = s.get("methods_ok") or []
+        failed = s.get("methods_failed") or {}
+        if ok or failed:
+            story.append(Paragraph(
+                f"<b>Methods that ran: {len(ok)} of 5.</b> "
+                + ("Ran: " + "; ".join(ok) + ". " if ok else "")
+                + ("DID NOT RUN: "
+                   + "; ".join(f"{k} ({str(v)[:60]})"
+                               for k, v in failed.items())
+                   + ". Agreement is scored only out of the methods "
+                     "that ran, so it understates irrigation."
+                   if failed else ""), ss["Small"]))
+        if s.get("evidence_error"):
+            story.append(Paragraph(
+                f"<b>Agreement could not be computed</b> "
+                f"({s['evidence_error']}) - the 2+/3+ rows above read "
+                f"n/a, which is NOT the same as zero. Use the summer "
+                f"green and radar figures instead.", ss["Small"]))
+
         zone = (irrigation_sat.get("zone") or {})
         if zone.get("label"):
             story.append(Paragraph(
@@ -649,7 +676,10 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             font_size=6)
         story.append(Spacer(1, 12))
 
-    if mi_census:
+    # len(), not truthiness: area_table() returns a list today, but a
+    # DataFrame here would raise "truth value is ambiguous" and take
+    # the whole PDF down with it.
+    if mi_census is not None and len(mi_census):
         try:
             import pandas as pd
             story.append(Paragraph(
@@ -665,6 +695,52 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             story.append(Spacer(1, 12))
         except Exception:
             pass
+
+    # "Where the water comes from" and the crop-survey cross-check
+    # were gathered and written to the Excel, but never handed to the
+    # PDF - so the report quietly lost the surface-vs-borewell
+    # finding, which is the single most actionable line in the whole
+    # irrigation stack for Karnataka.
+    if irrigation_source_note:
+        story.append(Paragraph("Where the water comes from",
+                               ss["Normal"]))
+        story.append(Paragraph(str(irrigation_source_note),
+                               ss["Small"]))
+        story.append(Spacer(1, 8))
+
+    if irrigation_validation:
+        try:
+            v = irrigation_validation
+            story.append(Paragraph(
+                "Cross-check against the government crop survey",
+                ss["Normal"]))
+            story.append(_table([
+                ["Satellite says irrigated",
+                 "Crop survey says irrigated", "Reading"],
+                [f"{v.get('satellite_pct', '-')}%",
+                 f"{v.get('survey_pct', '-')}%",
+                 str(v.get("reading", "-"))[:60]],
+            ], [5 * cm, 5 * cm, 5 * cm]))
+            story.append(Spacer(1, 10))
+        except Exception:
+            pass
+
+    # Provenance. On screen this is a download button for the source
+    # dossier; a PDF cannot carry an .xlsx, so it names it instead -
+    # otherwise a reader of the report alone would never learn the
+    # workbook exists.
+    if irrigation or irrigation_sat:
+        story.append(Paragraph(
+            "<b>Where all of this comes from.</b> The irrigation "
+            "stack was built from a 9-sheet source dossier - README, "
+            "1_Plot_Level, 2_Aggregate_Stats, 3_Satellite_Layers, "
+            "4_Live_APIs, 5_KA_District_2022_23, 6_Targeting_"
+            "Playbook, 7_Commercial, 8_Access_Requests. Download it "
+            "from the Irrigation tab in the app "
+            "(&#39;Irrigation data-source dossier&#39;) for the full "
+            "provenance of every figure above, including which "
+            "datasets were rejected and why.", ss["Small"]))
+        story.append(Spacer(1, 12))
 
     # ---------------- Modelled soil ----------------
     if soil_verdicts:

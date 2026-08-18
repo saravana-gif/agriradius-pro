@@ -23,41 +23,175 @@ SQM_PER_ACRE = 4046.8564224
 MAX_VILLAGES = 300
 
 
-def _rank_and_cap(gdf, max_villages):
-    """Keep the largest `max_villages` polygons; report what was cut.
+# How the shortlist is scored. Irrigated LAND dominates because that
+# is what the field team can act on; the share terms stop a big
+# village with a thin irrigated fraction outranking a small intensely
+# irrigated one; cropland size is the tie-breaker.
+RANK_WEIGHTS = {
+    "irrigated_ac": 0.45,     # measured Feb-May green+moist cropland
+    "irrigated_share": 0.20,  # how much of its cropland is irrigated
+    "intensity_share": 0.15,  # multi-crop share - cropping intensity
+    "cropland_ac": 0.20,      # total farmland
+}
 
-    Ranked by POLYGON AREA, not by distance from the centre. Taking
-    the nearest N would quietly shrink a 38 km request back to ~27 km
-    and hide the fact; taking the largest keeps the full footprint and
-    drops only the smallest villages, which carry the least farmland.
-    Cropland area would be the ideal ranking, but that is the very
-    thing the expensive Earth Engine call computes - polygon area is
-    the best proxy available before paying for it.
+
+def _screen_villages(gdf, buffer, year, lat, lon, radius_km):
+    """One cheap Earth Engine pass over EVERY village.
+
+    Returns a DataFrame with measured cropland, irrigated and
+    multi-crop area per village, or None if the pass fails.
+
+    This exists so the shortlist can be ranked on IRRIGATION and
+    CROPPING INTENSITY rather than on polygon size. The full analysis
+    (24-month NDVI phenology, cycles/year) is far too heavy for 600+
+    villages, but these three areas come from a single reduceRegions
+    over one multi-band image, which is affordable for all of them.
+    Rank on what matters, then spend the expensive call on the
+    shortlist.
+    """
+    from core import compute as _cq
+    from gee.irrigation import (_cropland, multicrop_mask,
+                                summer_green_mask, thresholds)
+
+    area = ee.Image.pixelArea()
+    crop = _cropland(buffer, year)
+    bands = [area.updateMask(crop).rename("crop_m2")]
+
+    try:
+        ndvi_min, ndmi_min, _ = thresholds(
+            _districts_safe(lat, lon, radius_km))
+        irr = summer_green_mask(buffer, year, ndvi_min, ndmi_min)
+        bands.append(area.updateMask(irr).rename("irr_m2"))
+    except Exception:
+        pass
+    try:
+        bands.append(
+            area.updateMask(multicrop_mask(buffer)).rename("mc_m2"))
+    except Exception:
+        pass
+
+    # Screening only, so it runs coarse on purpose - the numbers
+    # decide an ordering, not a published figure.
+    scale = max(_cq.stat_scale(), 60)
+    feats = (ee.Image.cat(bands)
+             .reduceRegions(collection=_to_feature_collection(gdf),
+                            reducer=ee.Reducer.sum(),
+                            scale=scale,
+                            tileScale=_cq.tile_scale())
+             .getInfo())
+
+    rows = []
+    for f in feats["features"]:
+        p = f["properties"]
+        crop_ac = (p.get("crop_m2") or 0) / SQM_PER_ACRE
+        irr_ac = (p.get("irr_m2") or 0) / SQM_PER_ACRE
+        mc_ac = (p.get("mc_m2") or 0) / SQM_PER_ACRE
+        rows.append({
+            "idx": p.get("idx"),
+            "cropland_ac": crop_ac,
+            "irrigated_ac": irr_ac,
+            "irrigated_share": (irr_ac / crop_ac) if crop_ac else 0.0,
+            "intensity_share": (mc_ac / crop_ac) if crop_ac else 0.0,
+        })
+    return pd.DataFrame(rows)
+
+
+def _districts_safe(lat, lon, radius_km):
+    try:
+        from gee.irrigation import _districts
+        return _districts(lat, lon, radius_km)
+    except Exception:
+        return None
+
+
+def _score(screen):
+    """Blend the measured columns into one 0-1 score per village."""
+    s = pd.Series(0.0, index=screen.index)
+    for col, weight in RANK_WEIGHTS.items():
+        if col not in screen:
+            continue
+        v = screen[col].astype(float)
+        hi = v.max()
+        if hi and hi > 0:
+            s = s + weight * (v / hi)      # normalise, then weight
+    return s
+
+
+def _rank_and_cap(gdf, max_villages, buffer=None, year=None,
+                  lat=None, lon=None, radius_km=None):
+    """Shortlist the `max_villages` most agriculturally significant.
+
+    Ranked on MEASURED irrigation and cropping intensity, not on
+    polygon size and not on distance from the centre. Distance would
+    quietly shrink a 38 km request to a smaller circle while still
+    calling itself 38 km; size would favour big empty villages over
+    small intensively irrigated ones.
+
+    Falls back to polygon area only if the screening pass fails, and
+    says so, because an unexplained ordering is worse than a crude
+    one.
     """
     total = len(gdf)
     if total <= max_villages:
         return gdf, None
 
+    screen = None
+    if buffer is not None:
+        try:
+            screen = _screen_villages(gdf, buffer, year, lat, lon,
+                                      radius_km)
+        except Exception:
+            screen = None
+
+    if screen is not None and len(screen) == total:
+        screen = screen.set_index("idx").reindex(range(total))
+        screen = screen.fillna(0.0)
+        order = _score(screen).sort_values(ascending=False)
+        keep_idx = list(order.head(max_villages).index)
+        kept = gdf.iloc[keep_idx].reset_index(drop=True)
+        sel = screen.loc[keep_idx]
+        note = (
+            f"{total} villages fall inside this radius - above the "
+            f"{max_villages} the full per-village analysis can "
+            f"handle. Rather than drop the table, every one of the "
+            f"{total} was first screened by satellite for cropland, "
+            f"irrigated area (Feb-May green and moist) and "
+            f"multi-cropping, and the {max_villages} ranking highest "
+            f"on those were analysed in full. Weights: irrigated "
+            f"acres {RANK_WEIGHTS['irrigated_ac']:.0%}, irrigated "
+            f"share {RANK_WEIGHTS['irrigated_share']:.0%}, cropping "
+            f"intensity {RANK_WEIGHTS['intensity_share']:.0%}, "
+            f"cropland acres {RANK_WEIGHTS['cropland_ac']:.0%}. The "
+            f"shortlist holds {sel['irrigated_ac'].sum():,.0f} ac of "
+            f"the {screen['irrigated_ac'].sum():,.0f} ac of irrigated "
+            f"cropland found across all {total} villages "
+            f"({100 * sel['irrigated_ac'].sum() / max(screen['irrigated_ac'].sum(), 1e-9):.0f}%). "
+            f"The {total - max_villages} villages not listed are the "
+            f"least irrigated and least intensively cropped, spread "
+            f"across the whole radius - the footprint is not cropped "
+            f"to a smaller circle.")
+        return kept, note
+
+    # Fallback: polygon area, clearly labelled as the weaker rule.
     ranked = gdf.copy()
     try:
-        # Project before measuring: degrees are not an area.
         ranked["_area"] = ranked.to_crs(
             ranked.estimate_utm_crs()).geometry.area
     except Exception:
-        ranked["_area"] = ranked.geometry.area   # last resort
+        ranked["_area"] = ranked.geometry.area
     ranked = ranked.sort_values("_area", ascending=False)
-    kept = ranked.head(max_villages).drop(columns=["_area"])
-
+    kept = ranked.head(max_villages).drop(
+        columns=["_area"]).reset_index(drop=True)
     note = (
         f"{total} villages fall inside this radius, above the "
         f"{max_villages} the per-village analysis can handle. The "
-        f"{max_villages} LARGEST by area are analysed here and "
-        f"{total - max_villages} smaller ones are not - ranked by "
-        f"village area, so the full radius is still covered rather "
-        f"than quietly cropped to a smaller circle. The village "
-        f"table below is therefore the largest {max_villages}, not "
-        f"every village in the circle.")
-    return kept.reset_index(drop=True), note
+        f"satellite screening pass that normally ranks them by "
+        f"irrigation and cropping intensity could not run, so this "
+        f"shortlist is the {max_villages} LARGEST BY AREA - a "
+        f"cruder rule: a big village with little irrigated land can "
+        f"outrank a small intensively irrigated one. Rebuild to "
+        f"retry the proper ranking.")
+    return kept, note
 
 
 def _to_feature_collection(gdf):
@@ -81,10 +215,13 @@ def village_insights(lat, lon, radius_km, year):
     if gdf.empty:
         return pd.DataFrame()
 
-    gdf, cap_note = _rank_and_cap(gdf, MAX_VILLAGES)
-
     point = ee.Geometry.Point([lon, lat])
     buffer = point.buffer(radius_km * 1000)
+
+    # Screen and shortlist BEFORE the expensive phenology call.
+    gdf, cap_note = _rank_and_cap(
+        gdf, MAX_VILLAGES, buffer=buffer, year=year,
+        lat=lat, lon=lon, radius_km=radius_km)
 
     start, end = f"{year - 1}-01-01", f"{year}-12-31"
 

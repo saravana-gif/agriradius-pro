@@ -14,4 +14,6 @@ def analyze_landcover(latitude, longitude, radius_km, year=2025):
     start_date = f"{year}-01-01"
     end_date = f"{year}-12-31"
 
-    return get_landcover(buffer, start_date, end_date)
+    # radius_km is passed through so the reduction scale can be
+    # coarsened for large circles without an extra Earth Engine call.
+    return get_landcover(buffer, start_date, end_date, radius_km)

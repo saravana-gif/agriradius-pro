@@ -225,38 +225,40 @@ def evidence_score(buffer, year, ndvi_min=None, ndmi_min=None):
     single product here is trustworthy alone; agreement between
     independent methods is. Pixels scoring 3+ are the ones worth
     sending someone to look at.
+
+    Returns (image, report) where report maps each method name to
+    None if it contributed, or to the reason it did not. Swallowing
+    those failures silently is how the panel came to show "2+ methods
+    agree: 0 ac" with no hint that four of the five methods never ran
+    - the number looked like a measurement when it was really a
+    missing-data artefact.
     """
-    layers = []
-    try:
-        layers.append(summer_green_mask(buffer, year, ndvi_min,
-                                        ndmi_min).unmask(0))
-    except Exception:
-        pass
-    try:
-        layers.append(s1_event_mask(buffer, year).unmask(0))
-    except Exception:
-        pass
-    try:
-        layers.append(multicrop_mask(buffer).unmask(0))
-    except Exception:
-        pass
-    try:
-        irr, _ = lgrip_masks()
-        layers.append(irr.unmask(0))
-    except Exception:
-        pass
-    try:
-        layers.append(worldcereal_irrigation_mask().unmask(0))
-    except Exception:
-        pass
+    methods = [
+        ("Summer greenness (Sentinel-2)",
+         lambda: summer_green_mask(buffer, year, ndvi_min, ndmi_min)),
+        ("Irrigation events (Sentinel-1 radar)",
+         lambda: s1_event_mask(buffer, year)),
+        ("Multi-cropping (GCI30)", lambda: multicrop_mask(buffer)),
+        ("LGRIP30 irrigated", lambda: lgrip_masks()[0]),
+        ("WorldCereal irrigation",
+         lambda: worldcereal_irrigation_mask()),
+    ]
+
+    layers, report = [], {}
+    for name, build in methods:
+        try:
+            layers.append(build().unmask(0))
+            report[name] = None
+        except Exception as e:
+            report[name] = str(e) or e.__class__.__name__
 
     if not layers:
-        return None
+        return None, report
     total = layers[0]
     for extra in layers[1:]:
         total = total.add(extra)
-    return total.rename("evidence").updateMask(
-        _cropland(buffer, year))
+    return (total.rename("evidence").updateMask(_cropland(buffer, year)),
+            report)
 
 
 def multicrop_available():
@@ -357,7 +359,7 @@ def evidence_tile_url(lat, lon, radius_km, year):
     """0-5 agreement between independent methods."""
     buffer = _buffer(lat, lon, radius_km)
     ndvi_min, ndmi_min, _ = thresholds(_districts(lat, lon, radius_km))
-    img = evidence_score(buffer, year, ndvi_min, ndmi_min)
+    img, _report = evidence_score(buffer, year, ndvi_min, ndmi_min)
     if img is None:
         return None
     img = img.updateMask(img.gte(1)).clip(buffer)
@@ -501,13 +503,21 @@ def irrigation_stats(lat, lon, radius_km, year):
     # Ensemble: how much land two or more / three or more independent
     # methods call irrigated. This is the defensible headline.
     try:
-        ev = evidence_score(buffer, year, ndvi_min, ndmi_min)
+        ev, report = evidence_score(buffer, year, ndvi_min, ndmi_min)
+        # Record which methods actually contributed. Without this a
+        # "2+ methods agree: 0 ac" reads as a measurement when it can
+        # equally mean four of the five methods never ran.
+        out["methods_ok"] = sorted(k for k, v in report.items()
+                                   if v is None)
+        out["methods_failed"] = {k: v for k, v in report.items()
+                                 if v is not None}
         if ev is not None:
             out["evidence_2plus_ac"] = _acres(ev.gte(2), buffer)
             out["evidence_3plus_ac"] = _acres(ev.gte(3), buffer)
-    except Exception:
+    except Exception as e:
         out["evidence_2plus_ac"] = None
         out["evidence_3plus_ac"] = None
+        out["methods_failed"] = {"Evidence ensemble": str(e)}
 
     if out.get("cropland_ac") and out.get("summer_green_ac") is not None:
         out["summer_green_pct"] = round(

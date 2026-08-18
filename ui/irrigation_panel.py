@@ -407,13 +407,38 @@ def _satellite_block(lat, lon, radius, year, summary):
               f"{(stats.get('summer_green_ac') or 0):,.0f} ac",
               help="Green AND moist through Feb-May. Our primary "
                    "signal.")
-    c3.metric("2+ methods agree",
+    ok = stats.get("methods_ok") or []
+    failed = stats.get("methods_failed") or {}
+    n_ok = len(ok) if (ok or failed) else 5
+    c3.metric(f"2+ methods agree ({n_ok}/5 ran)",
               f"{(stats.get('evidence_2plus_ac') or 0):,.0f} ac",
               help="At least two of five independent methods call it "
-                   "irrigated. This is the figure to quote.")
+                   "irrigated. This is the figure to quote - but only "
+                   "if enough methods actually ran.")
     c4.metric("3+ methods agree",
               f"{(stats.get('evidence_3plus_ac') or 0):,.0f} ac",
               help="Three or more agree - send someone here first.")
+
+    # A low agreement figure means one of two very different things:
+    # genuinely little irrigation, or methods that never ran. Say
+    # which, rather than letting a missing-data artefact look like a
+    # measurement.
+    if failed:
+        if n_ok < 2:
+            st.error(
+                f"Only {n_ok} of 5 methods ran, so the agreement "
+                f"figures above cannot be trusted - two methods have "
+                f"to run before any pixel can score 2. Treat "
+                f"**summer greenness** as the measurement here.")
+        else:
+            st.warning(
+                f"{n_ok} of 5 methods ran. Agreement is scored out of "
+                f"the {n_ok} that did, so it understates irrigation.")
+        with st.expander(f"Which methods did not run ({len(failed)})"):
+            for name, why in failed.items():
+                st.markdown(f"- **{name}** - {why}")
+            if ok:
+                st.caption("Ran: " + ", ".join(ok))
 
     # Water source and radar, the two additions that carry the hard
     # cases (borewell land, and cloudy coastal/Malnad districts).

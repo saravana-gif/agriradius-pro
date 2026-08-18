@@ -117,7 +117,9 @@ def village_irrigation(lat, lon, radius_km, year):
         bore_ac = {}
 
     try:
-        ev = ir.evidence_score(buffer, year, ndvi_min, ndmi_min)
+        # evidence_score returns (image, per-method report); the report
+        # is summarised in the area-level panel, not per village.
+        ev, _report = ir.evidence_score(buffer, year, ndvi_min, ndmi_min)
         agree_ac = _sum_ac(ev.gte(2), fc) if ev is not None else {}
     except Exception:
         agree_ac = {}

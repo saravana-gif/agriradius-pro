@@ -667,6 +667,17 @@ def excel_bytes(bundle):
             ("vertisol_ac", "Black cotton soil in cropland (ac)"),
         ]
         rows = [(lab, s.get(k)) for k, lab in labels]
+        # An agreement count is only meaningful next to how many
+        # methods ran, so the report carries both or neither.
+        ok = s.get("methods_ok") or []
+        failed = s.get("methods_failed") or {}
+        if ok or failed:
+            rows.append(("Methods that ran",
+                         f"{len(ok)} of 5"))
+            if ok:
+                rows.append(("  - ran", "; ".join(ok)))
+            for name, why in failed.items():
+                rows.append((f"  - did NOT run: {name}", str(why)[:200]))
         rows.append(("Verdict", bundle.get("irrigation_verdict")))
         z = (s.get("zone") or {})
         rows.append(("Agro-climatic zone", z.get("label")))

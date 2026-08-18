@@ -84,8 +84,12 @@ def natural_lands_mask():
 
 
 def tree_cover_mask():
-    """ESA WorldCover tree cover (class 10)."""
-    return ee.Image("ESA/WorldCover/v200").select("Map").eq(10)
+    """ESA WorldCover tree cover (class 10).
+
+    WorldCover is an ImageCollection - see gee.assets.worldcover().
+    """
+    from gee.assets import worldcover
+    return worldcover().select("Map").eq(10)
 
 
 def farmland_trees_mask():
@@ -104,11 +108,12 @@ def canopy_uniformity():
     Community-catalogue assets, so this is wrapped by the caller: a
     missing asset must never break the layer stack.
     """
-    from gee.assets import META_CANOPY, asset_ok, missing_note
+    from gee.assets import (META_CANOPY, asset_ok, community_image,
+                            missing_note)
     if not asset_ok(META_CANOPY):
         raise RuntimeError(missing_note(
             META_CANOPY, "Canopy-height uniformity"))
-    ch = ee.Image(META_CANOPY)
+    ch = community_image(META_CANOPY)
     k = ee.Kernel.square(radius=30, units="meters")
     mean = ch.reduceNeighborhood(ee.Reducer.mean(), k)
     std = ch.reduceNeighborhood(ee.Reducer.stdDev(), k)

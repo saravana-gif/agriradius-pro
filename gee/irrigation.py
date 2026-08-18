@@ -113,14 +113,13 @@ def _cropland(buffer, year):
     only errors when the tile is requested, long after the try/except
     around its construction has passed.
     """
-    from gee.assets import (GCEP30, WORLDCOVER, WORLDCOVER_CROPLAND,
-                            asset_ok)
+    from gee.assets import (GCEP30, WORLDCOVER_CROPLAND, asset_ok,
+                            community_image, worldcover)
     from gee.dynamic_world import dw_crops_mask
 
     dw = dw_crops_mask(buffer, f"{year}-01-01", f"{year}-12-31")
     try:
-        wc = (ee.Image(WORLDCOVER).select("Map")
-              .eq(WORLDCOVER_CROPLAND))
+        wc = worldcover().select("Map").eq(WORLDCOVER_CROPLAND)
         mask = dw.Or(wc)
     except Exception:
         mask = dw
@@ -128,7 +127,7 @@ def _cropland(buffer, year):
     # Only add the community GFSAD layer when it is genuinely readable.
     if asset_ok(GCEP30):
         try:
-            mask = mask.Or(ee.Image(GCEP30).eq(2))
+            mask = mask.Or(community_image(GCEP30).eq(2))
         except Exception:
             pass
     return mask
@@ -271,10 +270,10 @@ def multicrop_mask(buffer):
     Raises when the community asset is unreadable, so callers report
     it instead of drawing an empty layer.
     """
-    from gee.assets import GCI30, asset_ok, missing_note
+    from gee.assets import GCI30, asset_ok, community_image, missing_note
     if not asset_ok(GCI30):
         raise RuntimeError(missing_note(GCI30, "The multi-crop layer"))
-    gci = ee.Image(GCI30)
+    gci = community_image(GCI30)
     return gci.gte(2).And(gci.neq(127)).rename("multicrop")
 
 
@@ -285,11 +284,12 @@ def lgrip_available():
 
 def lgrip_masks():
     """(irrigated, rainfed) from LGRIP30. 2=irrigated, 3=rain-fed."""
-    from gee.assets import LGRIP30, asset_ok, missing_note
+    from gee.assets import (LGRIP30, asset_ok, community_image,
+                            missing_note)
     if not asset_ok(LGRIP30):
         raise RuntimeError(missing_note(
             LGRIP30, "The LGRIP30 irrigated/rain-fed layer"))
-    lg = ee.Image(LGRIP30)
+    lg = community_image(LGRIP30)
     return lg.eq(2).rename("lgrip_irrigated"), \
         lg.eq(3).rename("lgrip_rainfed")
 

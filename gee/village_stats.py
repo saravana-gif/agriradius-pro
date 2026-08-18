@@ -22,6 +22,10 @@ SQM_PER_ACRE = 4046.8564224
 # MAX_VILLAGES of them.
 MAX_VILLAGES = 300
 
+# Villages per screening request. 600+ polygons of inline GeoJSON in
+# a single reduceRegions call is large enough to be rejected.
+SCREEN_BATCH = 150
+
 
 # How the shortlist is scored. Irrigated LAND dominates because that
 # is what the field team can act on; the share terms stop a big
@@ -73,15 +77,24 @@ def _screen_villages(gdf, buffer, year, lat, lon, radius_km):
     # Screening only, so it runs coarse on purpose - the numbers
     # decide an ordering, not a published figure.
     scale = max(_cq.stat_scale(), 60)
-    feats = (ee.Image.cat(bands)
-             .reduceRegions(collection=_to_feature_collection(gdf),
-                            reducer=ee.Reducer.sum(),
-                            scale=scale,
-                            tileScale=_cq.tile_scale())
-             .getInfo())
+    img = ee.Image.cat(bands)
+
+    # Sent in batches. The polygons travel to Earth Engine as inline
+    # GeoJSON, and 600+ of them in one request is large enough to be
+    # refused - which is exactly why the first live run fell back to
+    # area ranking. Batching keeps every request small.
+    features = []
+    for start in range(0, len(gdf), SCREEN_BATCH):
+        chunk = gdf.iloc[start:start + SCREEN_BATCH]
+        fc = _to_feature_collection(chunk, offset=start)
+        got = img.reduceRegions(collection=fc,
+                                reducer=ee.Reducer.sum(),
+                                scale=scale,
+                                tileScale=_cq.tile_scale()).getInfo()
+        features.extend(got["features"])
 
     rows = []
-    for f in feats["features"]:
+    for f in features:
         p = f["properties"]
         crop_ac = (p.get("crop_m2") or 0) / SQM_PER_ACRE
         irr_ac = (p.get("irr_m2") or 0) / SQM_PER_ACRE
@@ -135,13 +148,17 @@ def _rank_and_cap(gdf, max_villages, buffer=None, year=None,
     if total <= max_villages:
         return gdf, None
 
-    screen = None
+    screen, why = None, "screening was not attempted"
     if buffer is not None:
         try:
             screen = _screen_villages(gdf, buffer, year, lat, lon,
                                       radius_km)
-        except Exception:
-            screen = None
+        except Exception as e:
+            # Never swallow this. The first live run fell back to
+            # area ranking and an empty except meant the note could
+            # not say why - the reason turned out to be the request
+            # size, which is fixable.
+            screen, why = None, f"{e.__class__.__name__}: {e}"
 
     if screen is not None and len(screen) == total:
         screen = screen.set_index("idx").reindex(range(total))
@@ -186,19 +203,22 @@ def _rank_and_cap(gdf, max_villages, buffer=None, year=None,
         f"{total} villages fall inside this radius, above the "
         f"{max_villages} the per-village analysis can handle. The "
         f"satellite screening pass that normally ranks them by "
-        f"irrigation and cropping intensity could not run, so this "
-        f"shortlist is the {max_villages} LARGEST BY AREA - a "
-        f"cruder rule: a big village with little irrigated land can "
-        f"outrank a small intensively irrigated one. Rebuild to "
+        f"irrigation and cropping intensity could not run ({why}), "
+        f"so this shortlist is the {max_villages} LARGEST BY AREA - "
+        f"a cruder rule: a big village with little irrigated land "
+        f"can outrank a small intensively irrigated one. Rebuild to "
         f"retry the proper ranking.")
     return kept, note
 
 
-def _to_feature_collection(gdf):
-    """Simplified village polygons -> ee.FeatureCollection."""
+def _to_feature_collection(gdf, offset=0):
+    """Simplified village polygons -> ee.FeatureCollection.
 
+    `offset` keeps idx globally unique when the frame is sent in
+    batches, so results can be reassembled in the original order.
+    """
     slim = gdf[["geometry"]].copy()
-    slim["idx"] = range(len(gdf))
+    slim["idx"] = range(offset, offset + len(gdf))
 
     # Simplify to keep the upload small (~50m tolerance)
     slim["geometry"] = slim.geometry.simplify(0.0005)

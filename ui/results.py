@@ -481,6 +481,7 @@ def _build_full_report(kind, with_maps=True):
     kind is 'pdf' or 'excel'. Stores bytes + path in session state.
     """
 
+    import gc
     from datetime import datetime
 
     from config import APP_NAME, PROJECT_ROOT
@@ -488,8 +489,35 @@ def _build_full_report(kind, with_maps=True):
 
     bar = st.progress(0, text="Starting full analysis...")
 
+    # A breadcrumb ON DISK, not in session state. If the server is
+    # killed mid-build (out of memory is the likely one on a small
+    # box), the process dies with no exception and no message - the
+    # user just waits forever at a stalled progress bar. Session
+    # state dies with the process; a file does not, so the next page
+    # load can say what happened instead of leaving silence.
+    crumb = _build_crumb_path()
+    try:
+        crumb.parent.mkdir(exist_ok=True)
+        crumb.write_text(
+            f"{kind}|{datetime.now().isoformat(timespec='seconds')}|"
+            f"radius={st.session_state.get('radius')}|"
+            f"maps={with_maps}|step=starting",
+            encoding="utf-8")
+    except Exception:
+        crumb = None
+
     def report_progress(pct, label):
         bar.progress(int(pct), text=label)
+        if crumb is not None:                # record the last step reached
+            try:
+                crumb.write_text(
+                    f"{kind}|"
+                    f"{datetime.now().isoformat(timespec='seconds')}|"
+                    f"radius={st.session_state.get('radius')}|"
+                    f"maps={with_maps}|step={int(pct)}% {label}",
+                    encoding="utf-8")
+            except Exception:
+                pass
 
     bundle = gather(progress=report_progress, with_maps=with_maps)
 
@@ -521,8 +549,58 @@ def _build_full_report(kind, with_maps=True):
     st.session_state[f"full_{kind}_path"] = saved_path
     st.session_state["full_notes"] = bundle.get("notes", [])
 
+    # Release the bundle now. It holds every DataFrame the run
+    # produced - village tables, NDVI series, soil frames - and on a
+    # small box that memory is exactly what the next build needs.
+    bundle.clear()
+    del bundle
+    gc.collect()
+
+    if crumb is not None:                    # finished cleanly
+        try:
+            crumb.unlink()
+        except Exception:
+            pass
+
+
+def _build_crumb_path():
+    from config import PROJECT_ROOT
+    return PROJECT_ROOT / "reports" / ".build_in_progress"
+
+
+def _warn_if_last_build_died():
+    """Explain an interrupted build instead of leaving silence.
+
+    The crumb file only survives if a build started and never
+    finished - which means the process was killed rather than the
+    code raising, since an exception is caught and displayed.
+    """
+    crumb = _build_crumb_path()
+    try:
+        if not crumb.exists():
+            return
+        info = crumb.read_text(encoding="utf-8")
+        crumb.unlink()
+    except Exception:
+        return
+
+    parts = dict(p.split("=", 1) for p in info.split("|") if "=" in p)
+    step = parts.get("step", "an early step")
+    radius = parts.get("radius", "?")
+    st.error(
+        f"**The previous report build did not finish.** It stopped at "
+        f"*{step}* and produced no file and no error - which means the "
+        f"server process was terminated rather than the code failing. "
+        f"On a small server the usual cause is running out of memory, "
+        f"and a large radius (this attempt used {radius} km) is what "
+        f"pushes it over. Try again with **Report only** selected, or "
+        f"reduce the radius. Everything already computed is still "
+        f"available as CSVs on this page.")
+
 
 def _downloads_tab(df):
+
+    _warn_if_last_build_died()
 
     st.caption(
         "One click runs every analysis for the current location and "

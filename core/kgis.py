@@ -45,6 +45,63 @@ TALUK_KEYS = ["taluk", "taluka", "tehsil"]
 DISTRICT_KEYS = ["district", "dist"]
 
 
+# Who KSRSAC should reply to. Kept here so the request draft and any
+# saved config carry the same contact rather than drifting apart.
+CONTACT_EMAIL = "saravana@oneroot.farm"
+CONTACT_ORG = "OneRoot (ENP Farms Private Limited)"
+KSRSAC_SUPPORT = "kgissupport@ksrsac.in"
+
+
+def request_draft(contact_email=CONTACT_EMAIL, org=CONTACT_ORG):
+    """A ready-to-send access request for the K-GIS cadastral layer.
+
+    Written to be answerable: it names the two protocols K-GIS
+    already publishes, asks for the field names rather than guessing
+    them, and states where the requests will originate so IP
+    allow-listing can be arranged in the same reply instead of a
+    second round trip.
+    """
+    return f"""To: {KSRSAC_SUPPORT}
+Subject: Request for programmatic access to K-GIS cadastral \
+(survey-number) layer
+
+Dear K-GIS Support Team,
+
+I am writing from {org} regarding agricultural sourcing work in
+Karnataka. We operate an internal satellite analysis tool that
+measures cropland, irrigation and plantation extent for a selected
+area, and we would like to reference parcels by their official
+survey number rather than by geometry alone.
+
+Could you advise on programmatic access to the K-GIS cadastral
+layer? Specifically:
+
+1. A FeatureServer / MapServer query endpoint, or an OGC WFS
+   GetFeature endpoint, for the cadastral / survey-number layer.
+
+2. The field names carrying survey number, village, taluk and
+   district code, so we map them correctly rather than by guesswork.
+
+3. Whether a token or IP allow-listing is required. Our server is
+   hosted in Mumbai (AWS ap-south-1) and we can supply a fixed IP.
+
+4. The terms of use that apply, and whether a formal data-sharing
+   agreement or MoU is needed for a private company.
+
+We understand the hissa map georeferencing is still in progress and
+that partial coverage is expected - that is not a problem for our
+use case.
+
+Please reply to {contact_email}.
+
+Thank you for your time.
+
+Regards,
+Saravana
+{org}
+{contact_email}"""
+
+
 def _cfg_path():
     from config import PROJECT_ROOT
     return PROJECT_ROOT / "data" / "kgis_service.json"

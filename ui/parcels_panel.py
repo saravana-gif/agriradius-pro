@@ -130,23 +130,19 @@ def _kgis_block(ftw_gdf):
             "holds exactly that: survey number with village, taluk and "
             "district codes. It has no public endpoint, so OneRoot "
             "needs to request one.")
-        with st.expander("What to ask KSRSAC for"):
-            st.markdown(
-                "Email **kgissupport@ksrsac.in** asking for "
-                "programmatic access to the cadastral layer for "
-                "OneRoot's sourcing work, specifically:\n\n"
-                "1. A **FeatureServer / MapServer query endpoint**, or "
-                "an **OGC WFS GetFeature endpoint**, for the "
-                "cadastral / survey-number layer.\n"
-                "2. The **field names** carrying survey number, "
-                "village, taluk and district code.\n"
-                "3. Whether a **token or IP allow-listing** is "
-                "required (the server's IP is in Mumbai, "
-                "ap-south-1).\n\n"
-                "Two caveats worth knowing before you ask: only about "
+        with st.expander("Request access - ready-to-send email"):
+            st.caption(
+                f"Addressed to **{kgis.KSRSAC_SUPPORT}**, replies to "
+                f"**{kgis.CONTACT_EMAIL}**. Copy it as it stands, or "
+                f"edit first - it asks for the endpoint, the field "
+                f"names and the access terms in one go, so KSRSAC can "
+                f"answer everything in a single reply.")
+            st.code(kgis.request_draft(), language="text")
+            st.caption(
+                "Two things worth knowing before you send: only about "
                 "**58% of Karnataka's hissa maps are georeferenced** "
                 "so far, and the cadastral layer is not open data - "
-                "expect terms attached.")
+                "expect terms, and possibly an MoU, attached.")
         with st.form("kgis_cfg"):
             st.caption("Paste the endpoint here once you have it.")
             url = st.text_input(

@@ -11,6 +11,16 @@ import contextlib
 import streamlit as st
 
 
+def _L(text):
+    """Bilingual label - Kannada/Tamil with the English kept alongside."""
+    try:
+        from core.lang import bilingual
+        return bilingual(text)
+    except Exception:
+        return text
+
+
+
 def parcels_body(as_tab=False):
     """Render the panel. as_tab=True skips the expander wrapper."""
     from core import field_boundaries as fb
@@ -70,13 +80,13 @@ def parcels_body(as_tab=False):
             st.info(info["note"])
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Field parcels", f"{s['parcels']:,}")
-        c2.metric("Total parcel area",
+        c1.metric(_L("Field parcels"), f"{s['parcels']:,}")
+        c2.metric(_L("Total parcel area"),
                   f"{(s['total_ac'] or 0):,.0f} ac",
                   help="Sum of the parcels found. Compare this with "
                        "the cropland figure in Summary - they measure "
                        "different things and rarely match exactly.")
-        c3.metric("Median parcel size",
+        c3.metric(_L("Median parcel size"),
                   f"{s['median_ac']} ac" if s['median_ac'] else "n/a",
                   help="Half the fields are smaller than this. The "
                        "number that tells you whether you are dealing "

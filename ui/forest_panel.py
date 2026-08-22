@@ -14,6 +14,16 @@ import pandas as pd
 import streamlit as st
 
 
+def _L(text):
+    """Bilingual label - Kannada/Tamil with the English kept alongside."""
+    try:
+        from core.lang import bilingual
+        return bilingual(text)
+    except Exception:
+        return text
+
+
+
 def _districts_taluks(lat, lon, radius):
     dists, taluks = [], []
     try:
@@ -85,17 +95,17 @@ def _forest_block(lat, lon, radius, year):
             st.success(v)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Plantation detected (gross)",
+    c1.metric(_L("Plantation detected (gross)"),
               f"{(s.get('plantation_gross_ac') or 0):,.0f} ac")
-    c2.metric("Forest removed",
+    c2.metric(_L("Forest removed"),
               f"{(s.get('forest_removed_ac') or 0):,.0f} ac",
               delta=(f"-{s['forest_removed_pct']}%"
                      if s.get("forest_removed_pct") else None),
               delta_color="inverse")
-    c3.metric("Plantation NET of forest",
+    c3.metric(_L("Plantation NET of forest"),
               f"{(s.get('plantation_net_ac') or 0):,.0f} ac",
               help="Use this figure for sourcing, not the gross one.")
-    c4.metric("Farmland trees (tree crops)",
+    c4.metric(_L("Farmland trees (tree crops)"),
               f"{(s.get('farmland_trees_ac') or 0):,.0f} ac",
               help="Canopy that GFC2020 excludes from forest - in "
                    "Karnataka overwhelmingly arecanut, coconut, "

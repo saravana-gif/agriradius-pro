@@ -14,6 +14,16 @@ Reads as a briefing, not a data dump. Four parts:
 import pandas as pd
 import streamlit as st
 
+
+def _L(text):
+    """Bilingual label - Kannada/Tamil with the English kept alongside."""
+    try:
+        from core.lang import bilingual
+        return bilingual(text)
+    except Exception:
+        return text
+
+
 from core import irrigation
 
 
@@ -401,9 +411,9 @@ def _satellite_block(lat, lon, radius, year, summary):
         st.success(v)
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Cropland in area",
+    c1.metric(_L("Cropland in area"),
               f"{(stats.get('cropland_ac') or 0):,.0f} ac")
-    c2.metric("Irrigated - summer green",
+    c2.metric(_L("Irrigated - summer green"),
               f"{(stats.get('summer_green_ac') or 0):,.0f} ac",
               help="Green AND moist through Feb-May. Our primary "
                    "signal.")
@@ -605,11 +615,11 @@ def irrigation_body(as_tab=False):
             "just the total, decides how you find irrigated farms.")
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Net irrigated", f"{summary['net_ac']:,} ac")
-        c2.metric("Borewell share",
+        c1.metric(_L("Net irrigated"), f"{summary['net_ac']:,} ac")
+        c2.metric(_L("Borewell share"),
                   f"{summary['borewell_pct']:.0f}%"
                   if summary.get("borewell_pct") is not None else "-")
-        c3.metric("Canal share",
+        c3.metric(_L("Canal share"),
                   f"{summary['canal_pct']:.0f}%"
                   if summary.get("canal_pct") is not None else "-")
         c4.metric("Gross : net",

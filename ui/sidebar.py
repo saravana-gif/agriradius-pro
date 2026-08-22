@@ -8,7 +8,33 @@ MODES = ["Area (radius)", "Point location", "Multiple points",
          "District", "State"]
 
 
+def _language_picker():
+    """Kannada / Tamil for the headline labels."""
+    from core import lang as L
+
+    codes = list(L.LANGUAGES)
+    cur = st.session_state.get("ui_lang", "en")
+    choice = st.selectbox(
+        "Language / ಭಾಷೆ / மொழி", codes,
+        index=codes.index(cur) if cur in codes else 0,
+        format_func=lambda c: L.LANGUAGES[c],
+        key="ui_lang_pick")
+    if choice != cur:
+        st.session_state.ui_lang = choice
+        st.rerun()
+    if choice != "en":
+        done, total = L.coverage()[choice]
+        st.caption(
+            f"{done} of {total} headline labels translated. Numbers "
+            f"stay as digits, and the methodology and caveat text "
+            f"stays in English on purpose - a rough translation of a "
+            f"precise caveat would read confident and mean something "
+            f"slightly different.")
+
+
 def sidebar():
+
+    _language_picker()
 
     st.subheader("Search")
 

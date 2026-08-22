@@ -2713,6 +2713,18 @@ def _parcels_tab():
     parcels_body(as_tab=True)
 
 
+def _watchlist_section():
+    """👁 Saved areas and what moved since the last visit."""
+    from ui.watchlist_panel import watchlist_body
+    watchlist_body()
+
+
+def _ask_section():
+    """💬 One-line answers from the figures already computed."""
+    from ui.ask_panel import ask_body
+    ask_body()
+
+
 def results():
 
     if st.session_state.get("mode") == "Point location":
@@ -2724,6 +2736,7 @@ def results():
     df = _landcover_df()
 
     _data_confidence_panel()
+    _safe(_ask_section)
 
     (tab_summary, tab_villages, tab_parcels, tab_charts, tab_crop,
      tab_irrigation, tab_forest, tab_rain, tab_forecast, tab_soil,
@@ -2749,6 +2762,8 @@ def results():
         st.divider()
         _safe(_confidence_check)
         _safe(_stability_check)
+        st.divider()
+        _safe(_watchlist_section)
 
     with tab_villages:
         _safe(_villages_tab)

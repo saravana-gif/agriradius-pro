@@ -23,6 +23,7 @@ DEFAULTS = {
     "crosscheck": None,
     "paddy_stats": None,
     "village_insights": None,
+    "ui_lang": "en",
     "rainfall_series": None,
     "stability": None,
     "report_pdf": None,

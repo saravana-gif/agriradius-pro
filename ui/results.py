@@ -782,6 +782,92 @@ def _plantation_check():
                        "coconut, so plantation can exceed it.")
 
 
+def _harvest_window_block(df, insight):
+    """When is this area's crop ready - measured, not from a calendar."""
+    from core import harvest
+
+    st.divider()
+    st.markdown("#### 🌾 Harvest window")
+    res = harvest.windows(df, insight)
+    st.session_state.harvest = res
+
+    if not res.get("supported"):
+        st.info(res.get("reason") or
+                "No harvest window could be measured here.")
+        return
+
+    v = harvest.verdict(res)
+    if v:
+        st.success(v)
+
+    rows = [["Growth peak", "Canopy has dried down by", "Window"]]
+    for w in res["windows"]:
+        rows.append([str(w["peak_month"]),
+                     str(w["harvest_month"]),
+                     str(w["window"])])
+    try:
+        import pandas as pd
+        st.dataframe(pd.DataFrame(rows[1:], columns=rows[0]),
+                     use_container_width=True, hide_index=True)
+    except Exception:
+        pass
+    st.caption(res.get("basis") or "")
+
+
+def _volume_block():
+    """Indicative tonnage from area - always a band, never a number."""
+    from core import volume as V
+
+    st.divider()
+    st.markdown("#### 📦 Indicative volume")
+
+    # Prefer a CROP-SPECIFIC area. The coconut crop survey is measured
+    # per survey number, so it is the honest denominator; plantation
+    # net of forest mixes every tree crop together and can only give
+    # a ceiling.
+    surveyed = None
+    try:
+        cs = st.session_state.get("coconut_survey") or {}
+        surveyed = cs.get("extent_ac")
+    except Exception:
+        pass
+
+    net = None
+    try:
+        f = st.session_state.get("forest_stats") or {}
+        net = f.get("plantation_net_ac")
+    except Exception:
+        pass
+
+    if surveyed:
+        e = V.estimate("coconut", surveyed,
+                       area_label="coconut recorded in the government "
+                                  "crop survey",
+                       area_is_crop_specific=True)
+        if e:
+            st.metric("Coconut volume (indicative band)", e["label"])
+            st.caption(V.caveat(e))
+            st.session_state.volume_estimate = e
+            return
+
+    if net:
+        e = V.estimate("coconut", net,
+                       area_label="plantation net of forest (all tree "
+                                  "crops together)",
+                       area_is_crop_specific=False)
+        if e:
+            st.metric("Upper bound if it were ALL coconut", e["label"])
+            st.error(V.caveat(e))
+            st.session_state.volume_estimate = e
+            return
+
+    st.info(
+        "No crop-specific area is available for this circle yet. Run "
+        "the coconut crop-survey panel or Forest vs Farmland first - "
+        "a volume figure needs an area that belongs to ONE crop, "
+        "otherwise it is arithmetic on a mixture and means nothing.")
+
+
 def _crop_cycle_tab():
 
     st.caption(
@@ -825,6 +911,9 @@ def _crop_cycle_tab():
     c3.metric("Mean NDVI (cropland)", insight["mean_ndvi"])
 
     st.info(insight["detail"])
+
+    _safe(_harvest_window_block, df, insight)
+    _safe(_volume_block)
 
     if insight["peak_months"]:
         st.write(
@@ -2618,6 +2707,12 @@ def _forest_tab():
     forest_body(as_tab=True)
 
 
+def _parcels_tab():
+    """🔲 Field parcels - the individual fields inside the circle."""
+    from ui.parcels_panel import parcels_body
+    parcels_body(as_tab=True)
+
+
 def results():
 
     if st.session_state.get("mode") == "Point location":
@@ -2630,10 +2725,10 @@ def results():
 
     _data_confidence_panel()
 
-    (tab_summary, tab_villages, tab_charts, tab_crop,
+    (tab_summary, tab_villages, tab_parcels, tab_charts, tab_crop,
      tab_irrigation, tab_forest, tab_rain, tab_forecast, tab_soil,
      tab_allied, tab_mandi, tab_gt, tab_downloads) = st.tabs(
-        ["📊 Summary", "🏘️ Villages", "📈 Charts",
+        ["📊 Summary", "🏘️ Villages", "🔲 Field Parcels", "📈 Charts",
          "🌱 Crop Cycle", "💧 Irrigation", "🌳 Forest vs Farmland",
          "🌧️ Rainfall", "⛅ Forecast",
          "🧪 Soil", "🐄 Allied Sectors", "💰 Mandi",
@@ -2645,6 +2740,9 @@ def results():
 
     with tab_forest:
         _safe(_forest_tab)
+
+    with tab_parcels:
+        _safe(_parcels_tab)
 
     with tab_summary:
         _safe(_summary_tab, df)

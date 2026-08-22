@@ -99,7 +99,10 @@ def _connect(memory_limit="256MB", remote=True):
                 pass      # local/cached reads still work without it
         for stmt in ("SET http_proxy='';",
                      "SET http_proxy_username='';",
-                     "SET http_proxy_password='';"):
+                     "SET http_proxy_password='';",
+                     # Harmless if unused; needed the moment any path
+                     # does contain a wildcard.
+                     "SET allow_asterisks_in_http_paths=true;"):
             try:
                 con.execute(stmt)
             except Exception:
@@ -129,62 +132,127 @@ def _is_remote(glob):
 # guess the Indian layout and fail silently at query time, probe a
 # short list of candidates once and record what actually answered.
 
-CANDIDATE_ROOTS = [
-    f"{VECTORS}/alpha/results-by-admin-conf",
-    f"{VECTORS}/results-by-admin-conf",
-    f"{VECTORS}/alpha/results-by-country-conf",
+# The bucket behind data.source.coop. Listing it is the only honest
+# way to find India's files: plain HTTP has no directory listing, so
+# DuckDB cannot glob over it ("Globs for generic HTTP file are not
+# supported"), and guessing filenames produced a 404 - India is one
+# of the nine countries FTW splits by admin subdivision, so there is
+# no single India.parquet to guess at.
+S3_BUCKET_URL = "https://us-west-2.opendata.source.coop.s3.amazonaws.com"
+
+# Prefixes to list under, in order. The FTW docs give two different
+# storage bases, so both are tried rather than assumed.
+CANDIDATE_PREFIXES = [
+    "ftw/global-data/predictions/vectors/alpha/results-by-admin-conf/",
+    "ftw/global-data/predictions/vectors/results-by-admin-conf/",
+    "tge-labs/ftw-global-data/predictions/vectors/alpha/"
+    "results-by-admin-conf/",
+    "tge-labs/ftw-global-data/predictions/vectors/"
+    "results-by-admin-conf/",
 ]
 
-CANDIDATE_PATTERNS = [
-    "admin:country_code=IN/*.parquet",
-    "admin:country_code=IN/**/*.parquet",
-    "admin:country_code=IN/India.parquet",
-    "country_code=IN/*.parquet",
-]
+# How India's partition might be spelled in the key.
+INDIA_MARKERS = ("country_code=IN/", "country_code=IND/", "/India")
 
 
-def discover(timeout_s=120):
-    """Find the India partition. Returns a dict describing the probe.
+def _list_bucket(prefix, max_keys=4000, timeout=60):
+    """Anonymous S3 ListObjectsV2 over HTTPS. Returns object keys."""
+    import xml.etree.ElementTree as ET
 
-    Always returns - never raises - and always says what it tried,
-    because a silent failure here would surface later as an empty map
+    import requests
+
+    keys, token = [], None
+    ns = "{http://s3.amazonaws.com/doc/2006-03-01/}"
+    while True:
+        params = {"list-type": "2", "prefix": prefix,
+                  "max-keys": str(min(1000, max_keys))}
+        if token:
+            params["continuation-token"] = token
+        r = requests.get(S3_BUCKET_URL, params=params, timeout=timeout)
+        r.raise_for_status()
+        root = ET.fromstring(r.content)
+        for c in root.findall(f"{ns}Contents"):
+            k = c.findtext(f"{ns}Key")
+            if k:
+                keys.append(k)
+        if len(keys) >= max_keys:
+            break
+        if root.findtext(f"{ns}IsTruncated") != "true":
+            break
+        token = root.findtext(f"{ns}NextContinuationToken")
+        if not token:
+            break
+    return keys
+
+
+def discover(timeout_s=180):
+    """Find India's FTW files by LISTING the bucket, not guessing.
+
+    Always returns - never raises - and always records what it tried,
+    because a silent failure here surfaces later as an empty map
     layer with no explanation.
     """
-    out = {"ok": False, "glob": None, "columns": [], "tried": [],
-           "error": None, "checked_at": int(time.time())}
-    try:
-        con = _connect()
-    except Exception as e:
-        out["error"] = (f"DuckDB is not available on the server "
-                        f"({e.__class__.__name__}: {e}). Add 'duckdb' "
-                        f"to requirements.txt and restart.")
-        return out
+    out = {"ok": False, "glob": None, "files": [], "columns": [],
+           "tried": [], "error": None, "checked_at": int(time.time())}
 
     started = time.time()
-    for root in CANDIDATE_ROOTS:
-        for pat in CANDIDATE_PATTERNS:
-            if time.time() - started > timeout_s:
-                out["error"] = "Probe timed out."
-                return out
-            glob = f"{root}/{pat}"
-            try:
-                cols = con.execute(
-                    f"SELECT * FROM read_parquet('{glob}') LIMIT 0"
-                ).description
-                out["glob"] = glob
-                out["columns"] = [c[0] for c in (cols or [])]
-                out["ok"] = True
-                out["tried"].append({"glob": glob, "result": "OK"})
-                _save_cache(out)
-                return out
-            except Exception as e:
-                out["tried"].append(
-                    {"glob": glob,
-                     "result": f"{e.__class__.__name__}: "
-                               f"{str(e)[:160]}"})
-    out["error"] = ("None of the candidate FTW paths answered. The "
-                    "dataset layout may have changed; the probe log "
-                    "below shows exactly what was attempted.")
+    for prefix in CANDIDATE_PREFIXES:
+        if time.time() - started > timeout_s:
+            out["error"] = "Probe timed out while listing the bucket."
+            return out
+        try:
+            keys = _list_bucket(prefix)
+        except Exception as e:
+            out["tried"].append(
+                {"glob": f"list {prefix}",
+                 "result": f"{e.__class__.__name__}: {str(e)[:150]}"})
+            continue
+
+        if not keys:
+            out["tried"].append({"glob": f"list {prefix}",
+                                 "result": "no objects under prefix"})
+            continue
+
+        india = [k for k in keys
+                 if k.endswith(".parquet")
+                 and any(m in k for m in INDIA_MARKERS)]
+        if not india:
+            sample = ", ".join(k.rsplit("/", 1)[-1]
+                               for k in keys[:3]) or "-"
+            out["tried"].append(
+                {"glob": f"list {prefix}",
+                 "result": f"{len(keys)} objects, none matched India "
+                           f"(e.g. {sample})"})
+            continue
+
+        urls = [f"{S3_BUCKET_URL}/{k}" for k in india]
+        try:
+            con = _connect(remote=True)
+            cols = con.execute(
+                f"SELECT * FROM read_parquet({urls[:1]!r}) LIMIT 0"
+            ).description
+        except Exception as e:
+            out["tried"].append(
+                {"glob": urls[0],
+                 "result": f"listed OK but unreadable - "
+                           f"{e.__class__.__name__}: {str(e)[:140]}"})
+            continue
+
+        out["files"] = urls
+        out["glob"] = urls[0] if len(urls) == 1 else None
+        out["columns"] = [c[0] for c in (cols or [])]
+        out["ok"] = True
+        out["tried"].append(
+            {"glob": f"list {prefix}",
+             "result": f"OK - {len(urls)} India file(s) found"})
+        _save_cache(out)
+        return out
+
+    out["error"] = (
+        "Could not locate India's FTW files. Plain HTTP has no "
+        "directory listing, so the bucket is listed directly instead "
+        "- the log below shows each prefix tried and what came back. "
+        "Check them against https://source.coop/ftw/global-data")
     return out
 
 
@@ -274,7 +342,16 @@ def parcels(lat, lon, radius_km, year=None,
         return gpd.GeoDataFrame(), info
 
     minx, miny, maxx, maxy = _bbox(lat, lon, radius_km)
-    glob = layout["glob"]
+    # A concrete list of file URLs, never a glob: plain HTTP has no
+    # directory listing, so DuckDB cannot expand a wildcard against
+    # it. discover() resolves the real filenames once.
+    files = layout.get("files") or (
+        [layout["glob"]] if layout.get("glob") else [])
+    if not files:
+        info["note"] = ("The saved FTW layout has no files in it. "
+                        "Press 'Find field parcel data' again.")
+        return gpd.GeoDataFrame(), info
+    glob = files[0]
     cols = set(layout.get("columns") or [])
 
     # Spatial filter WITHOUT the spatial extension.
@@ -305,8 +382,11 @@ def parcels(lat, lon, radius_km, year=None,
         if c in cols:
             select.append(f'"{c}" AS {alias}')
 
+    # read_parquet accepts a list, so all of India's admin partitions
+    # are scanned in one query - bbox pruning means only the byte
+    # ranges covering this circle are actually fetched.
     sql = (f"SELECT {', '.join(select)} "
-           f"FROM read_parquet('{glob}') "
+           f"FROM read_parquet({files!r}) "
            f"WHERE {' AND '.join(where)} "
            f"LIMIT {int(max_parcels) + 1}")
 

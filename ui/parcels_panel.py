@@ -244,11 +244,17 @@ def _setup_block(fb):
     with st.spinner("Probing the FTW catalogue..."):
         info = fb.discover()
     if info.get("ok"):
+        files = info.get("files") or []
         st.success(
-            f"Found it. Using `{info['glob']}` with "
+            f"Found it - {len(files)} India file"
+            f"{'s' if len(files) != 1 else ''}, "
             f"{len(info.get('columns') or [])} columns. Field parcels "
-            f"are now available - reload and press 'Load field "
-            f"parcels'.")
+            f"are now available; press 'Load field parcels' above.")
+        with st.expander(f"The {len(files)} file(s) it will read"):
+            for u in files[:40]:
+                st.caption(u.rsplit("/", 1)[-1])
+            if len(files) > 40:
+                st.caption(f"... and {len(files) - 40} more")
     else:
         st.error(info.get("error") or "Probe failed.")
     with st.expander("What the probe tried"):

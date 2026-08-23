@@ -363,13 +363,27 @@ INDEX_BATCH = 8
 INDEX_BUDGET_S = 25
 
 
+def _failed_list(layout):
+    """extents_failed as a list of URLs, whatever shape it is on disk.
+
+    An earlier build of this module wrote extents_failed as a COUNT.
+    A cache file left behind by that build would make len() raise and
+    take the whole Field Parcels tab down with a TypeError that names
+    nothing useful. Migrating in place is two lines; debugging that
+    crash from a screenshot is not.
+    """
+    v = layout.get("extents_failed")
+    if isinstance(v, list):
+        return list(v)
+    return []                    # int, None or anything else -> start over
+
+
 def index_progress(layout=None):
     """(measured, unmeasurable, total) for the extent index."""
     layout = layout or cached_layout() or {}
     files = layout.get("files") or []
     ext = layout.get("extents") or {}
-    bad = layout.get("extents_failed") or []
-    return len(ext), len(bad), len(files)
+    return len(ext), len(_failed_list(layout)), len(files)
 
 
 def build_extent_index(layout=None, batch=INDEX_BATCH,
@@ -398,7 +412,7 @@ def build_extent_index(layout=None, batch=INDEX_BATCH,
         return layout
 
     extents = layout.get("extents") or {}
-    failed = list(layout.get("extents_failed") or [])
+    failed = _failed_list(layout)
     todo = [u for u in files
             if u not in extents and u not in failed]
     if not todo:

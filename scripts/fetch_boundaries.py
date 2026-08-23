@@ -41,6 +41,26 @@ SOURCES = {
                              "Telangana",
                              str(p.get("DMV_C", ""))),
     },
+    # Tamil Nadu. The shapefile that used to live here was committed
+    # TRUNCATED - its header declared 36,736,480 bytes but only
+    # 18,804,736 were ever stored, so 8,644 of 18,159 villages were
+    # unreadable and any read that reached them died with an opaque
+    # fread() error. Worse, that error propagated and took
+    # Karnataka's villages down with it on any circle spanning the
+    # border. The salvageable 9,515 are shipped as tamilnadu.csv.xz;
+    # run this to replace them with the full set.
+    "tamilnadu": {
+        "out": BOUND / "tamilnadu_villages" / "tamilnadu.csv.xz",
+        "min_bytes": 3_000_000,
+        "parts": [
+            (f"{RAW}/datameet/indian_village_boundaries/master/"
+             "tn/tn.geojson", "plain"),
+        ],
+        "fields": lambda p: (str(p.get("NAME", "")),
+                             str(p.get("DISTRICT", "")),
+                             "Tamil Nadu",
+                             str(p.get("CEN_2001", ""))),
+    },
     "maharashtra": {
         "out": BOUND / "maharashtra_villages" / "maharashtra.csv.xz",
         "min_bytes": 7_000_000,

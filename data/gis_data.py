@@ -15,6 +15,44 @@ Example layout:
 from config import BOUNDARIES_DIR
 
 
+# Known holes in the bundled boundary data.
+#
+# Tamil Nadu's village shapefile was committed TRUNCATED: the header
+# declared 36,736,480 bytes, only 18,804,736 were ever stored, and
+# the geometry for 8,644 of 18,159 villages went with the missing
+# half. The attribute table survived, so the loss could be measured
+# exactly rather than guessed - these 11 districts have NO village
+# geometry at all.
+#
+# They are not a random slice. They are western Tamil Nadu, the belt
+# that borders Karnataka, and they include Coimbatore and Tiruppur -
+# the Pollachi coconut belt this app ships as its own sample area.
+# So this hole sits directly under OneRoot's Tamil Nadu sourcing.
+#
+# Fix properly with:  python scripts/fetch_boundaries.py tamilnadu
+# (needs internet, so it runs on the server, not in the sandbox.)
+COVERAGE_GAPS = {
+    "tamilnadu": {
+        "missing_districts": [
+            "Coimbatore", "Dharmapuri", "Dindigul", "Erode", "Karur",
+            "Krishnagiri", "Namakkal", "The Nilgiris", "Tirupathur",
+            "Tiruppur", "Vellore",
+        ],
+        "villages_missing": 8644,
+        "villages_present": 9515,
+        "why": ("the bundled shapefile was truncated in an earlier "
+                "commit; the salvageable half is shipped as "
+                "tamilnadu.csv.xz"),
+        "fix": "python scripts/fetch_boundaries.py tamilnadu",
+    },
+}
+
+
+def coverage_gap(state):
+    """The known hole in a state's boundary data, or None."""
+    return COVERAGE_GAPS.get(str(state).lower())
+
+
 def _find_layer_file(folder):
     """Return the first supported boundary file in a folder, else None.
 

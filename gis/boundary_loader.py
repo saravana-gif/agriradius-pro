@@ -16,6 +16,7 @@ This version:
 """
 
 import geopandas as gpd
+import pandas as pd
 
 from data.gis_data import get_layer
 
@@ -156,6 +157,91 @@ def _prune_columns(gdf):
     return gdf[cols]
 
 
+def _shp_health(shp):
+    """Compare a shapefile's declared length with its real one.
+
+    The .shp header stores the file length at bytes 24-27 as a
+    big-endian count of 16-bit words. If that disagrees with the
+    actual size the file is truncated, and any read past the cut
+    fails with an opaque fread() error deep inside GDAL. Saying so
+    plainly costs one 100-byte read.
+
+    Returns (ok, message).
+    """
+    import struct
+    try:
+        actual = shp.stat().st_size
+        with open(shp, "rb") as f:
+            hdr = f.read(100)
+        if len(hdr) < 100:
+            return False, f"{shp.name} is only {actual:,} bytes - truncated."
+        magic, = struct.unpack(">i", hdr[0:4])
+        if magic != 9994:
+            return False, f"{shp.name} is not a shapefile (magic {magic})."
+        declared = struct.unpack(">i", hdr[24:28])[0] * 2
+        if declared != actual:
+            return False, (
+                f"{shp.name} is truncated: the header declares "
+                f"{declared:,} bytes but the file is {actual:,} "
+                f"({declared - actual:,} missing). Re-fetch it.")
+        return True, ""
+    except Exception as e:
+        return True, f"(could not check {shp.name}: {e})"
+
+
+def _clear_stale_sidecars(shp):
+    """Delete spatial indexes older than the .shp they index.
+
+    A .qix / .sbn / .sbx records BYTE OFFSETS into the .shp. Replace
+    the .shp with a different build - which a deploy does - and the
+    old index survives beside it, still pointing at offsets from the
+    file that is gone. GDAL then seeks past EOF and fails with
+    "Error in fread() reading object of size N at offset M", where M
+    is larger than the file. The index is a pure cache, so deleting
+    it is always safe; GDAL simply scans instead.
+
+    Returns the list of files removed.
+    """
+    removed = []
+    try:
+        shp_mtime = shp.stat().st_mtime
+    except OSError:
+        return removed
+    for ext in (".qix", ".sbn", ".sbx"):
+        side = shp.with_suffix(ext)
+        try:
+            if side.exists() and side.stat().st_mtime < shp_mtime:
+                side.unlink()
+                removed.append(side.name)
+        except OSError:
+            pass                 # read-only deploy - the retry still helps
+    return removed
+
+
+def _read_windowed_by_scan(shp, bbox, step=4000):
+    """Read a shapefile in row chunks, filtering each to the bbox.
+
+    The index-free path. Slower than a spatial-index read but it
+    cannot be poisoned by a stale index, and chunking keeps peak
+    memory near one chunk rather than one state.
+    """
+    parts, start = [], 0
+    while True:
+        chunk = gpd.read_file(shp, rows=slice(start, start + step))
+        if chunk is None or len(chunk) == 0:
+            break
+        if bbox is not None:
+            chunk = chunk.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+        if len(chunk):
+            parts.append(chunk)
+        start += step
+    if not parts:
+        return gpd.read_file(shp, rows=slice(0, 0))     # empty, right schema
+    out = pd.concat(parts, ignore_index=True)
+    return gpd.GeoDataFrame(out, geometry=out.geometry.name,
+                            crs=parts[0].crs)
+
+
 def load_boundaries(state="karnataka", layer="villages", bbox=None):
     """Load a boundary layer as a GeoDataFrame in EPSG:4326.
 
@@ -180,10 +266,36 @@ def load_boundaries(state="karnataka", layer="villages", bbox=None):
     else:
         # Shapefile / GeoPackage / GeoJSON: the reader itself windows
         # the file, so only matching features ever enter memory.
-        if bbox is not None:
-            gdf = gpd.read_file(shp, bbox=bbox)
-        else:
-            gdf = gpd.read_file(shp)
+        try:
+            if bbox is not None:
+                gdf = gpd.read_file(shp, bbox=bbox)
+            else:
+                gdf = gpd.read_file(shp)
+        except Exception as first:
+            # A bbox read uses the spatial index if one is present.
+            # A STALE index - left behind when a deploy replaced the
+            # .shp - points at byte offsets in a file that no longer
+            # exists, and GDAL reads past EOF. This cost three whole
+            # village sections of the 38 km report, each vanishing
+            # behind an fread() error that named no cause.
+            #
+            # So: check the file is actually intact, drop any index
+            # older than it, and if that still fails fall back to a
+            # chunked sequential scan, which cannot use an index at
+            # all. Losing village data is far worse than being slow.
+            if name.endswith(".shp"):
+                ok, why = _shp_health(shp)
+                if not ok:
+                    raise RuntimeError(
+                        f"{why} Original error: {first}") from first
+                _clear_stale_sidecars(shp)
+                try:
+                    gdf = (gpd.read_file(shp, bbox=bbox)
+                           if bbox is not None else gpd.read_file(shp))
+                except Exception:
+                    gdf = _read_windowed_by_scan(shp, bbox)
+            else:
+                raise
 
     if gdf.crs is None:
         # CSV-WKT village data from gggodhwani is WGS84 lat/lon

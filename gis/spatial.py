@@ -43,6 +43,8 @@ def villages_in_buffer(lat, lon, radius_km):
     bounds = tuple(buffer.total_bounds)  # (minx, miny, maxx, maxy)
 
     parts = []
+    failed = []
+    gaps = []
 
     for state in GIS_DATA:
 
@@ -52,9 +54,42 @@ def villages_in_buffer(lat, lon, radius_km):
         if not state_may_intersect(state, bounds):
             continue
 
+        # Report a known hole as soon as the circle REACHES a state,
+        # not once that state returns rows.
+        #
+        # My first version only warned when the state contributed
+        # villages - which is backwards. Pollachi sits in Coimbatore,
+        # a district whose boundaries are entirely missing, so it
+        # contributes nothing and the warning never fired. Silence in
+        # exactly the case the warning exists for.
+        gap = _gd.coverage_gap(state)
+        if gap:
+            gaps.append(
+                f"{state.title()}: {gap['villages_missing']:,} of "
+                f"{gap['villages_missing'] + gap['villages_present']:,}"
+                f" villages have no boundary - "
+                f"{', '.join(gap['missing_districts'])} are entirely "
+                f"absent ({gap['why']}). If your area is in one of "
+                f"those districts, a low village count here means "
+                f"MISSING DATA, not empty land. Fix with: "
+                f"{gap['fix']}")
+
         try:
             gdf = load_boundaries(state, "villages", bbox=bounds)
         except FileNotFoundError:
+            continue
+        except Exception as e:
+            # ONE BAD FILE MUST NOT COST THE OTHER STATES.
+            #
+            # This caught only FileNotFoundError. A 38 km circle at
+            # Chamarajanagar reaches into Tamil Nadu, whose village
+            # shapefile is truncated, and the resulting read error
+            # propagated out of here and took Karnataka's 30,416
+            # intact villages down with it - so village insights,
+            # village soil and village irrigation all vanished from
+            # the report over a neighbouring state's broken file.
+            failed.append(f"{state}: {e.__class__.__name__}: "
+                          f"{str(e)[:160]}")
             continue
 
         if gdf.empty:
@@ -66,12 +101,21 @@ def villages_in_buffer(lat, lon, radius_km):
             parts.append(hits)
 
     if not parts:
-        return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+        out = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+        out.attrs["failed_states"] = failed
+        out.attrs["coverage_gaps"] = gaps
+        return out
 
-    return gpd.GeoDataFrame(
+    out = gpd.GeoDataFrame(
         pd.concat(parts, ignore_index=True),
         crs="EPSG:4326"
     )
+    # Carried, not raised: the caller gets its villages AND knows a
+    # state is missing from them. Silence here would look like "there
+    # are no villages in Tamil Nadu", which is a lie by omission.
+    out.attrs["failed_states"] = failed
+    out.attrs["coverage_gaps"] = gaps
+    return out
 
 
 def village_at_point(lat, lon):
@@ -98,6 +142,12 @@ def village_at_point(lat, lon):
         try:
             gdf = load_boundaries(state, "villages", bbox=bounds)
         except FileNotFoundError:
+            continue
+        except Exception:
+            # Same reasoning as villages_in_buffer: a broken file in
+            # one state must not stop the point being resolved in
+            # another. Nothing to report to - this returns a single
+            # village or None - so it just moves on.
             continue
 
         if gdf.empty:

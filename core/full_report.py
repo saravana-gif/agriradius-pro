@@ -253,8 +253,25 @@ def gather(progress=None, with_maps=True):
     try:
         from gis.village_search import get_villages
         bundle["villages_df"] = get_villages(lat, lon, radius)
-    except Exception:
+    except Exception as e:
         bundle["villages_df"] = None
+        bundle["notes"].append(f"Village list failed: {e}")
+
+    # A boundary file that could not be read is now reported by state
+    # instead of taking every village section down with it. Say which
+    # state is missing - "no villages in Tamil Nadu" would be a lie.
+    try:
+        from gis.spatial import villages_in_buffer
+        _attrs = villages_in_buffer(lat, lon, radius).attrs or {}
+        for msg in _attrs.get("failed_states") or []:
+            bundle["notes"].append(
+                f"Village boundaries unreadable for {msg} - villages "
+                f"in that state are MISSING from every village "
+                f"figure below. Other states are unaffected.")
+        for msg in _attrs.get("coverage_gaps") or []:
+            bundle["notes"].append("INCOMPLETE COVERAGE - " + msg)
+    except Exception:
+        pass
 
     step(86, "Village insights (may take 1-3 min)...")
     try:

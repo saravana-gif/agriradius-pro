@@ -162,7 +162,12 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       mi_census_note=None,
                       forest=None, forest_verdict=None,
                       dept_maize=None, dept_taluks=None,
-                      dept_crop_hint=None, dept_plantation=None):
+                      dept_crop_hint=None, dept_plantation=None,
+                      parcels=None, parcels_note=None,
+                      parcels_files=None, parcels_caveat=None,
+                      harvest=None, harvest_verdict=None,
+                      volume=None, volume_caveat=None,
+                      watchlist=None, watchlist_note=None):
     """Assemble the full PDF. Returns bytes."""
 
     ss = _styles()
@@ -479,6 +484,137 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                           font_size=8)
         except Exception:
             pass
+        story.append(Spacer(1, 12))
+
+    # ---------------- Field parcels ----------------
+    if parcels and parcels.get("parcels"):
+        story.append(Paragraph(
+            "Field Parcels - Individual Fields on the Ground",
+            ss["H2x"]))
+        story.append(Paragraph(
+            "Individual agricultural fields from Fields of The World "
+            "(FTW), a global 10 m field-boundary map produced by "
+            "running a segmentation model over Sentinel-2. Open data, "
+            "CC-BY-4.0. This is the figure that tells you whether you "
+            "are dealing with smallholders or estates.", ss["Small"]))
+        story.append(Spacer(1, 4))
+
+        conf = parcels.get("confidence_median")
+        rows = [["Measure", "Value"],
+                ["Field parcels", f"{parcels['parcels']:,}"]]
+        for key, label, fmt in (
+                ("total_ac", "Total parcel area", "{:,.0f} ac"),
+                ("median_ac", "Median parcel size", "{:,.2f} ac"),
+                ("p90_ac", "90% of parcels are under", "{:,.2f} ac")):
+            v = parcels.get(key)
+            if v is not None:
+                rows.append([label, fmt.format(v)])
+        rows.append([
+            "Model confidence (median)",
+            f"{conf}" if conf is not None
+            else "not published by FTW for these files"])
+        if parcels_files:
+            rows.append(["FTW admin files read", str(parcels_files)])
+        story.append(_table(rows, [9 * cm, 4 * cm]))
+
+        # A capped read makes every figure above a floor. That has to
+        # travel WITH the numbers, not sit in a footnote - a reader
+        # who takes 6,916 ac as a total is being misled by omission.
+        if parcels.get("capped"):
+            story.append(Paragraph(
+                "<b>These figures are a FLOOR, not a total.</b> The "
+                "read hit its parcel cap and was then clipped to the "
+                "circle, so the true count and area are higher. "
+                "Reduce the radius for a complete count.",
+                ss["Small"]))
+        if parcels_note and not parcels.get("capped"):
+            story.append(Paragraph(str(parcels_note), ss["Small"]))
+        if parcels_caveat:
+            story.append(Paragraph(str(parcels_caveat), ss["Small"]))
+        story.append(Spacer(1, 12))
+    elif parcels_note:
+        story.append(Paragraph("Field Parcels", ss["H2x"]))
+        story.append(Paragraph(str(parcels_note), ss["Small"]))
+        story.append(Spacer(1, 12))
+
+    # ---------------- Harvest window ----------------
+    if harvest:
+        story.append(Paragraph(
+            "Harvest Window - Measured, Not From a Calendar",
+            ss["H2x"]))
+        if not harvest.get("supported"):
+            story.append(Paragraph(
+                str(harvest.get("reason")
+                    or "No harvest window could be measured here."),
+                ss["Small"]))
+        else:
+            if harvest_verdict:
+                story.append(Paragraph(f"<b>{harvest_verdict}</b>",
+                                       ss["Normal"]))
+                story.append(Spacer(1, 4))
+            rows = [["Growth peak", "Canopy has dried down by",
+                     "Window"]]
+            for w in (harvest.get("windows") or []):
+                rows.append([str(w.get("peak_month")),
+                             str(w.get("harvest_month")),
+                             str(w.get("window"))])
+            if len(rows) > 1:
+                story.append(_table(rows, [4 * cm, 5 * cm, 4 * cm]))
+            if harvest.get("basis"):
+                story.append(Paragraph(str(harvest["basis"]),
+                                       ss["Small"]))
+        story.append(Spacer(1, 12))
+
+    # ---------------- Indicative volume ----------------
+    if volume:
+        story.append(Paragraph("Indicative Volume", ss["H2x"]))
+        story.append(Paragraph(
+            f"<b>{volume.get('label')}</b>", ss["Normal"]))
+        rows = [["Measure", "Value"],
+                ["Based on area", str(volume.get("area_label"))],
+                ["Acres used", f"{volume.get('acres'):,} ac"
+                 if volume.get("acres") is not None else "-"],
+                ["Yield basis", str(volume.get("basis"))],
+                ["Source", f"{volume.get('source')} "
+                           f"({volume.get('year')})"]]
+        story.append(_table(rows, [5 * cm, 8 * cm]))
+        if volume_caveat:
+            story.append(Paragraph(str(volume_caveat), ss["Small"]))
+        story.append(Spacer(1, 12))
+
+    # ---------------- Change since last visit ----------------
+    if watchlist and isinstance(watchlist, dict):
+        story.append(Paragraph(
+            "Change Since the Last Visit", ss["H2x"]))
+        wrows = watchlist.get("rows") or []
+        if not wrows:
+            story.append(Paragraph(
+                str(watchlist.get("note") or watchlist_note or
+                    "Nothing to compare yet."), ss["Small"]))
+        else:
+            if watchlist.get("since"):
+                story.append(Paragraph(
+                    f"Comparing {watchlist.get('since')} with "
+                    f"{watchlist.get('until')}"
+                    + (f" - {watchlist['days']} days apart"
+                       if watchlist.get("days") else ""),
+                    ss["Small"]))
+                story.append(Spacer(1, 4))
+            rows = [["Measure", "Previous", "This visit", "Reading"]]
+            for r in wrows:
+                unit = r.get("unit") or ""
+                rows.append([
+                    str(r.get("label")),
+                    (f"{r['old']:,.0f} {unit}"
+                     if r.get("old") is not None else "not measured"),
+                    (f"{r['new']:,.0f} {unit}"
+                     if r.get("new") is not None else "not measured"),
+                    str(r.get("verdict"))])
+            story.append(_table(rows, [5 * cm, 3.5 * cm,
+                                       3.5 * cm, 4 * cm]))
+            if watchlist_note:
+                story.append(Paragraph(str(watchlist_note),
+                                       ss["Small"]))
         story.append(Spacer(1, 12))
 
     # ---------------- Irrigation ----------------

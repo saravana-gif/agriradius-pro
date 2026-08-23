@@ -506,6 +506,99 @@ def gather(progress=None, with_maps=True):
         bundle["gt_df"] = None
         bundle["cards_df"] = None
 
+    # 13. Field parcels, harvest window, volume, change since last
+    #     visit. Everything built after the competitor review, which
+    #     until now existed only on screen.
+    #
+    #     PREFER SESSION STATE. Where a tab has already computed one
+    #     of these, the report must print THAT value, not a fresh one.
+    #     A report that quietly disagrees with the screen it came from
+    #     is worse than a report missing a section - the reader has no
+    #     way to tell which is right.
+    step(92, "Field parcels...")
+    try:
+        from core import field_boundaries as fb
+        key = f"parcels_{lat:.4f}_{lon:.4f}_{radius}"
+        cached = st.session_state.get(key)
+        if cached:
+            gdf, pinfo = cached
+        elif fb.available():
+            gdf, pinfo = fb.parcels(lat, lon, radius)
+        else:
+            gdf, pinfo = None, {"note": (
+                "Field parcels are not set up on this server yet - "
+                "open the Field Parcels tab and press 'Find field "
+                "parcel data' once.")}
+        bundle["parcels"] = (fb.summary(gdf, pinfo)
+                             if gdf is not None else None)
+        bundle["parcels_note"] = (pinfo or {}).get("note")
+        bundle["parcels_files"] = (pinfo or {}).get("files_scanned")
+        bundle["parcels_caveat"] = fb.caveat()
+    except Exception as e:
+        bundle["parcels"] = None
+        bundle["parcels_note"] = None
+        bundle["parcels_caveat"] = None
+        bundle["notes"].append(f"Field parcels skipped: {e}")
+
+    step(94, "Harvest window...")
+    try:
+        from core import harvest
+        res = st.session_state.get("harvest")
+        if not res and bundle.get("ndvi_df") is not None \
+                and bundle.get("crop_insight"):
+            # Pure function over data already in the bundle - cheap,
+            # and it keeps the report complete when the user built it
+            # without opening the Crop Cycle tab first.
+            res = harvest.windows(bundle["ndvi_df"],
+                                  bundle["crop_insight"])
+        bundle["harvest"] = res
+        bundle["harvest_verdict"] = (harvest.verdict(res)
+                                     if res else None)
+    except Exception as e:
+        bundle["harvest"] = None
+        bundle["harvest_verdict"] = None
+        bundle["notes"].append(f"Harvest window skipped: {e}")
+
+    step(96, "Volume estimate...")
+    try:
+        bundle["volume"] = st.session_state.get("volume_estimate")
+        if not bundle["volume"]:
+            from core import volume as V
+            cs = st.session_state.get("coconut_survey") or {}
+            surveyed = cs.get("extent_ac")
+            net = (bundle.get("forest") or {}).get("plantation_net_ac")
+            if surveyed:
+                bundle["volume"] = V.estimate(
+                    "coconut", surveyed,
+                    area_label="coconut recorded in the government "
+                               "crop survey",
+                    area_is_crop_specific=True)
+            elif net:
+                bundle["volume"] = V.estimate(
+                    "coconut", net,
+                    area_label="plantation net of forest (all tree "
+                               "crops together)",
+                    area_is_crop_specific=False)
+        if bundle["volume"]:
+            from core import volume as V
+            bundle["volume_caveat"] = V.caveat(bundle["volume"])
+    except Exception as e:
+        bundle["volume"] = None
+        bundle["volume_caveat"] = None
+        bundle["notes"].append(f"Volume estimate skipped: {e}")
+
+    step(98, "Change since last visit...")
+    try:
+        from core import watchlist as W
+        wkey = W.area_key(lat, lon, radius)
+        d = W.diff(wkey)
+        bundle["watchlist"] = d
+        bundle["watchlist_note"] = (W.interpretation(d) if d else None)
+    except Exception as e:
+        bundle["watchlist"] = None
+        bundle["watchlist_note"] = None
+        bundle["notes"].append(f"Change detection skipped: {e}")
+
     step(100, "Building report...")
 
     return bundle
@@ -573,7 +666,108 @@ def pdf_bytes(bundle):
         mi_census=bundle.get("mi_census"),
         mi_census_level=bundle.get("mi_census_level"),
         mi_census_note=bundle.get("mi_census_note"),
+        parcels=bundle.get("parcels"),
+        parcels_note=bundle.get("parcels_note"),
+        parcels_files=bundle.get("parcels_files"),
+        parcels_caveat=bundle.get("parcels_caveat"),
+        harvest=bundle.get("harvest"),
+        harvest_verdict=bundle.get("harvest_verdict"),
+        volume=bundle.get("volume"),
+        volume_caveat=bundle.get("volume_caveat"),
+        watchlist=bundle.get("watchlist"),
+        watchlist_note=bundle.get("watchlist_note"),
     )
+
+
+def _kv(rows):
+    """A two-column DataFrame, or None when there is nothing to say.
+
+    Returning None rather than an empty frame matters: excel_bytes
+    skips None sheets, so an unmeasured section leaves no tab at all
+    instead of an empty one that reads like a zero.
+    """
+    rows = [r for r in rows if r[1] not in (None, "", [])]
+    if not rows:
+        return None
+    return pd.DataFrame(rows, columns=["Measure", "Value"])
+
+
+def _parcels_sheet(bundle):
+    p = bundle.get("parcels")
+    if not p or not p.get("parcels"):
+        return None
+    conf = p.get("confidence_median")
+    return _kv([
+        ("Field parcels", p.get("parcels")),
+        ("Total parcel area (ac)", p.get("total_ac")),
+        ("Median parcel size (ac)", p.get("median_ac")),
+        ("90% of parcels under (ac)", p.get("p90_ac")),
+        ("Model confidence (median)",
+         conf if conf is not None else "not published by FTW"),
+        ("Admin files read", bundle.get("parcels_files")),
+        ("Figures are a floor (capped read)",
+         "YES - real count and area are higher"
+         if p.get("capped") else "No"),
+        ("Note", bundle.get("parcels_note")),
+        ("Caveat", bundle.get("parcels_caveat")),
+    ])
+
+
+def _harvest_sheet(bundle):
+    h = bundle.get("harvest")
+    if not h:
+        return None
+    if not h.get("supported"):
+        return _kv([("Harvest window",
+                     h.get("reason") or "not measurable here")])
+    rows = [{"Growth peak": w.get("peak_month"),
+             "Canopy dried down by": w.get("harvest_month"),
+             "Window": w.get("window")}
+            for w in (h.get("windows") or [])]
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    df.attrs["basis"] = h.get("basis") or ""
+    return df
+
+
+def _volume_sheet(bundle):
+    v = bundle.get("volume")
+    if not v:
+        return None
+    return _kv([
+        ("Indicative volume", v.get("label")),
+        ("Based on area", v.get("area_label")),
+        ("Acres used", v.get("acres")),
+        ("Yield basis", v.get("basis")),
+        ("Source", v.get("source")),
+        ("Source year", v.get("year")),
+        ("Caveat", bundle.get("volume_caveat")),
+    ])
+
+
+def _watchlist_sheet(bundle):
+    d = bundle.get("watchlist")
+    if not isinstance(d, dict):
+        return None
+    rows = d.get("rows") or []
+    if not rows:
+        # One visit only, or nothing tracked yet. Say which - an
+        # absent sheet would read as "nothing changed".
+        return _kv([("Change since last visit",
+                     d.get("note")
+                     or bundle.get("watchlist_note"))])
+    try:
+        df = pd.DataFrame(rows).rename(columns={
+            "label": "Measure", "old": "Previous visit",
+            "new": "This visit", "unit": "Unit",
+            "delta": "Change", "pct": "Change %",
+            "verdict": "Reading"})
+        if d.get("since"):
+            df.attrs["since"] = d["since"]
+        return df
+    except Exception:
+        return None
 
 
 def excel_bytes(bundle):
@@ -798,6 +992,10 @@ def excel_bytes(bundle):
         ("Mandi Prices", bundle.get("mandi_df")),
         ("Ground Truth", bundle.get("gt_df")),
         ("Soil Cards", bundle.get("cards_df")),
+        ("Field Parcels", _parcels_sheet(bundle)),
+        ("Harvest Window", _harvest_sheet(bundle)),
+        ("Volume Estimate", _volume_sheet(bundle)),
+        ("Change Since Last Visit", _watchlist_sheet(bundle)),
     ]
 
     buf = BytesIO()

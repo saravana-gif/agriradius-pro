@@ -45,6 +45,8 @@ def parcels_body(as_tab=False):
             st.info("Search or mark an area first.")
             return
 
+        _index_block(fb)
+
         # Never automatic: a 38 km read is heavy and the tab body
         # runs on every Streamlit rerun.
         key = f"parcels_{lat:.4f}_{lon:.4f}_{radius}"
@@ -80,9 +82,15 @@ def parcels_body(as_tab=False):
             st.info(info["note"])
 
         if info.get("files_scanned"):
-            st.caption(
-                f"Read {info['files_scanned']} FTW admin files - only "
-                f"those whose measured extent overlaps this circle.")
+            msg = (f"Read {info['files_scanned']} FTW admin files - "
+                   f"only those whose measured extent overlaps this "
+                   f"circle.")
+            if info.get("files_pending"):
+                msg += (f" {info['files_pending']} of them had no "
+                        f"measured extent yet and were read anyway, "
+                        f"which is why this was slow - finish the "
+                        f"speed index above and they drop out.")
+            st.caption(msg)
 
         c1, c2, c3, c4 = st.columns(4)
         c1.metric(_L("Field parcels"), f"{s['parcels']:,}")
@@ -128,6 +136,47 @@ def parcels_body(as_tab=False):
                              hide_index=True)
             except Exception as e:
                 st.caption(f"Distribution unavailable: {e}")
+
+
+def _index_block(fb):
+    """The speed index - explicit, resumable, and honest about cost.
+
+    FTW splits India into 55 admin files. Without knowing where each
+    one is, every query opens all 55 across the Pacific and the page
+    hangs. Measuring them is a one-time cost that cannot be hidden
+    inside a query, so it is surfaced here instead of pretending.
+    """
+    done, bad, total = fb.index_progress()
+    if not total:
+        return
+    known = done + bad
+
+    if known >= total:
+        st.caption(
+            f"⚡ Speed index complete - all {total} FTW admin files "
+            f"located, so a query opens only the two or three that "
+            f"actually cover your circle.")
+        return
+
+    st.warning(
+        f"⚡ **Speed index: {known} of {total} files located.** FTW "
+        f"splits India into {total} files, one per admin unit. Until "
+        f"each one's location is known, every query has to open all "
+        f"of them across the Pacific - that is slow enough to hang "
+        f"the page. Locating them is a one-off; it resumes where it "
+        f"left off, so a few presses finishes it for good.")
+
+    if st.button(f"Locate the next {fb.INDEX_BATCH} files",
+                 key="ftw_index"):
+        bar = st.progress(known / total,
+                          text=f"{known} of {total} located")
+
+        def _tick(n, tot):
+            bar.progress(min(n / tot, 1.0),
+                         text=f"{n} of {tot} located")
+
+        fb.build_extent_index(progress=_tick)
+        st.rerun()
 
 
 def _kgis_block(ftw_gdf):

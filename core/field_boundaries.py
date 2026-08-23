@@ -271,21 +271,6 @@ def discover(timeout_s=180):
                 {"glob": urls[0],
                  "result": f"{form}: OK - readable"})
             _save_cache(out)
-            # Index the extents now rather than on the first query.
-            # The user is already waiting on this button and expects
-            # a probe to take a moment; making them wait again on
-            # their first real analysis would be the worse trade.
-            try:
-                out = build_extent_index(out) or out
-                got = len(out.get("extents") or {})
-                out["tried"].append(
-                    {"glob": "extent index",
-                     "result": f"measured {got} of {len(urls)} files"})
-            except Exception as e:
-                out["tried"].append(
-                    {"glob": "extent index",
-                     "result": f"not built ({e.__class__.__name__}) - "
-                               f"queries will read all files"})
             return out
 
     out["error"] = (
@@ -370,56 +355,103 @@ def _footer_extent(con, url):
             acc["xmax"][1], acc["ymax"][1])
 
 
-def build_extent_index(layout=None, force=False):
-    """Measure each India file's extent once and cache it.
+# How many files to measure in one go, and for how long. Both are
+# needed. The count keeps a fast link from doing too much work; the
+# clock keeps a slow link from hanging regardless of count. The live
+# server froze twice before these existed.
+INDEX_BATCH = 8
+INDEX_BUDGET_S = 25
 
-    Returns the layout dict with an "extents" map added. Safe to
-    call repeatedly - it does nothing once the index exists.
+
+def index_progress(layout=None):
+    """(measured, unmeasurable, total) for the extent index."""
+    layout = layout or cached_layout() or {}
+    files = layout.get("files") or []
+    ext = layout.get("extents") or {}
+    bad = layout.get("extents_failed") or []
+    return len(ext), len(bad), len(files)
+
+
+def build_extent_index(layout=None, batch=INDEX_BATCH,
+                       budget_s=INDEX_BUDGET_S, progress=None):
+    """Measure the next tranche of file extents and cache them.
+
+    INCREMENTAL BY DESIGN. Measuring all 55 India files in one
+    foreground call froze the live server twice - each measurement is
+    a round trip from Mumbai to Oregon, and 55 of them do not fit
+    inside a web request no matter how small each read is.
+
+    So this measures at most `batch` files or `budget_s` seconds,
+    whichever comes first, and SAVES AFTER EVERY FILE. A call that is
+    killed mid-way still leaves its work behind, and the next call
+    picks up where it stopped. Repeated calls converge on a complete
+    index without any single call being slow.
+
+    Returns the layout. `progress(done, total)` is called between
+    files if supplied, so the UI can show a bar instead of a spinner.
     """
     layout = layout or cached_layout()
     if not layout:
         return None
-    if layout.get("extents") and not force:
-        return layout
-
     files = layout.get("files") or []
     if not files:
         return layout
 
-    extents, failed = {}, 0
+    extents = layout.get("extents") or {}
+    failed = list(layout.get("extents_failed") or [])
+    todo = [u for u in files
+            if u not in extents and u not in failed]
+    if not todo:
+        return layout
+
     try:
         con = _connect(remote=True)
     except Exception:
         return layout
-    for u in files:
+
+    started = time.time()
+    for n, u in enumerate(todo[:max(1, int(batch))]):
+        if n and time.time() - started > budget_s:
+            break
         ext = _footer_extent(con, u)
         if ext is None:
-            failed += 1
-            continue
-        extents[u] = [round(v, 4) for v in ext]
-
-    layout["extents"] = extents
-    layout["extents_failed"] = failed
-    _save_cache(layout)
+            # Remembered as unmeasurable so it is not retried on
+            # every call forever - but see _files_for_bbox: it is
+            # still READ, so this costs speed, never data.
+            failed.append(u)
+        else:
+            extents[u] = [round(v, 4) for v in ext]
+        layout["extents"] = extents
+        layout["extents_failed"] = failed
+        _save_cache(layout)          # after every file, deliberately
+        if progress:
+            try:
+                progress(len(extents) + len(failed), len(files))
+            except Exception:
+                pass
     return layout
 
 
 def _files_for_bbox(layout, minx, miny, maxx, maxy):
-    """The subset of files whose extent overlaps this bbox.
+    """Files whose extent overlaps this bbox, plus what was skipped.
 
-    Files with no measured extent are always included, so an
-    incomplete index costs speed and never costs data.
+    Returns (files, span, pending) where `pending` counts files whose
+    extent is not yet measured. Those are INCLUDED in the read - an
+    incomplete index costs speed, never data - and `pending` is
+    reported to the user so a slow first run explains itself instead
+    of looking like a hang.
     """
     files = layout.get("files") or []
     extents = layout.get("extents") or {}
     if not extents:
-        return files, None
+        return files, None, len(files)
 
-    hit = []
+    hit, pending = [], 0
     for u in files:
         e = extents.get(u)
         if not e:
             hit.append(u)          # unknown extent - keep it
+            pending += 1
             continue
         fx0, fy0, fx1, fy1 = e
         if fx0 <= maxx and fx1 >= minx and fy0 <= maxy and fy1 >= miny:
@@ -428,8 +460,8 @@ def _files_for_bbox(layout, minx, miny, maxx, maxy):
         # Nothing overlaps. That is a real answer, not an error, but
         # returning an empty file list to read_parquet would raise -
         # so say so explicitly instead.
-        return [], "no-overlap"
-    return hit, f"{len(hit)} of {len(files)}"
+        return [], "no-overlap", 0
+    return hit, f"{len(hit)} of {len(files)}", pending
 
 
 def cached_layout():
@@ -521,13 +553,18 @@ def parcels(lat, lon, radius_km, year=None,
     glob = files[0]
     cols = set(layout.get("columns") or [])
 
-    # Narrow 55 admin files to the handful this circle can touch.
-    # Built once from parquet footers; a missing index just means
-    # every file is read, which is the old, slow, correct behaviour.
-    if not layout.get("extents"):
-        layout = build_extent_index(layout) or layout
-    files, span = _files_for_bbox(layout, minx, miny, maxx, maxy)
+    # Narrow the 55 admin files to the handful this circle can touch.
+    #
+    # The index is NOT built here. Doing that made a query silently
+    # responsible for up to 55 remote round trips and froze the
+    # server; indexing is now an explicit, bounded, resumable step in
+    # the panel. A query uses whatever index exists and reads the
+    # rest, so it is always correct and gets faster as the index
+    # fills in.
+    files, span, pending = _files_for_bbox(
+        layout, minx, miny, maxx, maxy)
     info["files_scanned"] = span
+    info["files_pending"] = pending
     if span == "no-overlap":
         info["note"] = (
             "No FTW admin file covers this circle. That means the "

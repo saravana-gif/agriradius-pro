@@ -37,6 +37,7 @@ fetchers, because a sandbox cannot reach source.coop.
 """
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -270,6 +271,21 @@ def discover(timeout_s=180):
                 {"glob": urls[0],
                  "result": f"{form}: OK - readable"})
             _save_cache(out)
+            # Index the extents now rather than on the first query.
+            # The user is already waiting on this button and expects
+            # a probe to take a moment; making them wait again on
+            # their first real analysis would be the worse trade.
+            try:
+                out = build_extent_index(out) or out
+                got = len(out.get("extents") or {})
+                out["tried"].append(
+                    {"glob": "extent index",
+                     "result": f"measured {got} of {len(urls)} files"})
+            except Exception as e:
+                out["tried"].append(
+                    {"glob": "extent index",
+                     "result": f"not built ({e.__class__.__name__}) - "
+                               f"queries will read all files"})
             return out
 
     out["error"] = (
@@ -287,6 +303,133 @@ def _save_cache(info):
         p.write_text(json.dumps(info, indent=2), encoding="utf-8")
     except Exception:
         pass
+
+
+# ------------------------------------------------------------------
+# Per-file extent index
+# ------------------------------------------------------------------
+# India's FTW partition is 55 separate files, one per admin unit
+# (IN_KA is Karnataka, IN_TN Tamil Nadu, and so on). Without this
+# index every query opens all 55 over the network. The first live
+# run did exactly that and froze the browser tab - a 38 km circle in
+# Chamarajanagar has no business opening Ladakh's parquet.
+#
+# The index is built from the PARQUET FOOTER, not the data: DuckDB's
+# parquet_metadata() reads only the trailing metadata block and
+# hands back per-row-group min/max statistics for each column. So
+# indexing 55 files costs 55 small ranged reads, once, and is then
+# cached to disk beside the layout.
+#
+# Filenames are deliberately NOT parsed to guess a state. The FTW
+# admin codes include entries like IN_01, IN_B, IN_P5 and IN_GB whose
+# meaning is not documented anywhere I can verify, and a wrong guess
+# would silently drop real parcels. Measured extents cannot be wrong
+# in that way.
+
+def _footer_extent(con, url):
+    """(minx, miny, maxx, maxy) from the parquet footer, or None.
+
+    None means "could not determine" and is treated as "might
+    overlap" by the caller. Failing safe here matters: excluding a
+    file we could not index would drop parcels invisibly, which is
+    the exact class of silent failure this app keeps having to undo.
+    """
+    try:
+        rows = con.execute(
+            "SELECT path_in_schema, stats_min, stats_max "
+            "FROM parquet_metadata(?) "
+            "WHERE lower(path_in_schema) LIKE '%min' "
+            "   OR lower(path_in_schema) LIKE '%max'",
+            [url]).fetchall()
+    except Exception:
+        return None
+
+    acc = {}
+    for path, smin, smax in rows:
+        # DuckDB writes a struct field's path as "bbox, xmin" - comma
+        # and space, NOT a dot. Splitting on "." (the obvious guess,
+        # and my first one) matches nothing and quietly yields an
+        # unindexed file. Take the trailing token whatever separates
+        # it, so a flat "xmin" column works identically.
+        m = re.search(r"([xy](?:min|max))\s*$", str(path).lower())
+        if not m:
+            continue
+        leaf = m.group(1)
+        for val in (smin, smax):
+            try:
+                v = float(val)
+            except (TypeError, ValueError):
+                continue
+            lo, hi = acc.get(leaf, (v, v))
+            acc[leaf] = (min(lo, v), max(hi, v))
+
+    if not {"xmin", "xmax", "ymin", "ymax"} <= set(acc):
+        return None
+    # Widest reading of each side - the union across row groups.
+    return (acc["xmin"][0], acc["ymin"][0],
+            acc["xmax"][1], acc["ymax"][1])
+
+
+def build_extent_index(layout=None, force=False):
+    """Measure each India file's extent once and cache it.
+
+    Returns the layout dict with an "extents" map added. Safe to
+    call repeatedly - it does nothing once the index exists.
+    """
+    layout = layout or cached_layout()
+    if not layout:
+        return None
+    if layout.get("extents") and not force:
+        return layout
+
+    files = layout.get("files") or []
+    if not files:
+        return layout
+
+    extents, failed = {}, 0
+    try:
+        con = _connect(remote=True)
+    except Exception:
+        return layout
+    for u in files:
+        ext = _footer_extent(con, u)
+        if ext is None:
+            failed += 1
+            continue
+        extents[u] = [round(v, 4) for v in ext]
+
+    layout["extents"] = extents
+    layout["extents_failed"] = failed
+    _save_cache(layout)
+    return layout
+
+
+def _files_for_bbox(layout, minx, miny, maxx, maxy):
+    """The subset of files whose extent overlaps this bbox.
+
+    Files with no measured extent are always included, so an
+    incomplete index costs speed and never costs data.
+    """
+    files = layout.get("files") or []
+    extents = layout.get("extents") or {}
+    if not extents:
+        return files, None
+
+    hit = []
+    for u in files:
+        e = extents.get(u)
+        if not e:
+            hit.append(u)          # unknown extent - keep it
+            continue
+        fx0, fy0, fx1, fy1 = e
+        if fx0 <= maxx and fx1 >= minx and fy0 <= maxy and fy1 >= miny:
+            hit.append(u)
+    if not hit:
+        # Nothing overlaps. That is a real answer, not an error, but
+        # returning an empty file list to read_parquet would raise -
+        # so say so explicitly instead.
+        return [], "no-overlap"
+    return hit, f"{len(hit)} of {len(files)}"
 
 
 def cached_layout():
@@ -377,6 +520,21 @@ def parcels(lat, lon, radius_km, year=None,
         return gpd.GeoDataFrame(), info
     glob = files[0]
     cols = set(layout.get("columns") or [])
+
+    # Narrow 55 admin files to the handful this circle can touch.
+    # Built once from parquet footers; a missing index just means
+    # every file is read, which is the old, slow, correct behaviour.
+    if not layout.get("extents"):
+        layout = build_extent_index(layout) or layout
+    files, span = _files_for_bbox(layout, minx, miny, maxx, maxy)
+    info["files_scanned"] = span
+    if span == "no-overlap":
+        info["note"] = (
+            "No FTW admin file covers this circle. That means the "
+            "point is outside the area FTW published for India - not "
+            "that the land is unfarmed.")
+        return gpd.GeoDataFrame(), info
+    glob = files[0]
 
     # Spatial filter WITHOUT the spatial extension.
     #

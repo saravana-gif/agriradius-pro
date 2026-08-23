@@ -79,6 +79,11 @@ def parcels_body(as_tab=False):
         elif info.get("note"):
             st.info(info["note"])
 
+        if info.get("files_scanned"):
+            st.caption(
+                f"Read {info['files_scanned']} FTW admin files - only "
+                f"those whose measured extent overlaps this circle.")
+
         c1, c2, c3, c4 = st.columns(4)
         c1.metric(_L("Field parcels"), f"{s['parcels']:,}")
         c2.metric(_L("Total parcel area"),

@@ -104,13 +104,15 @@ def parcels_body(as_tab=False):
                   help="Half the fields are smaller than this. The "
                        "number that tells you whether you are dealing "
                        "with smallholders or estates.")
+        conf = s.get("confidence_median")
         c4.metric("Model confidence (median)",
-                  f"{s['confidence_median']}"
-                  if s['confidence_median'] is not None else "n/a",
+                  f"{conf}" if conf is not None else "not published",
                   help="0-100. FTW's own confidence layer is "
                        "conservative for smallholder systems, so a "
                        "low score here does NOT mean the fields are "
-                       "not real.")
+                       "not real. 'not published' means FTW shipped "
+                       "no confidence values for these files - the "
+                       "parcels themselves are unaffected.")
 
         if s.get("p90_ac"):
             st.caption(

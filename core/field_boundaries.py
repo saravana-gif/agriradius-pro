@@ -679,10 +679,28 @@ def parcels(lat, lon, radius_km, year=None,
     return gdf, info
 
 
+def _num(value, places):
+    """A rounded float, or None if it is not a real number.
+
+    pandas returns NaN from median() on an all-empty column, and
+    float(nan) succeeds, so a NaN sails through any `is not None`
+    guard and reaches the screen as the word "nan". That reads like a
+    measurement and is not one. Anything non-finite becomes None here
+    so the UI shows an honest gap instead.
+    """
+    import math
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    return round(v, places) if math.isfinite(v) else None
+
+
 def summary(gdf, info):
     """Headline numbers for the panel and the report."""
     out = {"parcels": 0, "total_ac": None, "median_ac": None,
            "p90_ac": None, "confidence_median": None,
+           "confidence_published": False,
            "note": info.get("note"), "capped": info.get("capped"),
            "source": info.get("source")}
     if gdf is None or len(gdf) == 0:
@@ -695,15 +713,21 @@ def summary(gdf, info):
             ac = gdf["area_m2"] / SQM_PER_ACRE
         else:
             ac = gdf.to_crs(gdf.estimate_utm_crs()).area / SQM_PER_ACRE
-        out["total_ac"] = round(float(ac.sum()), 1)
-        out["median_ac"] = round(float(ac.median()), 2)
-        out["p90_ac"] = round(float(ac.quantile(0.9)), 2)
+        out["total_ac"] = _num(ac.sum(), 1)
+        out["median_ac"] = _num(ac.median(), 2)
+        out["p90_ac"] = _num(ac.quantile(0.9), 2)
     except Exception:
         pass
     try:
         if "confidence" in gdf.columns:
-            out["confidence_median"] = round(
-                float(gdf["confidence"].median()), 1)
+            # Distinguish "FTW published no confidence for this
+            # partition" from "we failed to compute it". The first is
+            # a fact about the data worth telling the user; the
+            # second would be a bug. Both used to print "nan".
+            out["confidence_published"] = bool(
+                gdf["confidence"].notna().any())
+            out["confidence_median"] = _num(
+                gdf["confidence"].median(), 1)
     except Exception:
         pass
     return out

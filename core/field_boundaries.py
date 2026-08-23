@@ -138,7 +138,17 @@ def _is_remote(glob):
 # supported"), and guessing filenames produced a 404 - India is one
 # of the nine countries FTW splits by admin subdivision, so there is
 # no single India.parquet to guess at.
-S3_BUCKET_URL = "https://us-west-2.opendata.source.coop.s3.amazonaws.com"
+# PATH-STYLE, not virtual-hosted style. The bucket is called
+# "us-west-2.opendata.source.coop" and that name CONTAINS DOTS, so
+# the virtual-hosted host
+# "us-west-2.opendata.source.coop.s3.amazonaws.com" is not covered by
+# AWS's wildcard certificate - "*.s3.amazonaws.com" matches exactly
+# one label. TLS then fails before a single request is sent, which is
+# precisely the SSLError the first live probe hit. Path style keeps
+# the host as plain s3.us-west-2.amazonaws.com, which the cert covers.
+S3_ENDPOINT = "https://s3.us-west-2.amazonaws.com"
+S3_BUCKET = "us-west-2.opendata.source.coop"
+S3_BUCKET_URL = f"{S3_ENDPOINT}/{S3_BUCKET}"
 
 # Prefixes to list under, in order. The FTW docs give two different
 # storage bases, so both are tried rather than assumed.
@@ -225,28 +235,42 @@ def discover(timeout_s=180):
                            f"(e.g. {sample})"})
             continue
 
-        urls = [f"{S3_BUCKET_URL}/{k}" for k in india]
-        try:
-            con = _connect(remote=True)
-            cols = con.execute(
-                f"SELECT * FROM read_parquet({urls[:1]!r}) LIMIT 0"
-            ).description
-        except Exception as e:
-            out["tried"].append(
-                {"glob": urls[0],
-                 "result": f"listed OK but unreadable - "
-                           f"{e.__class__.__name__}: {str(e)[:140]}"})
-            continue
-
-        out["files"] = urls
-        out["glob"] = urls[0] if len(urls) == 1 else None
-        out["columns"] = [c[0] for c in (cols or [])]
-        out["ok"] = True
         out["tried"].append(
             {"glob": f"list {prefix}",
-             "result": f"OK - {len(urls)} India file(s) found"})
-        _save_cache(out)
-        return out
+             "result": f"listed OK - {len(india)} India file(s)"})
+
+        # Two ways to address the same object. Try each on the first
+        # file and keep whichever actually reads, rather than
+        # assuming - the docs disagree about the storage base, and
+        # the CDN and the bucket can behave differently.
+        for form, build in (
+                ("path-style S3", lambda k: f"{S3_BUCKET_URL}/{k}"),
+                ("data.source.coop",
+                 lambda k: f"https://data.source.coop/{k}")):
+            urls = [build(k) for k in india]
+            try:
+                con = _connect(remote=True)
+                cols = con.execute(
+                    f"SELECT * FROM read_parquet({urls[:1]!r}) LIMIT 0"
+                ).description
+            except Exception as e:
+                out["tried"].append(
+                    {"glob": urls[0],
+                     "result": f"{form}: unreadable - "
+                               f"{e.__class__.__name__}: "
+                               f"{str(e)[:130]}"})
+                continue
+
+            out["files"] = urls
+            out["glob"] = urls[0] if len(urls) == 1 else None
+            out["columns"] = [c[0] for c in (cols or [])]
+            out["url_form"] = form
+            out["ok"] = True
+            out["tried"].append(
+                {"glob": urls[0],
+                 "result": f"{form}: OK - readable"})
+            _save_cache(out)
+            return out
 
     out["error"] = (
         "Could not locate India's FTW files. Plain HTTP has no "

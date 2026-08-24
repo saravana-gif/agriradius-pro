@@ -29,6 +29,26 @@ def _villages_df():
         return None
 
 
+def _village_data_warnings(df):
+    """Say why a village list may be short, right above the list.
+
+    A boundary file that failed, or a state with a known hole in its
+    data, both produce a shorter list than reality. Printed here so
+    the count is never read as a finding about the land.
+    """
+    if df is None:
+        return
+    a = getattr(df, "attrs", None) or {}
+    for msg in a.get("failed_states") or []:
+        st.error(
+            f"⚠ Village boundaries could not be read for {msg}. "
+            f"Villages in that state are MISSING from this list and "
+            f"from every village figure in this report. Other states "
+            f"are unaffected.")
+    for msg in a.get("coverage_gaps") or []:
+        st.warning("⚠ Incomplete boundary data - " + msg)
+
+
 def _summary_tab(df):
 
     if df is None:
@@ -315,6 +335,11 @@ def _villages_tab():
 
     if df is None:
         return
+
+    # Before the count, not after it. An empty list with a missing
+    # district behind it is the most misleading thing this tab can
+    # print, so the reason comes first.
+    _village_data_warnings(df)
 
     if df.empty:
         st.info("No villages found in the current buffer.")

@@ -29,7 +29,15 @@ def get_villages(lat, lon, radius):
     if sort_cols:
         df = df.sort_values(sort_cols)
 
-    return df.reset_index(drop=True)
+    df = df.reset_index(drop=True)
+    # Carry the loader's warnings across the GeoDataFrame -> DataFrame
+    # conversion. Without this the Villages tab shows a short list and
+    # no reason for it, which is precisely where a missing district
+    # would be mistaken for empty land.
+    src = gdf.attrs or {}
+    df.attrs["failed_states"] = src.get("failed_states") or []
+    df.attrs["coverage_gaps"] = src.get("coverage_gaps") or []
+    return df
 
 
 @st.cache_data(show_spinner="Locating villages...",

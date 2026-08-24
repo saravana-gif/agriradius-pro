@@ -229,6 +229,11 @@ def dashboard():
         st.divider()
         from core.usage import health_panel
         health_panel()
+        try:
+            from core.usage import _repair_log_panel
+            _repair_log_panel()
+        except Exception:
+            pass          # a diagnostics panel must never break the app
 
     mapview()
 

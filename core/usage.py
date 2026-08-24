@@ -118,6 +118,41 @@ def health(service):
 _DOT = {"green": "🟢", "amber": "🟡", "red": "🔴"}
 
 
+def _repair_log_panel():
+    """Show what the background data-repair fetchers actually did.
+
+    These run on server startup and fix bundled data - Tamil Nadu's
+    truncated village boundaries among them. Their output goes to a
+    log file, but nobody here has SSH, so a log nobody can read is
+    only marginally better than the DEVNULL it replaced. Surfacing
+    the tail makes the repair checkable from the browser.
+    """
+    from config import PROJECT_ROOT
+
+    logdir = PROJECT_ROOT / "logs"
+    logs = sorted(logdir.glob("*.log")) if logdir.exists() else []
+    if not logs:
+        return
+
+    with st.expander("🔧 Background data repair", expanded=False):
+        st.caption(
+            "These jobs run once when the server starts and re-fetch "
+            "any bundled data known to be incomplete. Newest lines "
+            "last.")
+        for p in logs:
+            try:
+                text = p.read_text(errors="replace").strip()
+            except OSError as e:
+                st.caption(f"{p.name}: unreadable ({e})")
+                continue
+            if not text:
+                st.caption(f"**{p.name}** - ran, no output.")
+                continue
+            tail = "\n".join(text.splitlines()[-12:])
+            st.markdown(f"**{p.name}**")
+            st.code(tail, language="text")
+
+
 def health_panel():
     """Sidebar service-health / usage meter."""
     with st.expander("🛰️ Service health & limits", expanded=False):

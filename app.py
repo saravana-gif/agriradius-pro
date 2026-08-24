@@ -43,15 +43,31 @@ def _boundary_bootstrap():
     except Exception:
         pass
 
+    # Log, do not discard. These fetchers repair bundled data, and
+    # sending their output to DEVNULL meant a fetcher could fail on
+    # every restart for weeks with nothing to show for it - which is
+    # how Tamil Nadu's boundaries stayed broken. A log file costs
+    # nothing and turns "it should have fixed itself" into something
+    # checkable.
+    logdir = PROJECT_ROOT / "logs"
+    try:
+        logdir.mkdir(exist_ok=True)
+    except Exception:
+        logdir = None
+
     for script in ("fetch_boundaries.py",
                    "fetch_wris_command_areas.py",
                    "fetch_mi_census.py"):
         try:
+            if logdir is not None:
+                log = open(logdir / f"{script}.log", "ab", buffering=0)
+                out = err = log
+            else:
+                out = err = subprocess.DEVNULL
             subprocess.Popen(
                 ["nice", "-n", "10", _sys.executable,
                  str(PROJECT_ROOT / "scripts" / script)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                env=env)
+                stdout=out, stderr=err, env=env)
         except Exception:
             continue
     return True

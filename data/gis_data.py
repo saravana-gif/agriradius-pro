@@ -44,13 +44,34 @@ COVERAGE_GAPS = {
                 "commit; the salvageable half is shipped as "
                 "tamilnadu.csv.xz"),
         "fix": "python scripts/fetch_boundaries.py tamilnadu",
+        # How the gap proves itself CLOSED. Once the fetcher writes
+        # the full 18,159 villages the file lands near 7 MB, well
+        # past the 3.6 MB salvaged half.
+        "file": "tamilnadu_villages/tamilnadu.csv.xz",
+        "fixed_above_bytes": 5_000_000,
     },
 }
 
 
 def coverage_gap(state):
-    """The known hole in a state's boundary data, or None."""
-    return COVERAGE_GAPS.get(str(state).lower())
+    """The known hole in a state's boundary data, or None.
+
+    Returns None once the data has actually been repaired. A warning
+    that outlives the problem trains people to ignore warnings, so
+    this retires itself on evidence rather than waiting for someone
+    to remember to delete the entry.
+    """
+    gap = COVERAGE_GAPS.get(str(state).lower())
+    if not gap:
+        return None
+    rel, floor = gap.get("file"), gap.get("fixed_above_bytes")
+    if rel and floor:
+        try:
+            if (BOUNDARIES_DIR / rel).stat().st_size >= floor:
+                return None          # repaired - stop warning
+        except OSError:
+            pass                     # missing file: keep warning
+    return gap
 
 
 def _find_layer_file(folder):

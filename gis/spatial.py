@@ -71,8 +71,8 @@ def villages_in_buffer(lat, lon, radius_km):
                 f"{', '.join(gap['missing_districts'])} are entirely "
                 f"absent ({gap['why']}). If your area is in one of "
                 f"those districts, a low village count here means "
-                f"MISSING DATA, not empty land. Fix with: "
-                f"{gap['fix']}")
+                f"MISSING DATA, not empty land. "
+                f"Status: {gap['fix']}.")
 
         try:
             gdf = load_boundaries(state, "villages", bbox=bounds)

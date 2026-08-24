@@ -41,39 +41,31 @@ SOURCES = {
                              "Telangana",
                              str(p.get("DMV_C", ""))),
     },
-    # Tamil Nadu. The shapefile that used to live here was committed
-    # TRUNCATED - its header declared 36,736,480 bytes but only
-    # 18,804,736 were ever stored, so 8,644 of 18,159 villages were
-    # unreadable and any read that reached them died with an opaque
-    # fread() error. Worse, that error propagated and took
-    # Karnataka's villages down with it on any circle spanning the
-    # border. The salvageable 9,515 are shipped as tamilnadu.csv.xz;
-    # run this to replace them with the full set.
-    "tamilnadu": {
-        # The salvaged half is 3.6 MB for 9,515 villages, so a full
-        # 18,159 lands near 7 MB. Set ABOVE the salvaged size, never
-        # at or below it - otherwise the gate passes on the very file
-        # it exists to replace.
-        "out": BOUND / "tamilnadu_villages" / "tamilnadu.csv.xz",
-        "min_bytes": 6_000_000,
-        # UNVERIFIED from here - see _resolve_parts. Ordered most to
-        # least likely; the first layout that actually exists wins.
-        "part_candidates": [
-            [(f"{RAW}/datameet/indian_village_boundaries/master/"
-              "tn/tn.geojson", "plain")],
-            [(f"{RAW}/datameet/indian_village_boundaries/master/"
-              "tn/tn1.geojson", "plain"),
-             (f"{RAW}/datameet/indian_village_boundaries/master/"
-              "tn/tn2.geojson", "plain")],
-            [(f"{RAW}/datameet/indian_village_boundaries/master/"
-              "tn/TAMILNADU.geojson", "plain")],
-        ],
-        "parts": [],
-        "fields": lambda p: (str(p.get("NAME", "")),
-                             str(p.get("DISTRICT", "")),
-                             "Tamil Nadu",
-                             str(p.get("CEN_2001", ""))),
-    },
+    # NO TAMIL NADU ENTRY - and that is a checked fact, not an
+    # oversight.
+    #
+    # I added one pointing at datameet/indian_village_boundaries on
+    # the assumption that Tamil Nadu was there because Maharashtra
+    # is. It is not. That repository contains exactly:
+    #     br, ga, gj, ka, kl, mh, or, rj, sk
+    # Bihar, Goa, Gujarat, Karnataka, Kerala, Maharashtra, Odisha,
+    # Rajasthan, Sikkim. There is no tn directory, so no filename
+    # variant could ever have worked, and the candidate-layout probe
+    # I wrote to "let the network settle it" was solving the wrong
+    # problem - the directory, not the filename, was the guess.
+    #
+    # Tamil Nadu's village boundaries therefore have NO identified
+    # open source yet. The bundled tamilnadu.csv.xz holds the 9,515
+    # villages salvageable from the truncated shapefile - 52% of the
+    # state, missing the entire western belt. COVERAGE_GAPS reports
+    # that hole and must keep reporting it until a real source
+    # exists. It must NOT point anyone at a command that cannot help.
+    #
+    # Lead worth following: the original shapefile's columns
+    # (vilnam_soi, vil_lgd, dist_lgd, gp_code, block_lgd) say it came
+    # from a Survey of India / LGD-linked government dataset, and
+    # Karnataka's intact file shares that exact schema. Whatever
+    # supplied Karnataka can probably supply Tamil Nadu.
     "maharashtra": {
         "out": BOUND / "maharashtra_villages" / "maharashtra.csv.xz",
         "min_bytes": 7_000_000,

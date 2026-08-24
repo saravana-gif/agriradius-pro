@@ -43,7 +43,15 @@ COVERAGE_GAPS = {
         "why": ("the bundled shapefile was truncated in an earlier "
                 "commit; the salvageable half is shipped as "
                 "tamilnadu.csv.xz"),
-        "fix": "python scripts/fetch_boundaries.py tamilnadu",
+        # No command here on purpose. This said 'run
+        # scripts/fetch_boundaries.py tamilnadu' - a command that
+        # could never work, because datameet has no Tamil Nadu data
+        # (br, ga, gj, ka, kl, mh, or, rj, sk only). Sending someone
+        # to a fix that cannot fix anything is worse than admitting
+        # the gap is open.
+        "fix": ("no open source for Tamil Nadu village boundaries "
+                "has been identified yet - the missing half cannot "
+                "be restored until one is"),
         # How the gap proves itself CLOSED. Once the fetcher writes
         # the full 18,159 villages the file lands near 7 MB, well
         # past the 3.6 MB salvaged half.

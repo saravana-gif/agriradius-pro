@@ -358,3 +358,9 @@ def legends():
                 f"Coconut survey: "
                 f"{crop_survey_layer.METRICS[metric][0]}",
                 crop_survey_layer.legend_items(metric))
+
+    if vis.get("field_parcels"):
+        from gis import parcels_layer
+        # Colour means size, and size is the sourcing question -
+        # without the key the layer is just blue blobs.
+        _legend("Field parcels by size", parcels_layer.legend())

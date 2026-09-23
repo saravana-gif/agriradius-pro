@@ -602,6 +602,47 @@ def mapview():
         except Exception as e:
             st.warning(f"Could not load the coconut survey layer: {e}")
 
+    if vis.get("field_parcels"):
+
+        try:
+            from core import field_boundaries as fb
+            from gis import parcels_layer
+
+            if not fb.available():
+                st.caption(
+                    "Field parcels are not set up on this server yet "
+                    "- open the Field Parcels tab and press 'Find "
+                    "field parcel data' once.")
+            else:
+                lat = round(float(st.session_state.lat), 4)
+                lon = round(float(st.session_state.lon), 4)
+                radius = float(st.session_state.get("radius", 10))
+
+                # Reuse the tab's result when it has already been
+                # loaded. This read is a network round trip; drawing
+                # the layer must not silently repeat it, and the map
+                # must not disagree with the tab beside it.
+                key = f"parcels_{lat:.4f}_{lon:.4f}_{radius}"
+                cached = st.session_state.get(key)
+                if cached:
+                    pgdf, _pinfo = cached
+                else:
+                    pgdf, _pinfo = fb.parcels(lat, lon, radius)
+                    st.session_state[key] = (pgdf, _pinfo)
+
+                gj, pl_info = parcels_layer.geojson_parcels(pgdf)
+                if gj:
+                    engine.add_choropleth(
+                        gj, "Field parcels (by size)",
+                        fill_opacity=min(0.75, _op + 0.05),
+                        tooltip_aliases=["Parcel size", "Size band"])
+                cap = parcels_layer.caption(pl_info)
+                if cap:
+                    st.caption(cap)
+                st.caption("⚠ " + fb.caveat())
+        except Exception as e:
+            st.warning(f"Could not load the field parcels layer: {e}")
+
     # --- Refresh button: remounts the map so any tiles that failed
     # to load (Earth Engine timeouts at high zoom) are re-requested,
     # without having to nudge the opacity slider. ---

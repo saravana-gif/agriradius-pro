@@ -47,6 +47,9 @@ LAYERS = {
         {"id": "coconut_survey",
          "label": "Coconut - govt crop survey (measured)",
          "default": False},
+        {"id": "field_parcels",
+         "label": "Field parcels - individual fields (FTW, by size)",
+         "default": False},
     ],
     "Forest vs farmland": [
         {"id": "plantation_net",

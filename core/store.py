@@ -154,6 +154,13 @@ def upsert(con, table, rows, key, update=None):
     return len(rows)
 
 
+def prune_daily(con, keep_days=180):
+    """Drop daily forecast issues older than `keep_days` - enough to
+    score forecasts against a season of observed rain."""
+    con.execute("DELETE FROM forecast_daily WHERE issued_on < "
+                "date('now', ?)", (f"-{int(keep_days)} days",))
+
+
 def prune_hourly(con, keep_issues=3):
     """Keep only the newest `keep_issues` issue dates of hourly rows."""
     con.execute(

@@ -20,6 +20,7 @@ log = logging.getLogger("jobs.forecast")
 
 IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
 HOURLY_KEEP_ISSUES = 3
+DAILY_KEEP_DAYS = 180
 
 
 def _utc_now():
@@ -63,6 +64,7 @@ def run(con):
                                  ["village_id", "issued_on", "provider",
                                   "time"])
     store.prune_hourly(con, HOURLY_KEEP_ISSUES)
+    store.prune_daily(con, DAILY_KEEP_DAYS)
     con.commit()
 
     detail = (f"{len(ids)} villages from {source} via {prov.name}: "

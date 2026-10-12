@@ -315,7 +315,9 @@ def gather(progress=None, with_maps=True):
             label = st.session_state.get("mandi_label")
             if label and "Commodity" not in md.columns:
                 md.insert(0, "Commodity", label)
-            bundle["mandi_df"] = md
+            from core.mandi import label_columns, price_unit
+            bundle["mandi_df"] = label_columns(md, label)
+            bundle["mandi_unit"] = price_unit(label)
         else:
             bundle["mandi_df"] = None
             bundle["notes"].append(
@@ -641,6 +643,7 @@ def pdf_bytes(bundle):
         soil_verdicts=bundle.get("soil_verdicts"),
         scores_df=bundle.get("scores_df"),
         mandi_df=bundle.get("mandi_df"),
+        mandi_unit=bundle.get("mandi_unit") or "Rs/qtl",
         soil_climate_df=bundle.get("soil_climate_df"),
         village_soil_df=bundle.get("village_soil_df"),
         allied=bundle.get("allied"),

@@ -74,6 +74,25 @@ def _kit_tab(a, lang, mtime):
         st.code(k.message, language=None)
 
 
+def _links():
+    """Links to the static pages written by jobs/publish.py."""
+    from jobs.publish import INDEX_FILE
+    try:
+        idx = json.loads(INDEX_FILE.read_text())
+    except (OSError, ValueError):
+        return
+    with st.expander("🔗 Village pages and the weekly portfolio"):
+        st.markdown(
+            f"**[Weekly portfolio]({idx['portfolio']})** - internal: "
+            "includes drafts and mandi prices, don't forward.")
+        st.caption("Village pages open on 2G without signing in and show "
+                   "only signed-off advice. Anyone with a link can read "
+                   "it - share a village's link with that village only.")
+        for vid, v in sorted(idx["villages"].items(),
+                             key=lambda kv: kv[1]["village"]):
+            st.markdown(f"- [{v['village']}]({v['url']})")
+
+
 def alerts_page():
     st.title("📣 Alerts & share kit")
     st.caption(
@@ -81,6 +100,7 @@ def alerts_page():
         "ECMWF forecast. A share button appears only after an "
         "agronomist has signed off the rule and the language. Until "
         "then the card says DRAFT - read it, don't forward it.")
+    _links()
     c1, c2 = st.columns([1, 2])
     days = c1.selectbox("Period", [7, 14, 30, 90], index=1,
                         format_func=lambda d: f"last {d} days")

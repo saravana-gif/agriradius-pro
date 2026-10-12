@@ -73,11 +73,46 @@ MemoryMax=850M
 WantedBy=multi-user.target
 EOF
 
-echo "== [6/8] caddy vhost =="
+echo "== [6/8] caddy vhost + published pages =="
+# Village cards (/c/...) and the portfolio (/p/...) are static files
+# written by jobs/publish.py. Caddy cannot read inside /home/agri, so
+# they live in /var/www/groundintel and data/public points there.
+PUB=/var/www/groundintel
+mkdir -p "$PUB/c" "$PUB/p"
+chown -R agri:agri "$PUB"
+chmod 755 "$PUB" "$PUB/c" "$PUB/p"
+APPDIR=/home/agri/agriradius-pro
+if [ ! -L "$APPDIR/data/public" ]; then
+    if [ -e "$APPDIR/data/public" ]; then
+        # pages made before this step: copy them over, never delete
+        sudo -u agri cp -a "$APPDIR/data/public/." "$PUB/"
+        sudo -u agri mv "$APPDIR/data/public" "$APPDIR/data/public.before-symlink"
+    fi
+    sudo -u agri ln -s "$PUB" "$APPDIR/data/public"
+fi
 cat > /etc/caddy/Caddyfile <<'EOF'
 groundintel.oneroot.farm {
     encode gzip
-    reverse_proxy 127.0.0.1:8501
+    # Unguessable static pages: no listing, not in search engines.
+    handle_path /c/* {
+        root * /var/www/groundintel/c
+        try_files {path}.html {path}
+        header X-Robots-Tag "noindex, nofollow"
+        header Cache-Control "no-cache"
+        header Referrer-Policy "no-referrer"
+        file_server
+    }
+    handle_path /p/* {
+        root * /var/www/groundintel/p
+        try_files {path}.html {path}
+        header X-Robots-Tag "noindex, nofollow"
+        header Cache-Control "no-cache"
+        header Referrer-Policy "no-referrer"
+        file_server
+    }
+    handle {
+        reverse_proxy 127.0.0.1:8501
+    }
 }
 EOF
 

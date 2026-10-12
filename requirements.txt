@@ -22,3 +22,5 @@ httpx
 ijson
 duckdb
 imdlib>=0.3.1
+ecmwf-opendata>=0.3.30
+eccodes>=2.38

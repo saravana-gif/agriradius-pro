@@ -9,18 +9,21 @@ Every provider returns the same normalised rows (field names below).
 A value the provider did not send is None - never 0 - so "no data"
 can never read as "no rain".
 
-LICENSING: Open-Meteo's free API is for non-commercial use. OneRoot's
-use is internal advisory, but before alerts feed sales decisions at
-scale either buy an Open-Meteo API plan (set OPEN_METEO_API_KEY; the
-adapter switches to the customer endpoint) or move to an open-data
-provider.
-TODO(phase 1+): EcmwfOpenDataProvider - ECMWF open data (IFS 0.25deg,
-CC-BY-4.0, commercial use allowed) via the `ecmwf-opendata` package.
-It ships GRIB, so it needs eccodes/cfgrib and a point-extraction step;
-check memory on the 1 GB box before enabling it.
+LICENSING: ECMWF open data is CC-BY-4.0 - commercial use allowed with
+attribution ("Contains ECMWF data"; see ATTRIBUTION). Open-Meteo's free
+API is non-commercial, so it is only the fallback: set
+OPEN_METEO_API_KEY (a paid plan) to use its customer endpoint.
+
+FORECAST_PROVIDER (secret) picks the order, comma-separated; default
+"ecmwf_open,open_meteo": ECMWF first, Open-Meteo if that fails.
 """
 
+import contextlib
+import datetime
+import io
 import logging
+import os
+import tempfile
 import time
 
 import requests
@@ -138,20 +141,271 @@ class OpenMeteoProvider(ForecastProvider):
                 }
 
 
+IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
+
+def rh_from_dewpoint(t_c, td_c):
+    """Relative humidity (%) from temperature and dew point (deg C),
+    Magnus formula (Alduchov & Eskridge 1996)."""
+    import math
+    a, b = 17.625, 243.04
+    rh = 100 * math.exp(a * td_c / (b + td_c) - a * t_c / (b + t_c))
+    return round(min(100.0, max(0.0, rh)), 1)
+
+
+class EcmwfOpenDataProvider(ForecastProvider):
+    """ECMWF IFS 0.25 deg open data (CC-BY-4.0), latest 00/12 UTC run
+    out to 15 days, read straight from the GRIB2 files.
+
+    Only the fields we use are downloaded (HTTP range reads via the
+    files' .index), in blocks of a few steps to a temp file that is
+    deleted after reading; each field is decoded one at a time
+    (~8 MB) and only the village grid points are kept, so memory stays
+    small on the 1 GB box. About 350 fields, ~250 MB a day; ~4 min.
+
+    Days are IST calendar days. Each forecast interval is assigned to
+    the IST day holding its midpoint; a day is kept only when its
+    intervals cover all 24 h. Hourly rows are 3-hourly (the model's
+    output step) for the first 7 days, at IST times (hh:30).
+    Not provided: rain_prob (needs the ensemble), wind, gusts, et0_mm,
+    weather_code -> None (no rule uses them; each costs ~70 MB a day).
+    """
+
+    name = "ecmwf_open"
+    # Mirrors, tried in order. AWS throttles index reads (503 Slow Down).
+    SOURCES = ("ecmwf", "google", "aws")
+    BLOCK = 12                              # steps per download
+
+    def __init__(self, sources=None, workdir=None):
+        self.sources = sources or self.SOURCES
+        self.workdir = workdir
+        self.base_time = None
+
+    @staticmethod
+    def plan(hourly_hours=168, last_step=360):
+        """[(steps, params)] download blocks."""
+        s3 = list(range(3, 145, 3))
+        s6 = list(range(150, last_step + 1, 6))
+        hourly = ["tp", "2t", "2d"]
+        out = [(s3, hourly + ["mx2t3", "mn2t3"]),
+               ([s for s in s6 if s <= hourly_hours],
+                hourly + ["mx2t6", "mn2t6"]),
+               ([s for s in s6 if s > hourly_hours],
+                ["tp", "mx2t6", "mn2t6"])]
+        return [(st, p) for st, p in out if st]
+
+    def _client(self, source):
+        from ecmwf.opendata import Client
+        return Client(source=source, model="ifs", resol="0p25",
+                      maximum_retries=3, retry_after=10)
+
+    def _download(self, locations, days):
+        """{(param, step): [value per location]} and the base time."""
+        from core import usage
+        last_step = min(360, days * 24)
+        errors = []
+        for src in self.sources:
+            try:
+                client = self._client(src)
+                base = client.latest(type="fc", stream="oper",
+                                     step=last_step, param="tp")
+                fields = {}
+                fd, path = tempfile.mkstemp(suffix=".grib2",
+                                            dir=self.workdir)
+                os.close(fd)
+                try:
+                    for steps, params in self.plan(last_step=last_step):
+                        for i in range(0, len(steps), self.BLOCK):
+                            usage.bump("ecmwf_open")
+                            # multiurl draws tqdm progress bars on
+                            # stderr (disable=False is hard-coded) -
+                            # noise in the cron log. Log handlers keep
+                            # their own stream, so warnings still show.
+                            with contextlib.redirect_stderr(io.StringIO()):
+                                client.retrieve(
+                                    date=base.strftime("%Y%m%d"),
+                                    time=base.hour, type="fc",
+                                    stream="oper",
+                                    step=steps[i:i + self.BLOCK],
+                                    param=params, target=path)
+                            fields.update(read_points(path, locations))
+                finally:
+                    os.remove(path)
+                return base, fields
+            except Exception as e:
+                errors.append(f"{src}: {type(e).__name__}: {str(e)[:150]}")
+                log.warning("ecmwf open data via %s failed: %s", src, e)
+        raise RuntimeError("ECMWF open data unavailable - "
+                           + " | ".join(errors))
+
+    def fetch_many(self, locations, days=16, hourly_hours=168):
+        locations = list(locations)
+        base, fields = self._download(locations, days)
+        self.base_time = base
+        for k, loc in enumerate(locations):
+            pts = {key: vals[k] for key, vals in fields.items()}
+            yield loc, to_rows(base, pts, hourly_hours)
+
+
+def read_points(path, locations):
+    """{(shortName, endStep): [value at each (lat, lon)]} from a GRIB
+    file on a regular lat/lon grid (nearest grid point)."""
+    import eccodes
+    out, idx_cache = {}, {}
+    with open(path, "rb") as f:
+        while True:
+            h = eccodes.codes_grib_new_from_file(f)
+            if h is None:
+                break
+            try:
+                if eccodes.codes_get(h, "gridType") != "regular_ll":
+                    raise ValueError("unexpected GRIB grid type")
+                geo = tuple(eccodes.codes_get(h, k) for k in (
+                    "latitudeOfFirstGridPointInDegrees",
+                    "longitudeOfFirstGridPointInDegrees",
+                    "iDirectionIncrementInDegrees",
+                    "jDirectionIncrementInDegrees", "Ni", "Nj",
+                    "jScansPositively"))
+                if geo not in idx_cache:
+                    idx_cache[geo] = _grid_index(geo, locations)
+                vals = eccodes.codes_get_values(h)
+                miss = eccodes.codes_get(h, "missingValue")
+                key = (eccodes.codes_get(h, "shortName"),
+                       int(eccodes.codes_get(h, "endStep")))
+                out[key] = [None if vals[i] == miss else float(vals[i])
+                            for i in idx_cache[geo]]
+            finally:
+                eccodes.codes_release(h)
+    return out
+
+
+def _grid_index(geo, locations):
+    lat0, lon0, di, dj, ni, nj, jpos = geo
+    idx = []
+    for lat, lon in locations:
+        j = round((lat - lat0) / dj) if jpos else round((lat0 - lat) / dj)
+        i = round(((lon - lon0) % 360) / di) % ni
+        if not 0 <= j < nj:
+            raise ValueError(f"latitude {lat} outside the GRIB grid")
+        idx.append(int(j * ni + i))
+    return idx
+
+
+def _k_to_c(v):
+    return None if v is None else round(v - 273.15, 1)
+
+
+def to_rows(base, pts, hourly_hours=168):
+    """One location's {(param, step): value} -> {"daily", "hourly"}."""
+    steps = sorted({s for (p, s) in pts if p == "tp"})
+    days, prev = {}, 0
+    hourly = []
+    for s in steps:
+        tp0 = 0.0 if prev == 0 else pts.get(("tp", prev))
+        tp1 = pts.get(("tp", s))
+        rain = (None if tp0 is None or tp1 is None
+                else round(max(0.0, (tp1 - tp0) * 1000), 2))
+        hrs = s - prev
+        mid = base + datetime.timedelta(hours=prev + hrs / 2)
+        day = mid.astimezone(IST).date().isoformat()
+        d = days.setdefault(day, {"hours": 0, "rain": [], "tmax": [],
+                                  "tmin": [], "rh": []})
+        d["hours"] += hrs
+        d["rain"].append(rain)
+        d["tmax"].append(_k_to_c(pts.get((f"mx2t{hrs}", s))))
+        d["tmin"].append(_k_to_c(pts.get((f"mn2t{hrs}", s))))
+        t, td = _k_to_c(pts.get(("2t", s))), _k_to_c(pts.get(("2d", s)))
+        rh = None if t is None or td is None else rh_from_dewpoint(t, td)
+        if t is not None:
+            vt = (base + datetime.timedelta(hours=s)).astimezone(IST)
+            vday = vt.date().isoformat()
+            days.setdefault(vday, {"hours": 0, "rain": [], "tmax": [],
+                                   "tmin": [], "rh": []})["rh"].append(rh)
+            if s <= hourly_hours:
+                hourly.append({
+                    "time": vt.strftime("%Y-%m-%dT%H:%M"), "temp": t,
+                    "rh": rh, "dew_point": td, "rain_mm": rain,
+                    "rain_prob": None, "wind": None, "gust": None})
+        prev = s
+
+    def _agg(vals, fn):
+        vals = [v for v in vals if v is not None]
+        return round(fn(vals), 1) if vals else None
+
+    daily = []
+    for day in sorted(days):
+        d = days[day]
+        if d["hours"] != 24:
+            continue          # partial first / last day
+        daily.append({
+            "date": day,
+            "rain_mm": (None if any(r is None for r in d["rain"])
+                        else round(sum(d["rain"]), 1)),
+            "rain_prob": None,
+            "tmax": _agg(d["tmax"], max), "tmin": _agg(d["tmin"], min),
+            "rh_max": _agg(d["rh"], max), "rh_min": _agg(d["rh"], min),
+            "wind_max": None, "gust_max": None,
+            "et0_mm": None, "weather_code": None})
+    return {"daily": daily, "hourly": hourly}
+
+
+class FallbackProvider(ForecastProvider):
+    """Try providers in order; the first that delivers every location
+    wins and its name is stored with the rows."""
+
+    def __init__(self, providers):
+        self.providers = providers
+        self.name = providers[0].name
+        self.base_time = None
+        self.errors = []
+
+    def fetch_many(self, locations, days=16, hourly_hours=168):
+        locations = list(locations)
+        for p in self.providers:
+            try:
+                got = list(p.fetch_many(locations, days, hourly_hours))
+            except Exception as e:
+                self.errors.append(f"{p.name}: {type(e).__name__}: "
+                                   f"{str(e)[:300]}")
+                log.warning("forecast provider %s failed: %s", p.name, e)
+                continue
+            self.name = p.name
+            self.base_time = getattr(p, "base_time", None)
+            yield from got
+            return
+        raise RuntimeError("all forecast providers failed: "
+                           + " | ".join(self.errors))
+
+
 PROVIDERS = {
+    "ecmwf_open": EcmwfOpenDataProvider,
     "open_meteo": OpenMeteoProvider,
-    # "ecmwf_open": EcmwfOpenDataProvider,   # TODO, see module doc
 }
 
+ATTRIBUTION = {
+    "ecmwf_open": "ECMWF open data (CC BY 4.0)",
+    "open_meteo": "Open-Meteo",
+}
 
-def get_provider(name=None):
-    """Provider by name, else the FORECAST_PROVIDER secret, else
-    Open-Meteo."""
+DEFAULT_ORDER = "ecmwf_open,open_meteo"
+
+
+def _make(name):
     from core.secrets import get as _sec
-    name = name or _sec("FORECAST_PROVIDER") or "open_meteo"
     if name not in PROVIDERS:
         raise ValueError(f"unknown forecast provider {name!r}; "
                          f"have {sorted(PROVIDERS)}")
     if name == "open_meteo":
         return OpenMeteoProvider(api_key=_sec("OPEN_METEO_API_KEY"))
     return PROVIDERS[name]()
+
+
+def get_provider(name=None):
+    """Provider(s) by name ("a" or "a,b"), else the FORECAST_PROVIDER
+    secret, else ECMWF open data with Open-Meteo as fallback."""
+    from core.secrets import get as _sec
+    names = [n.strip() for n in str(
+        name or _sec("FORECAST_PROVIDER") or DEFAULT_ORDER).split(",")
+        if n.strip()]
+    provs = [_make(n) for n in names]
+    return provs[0] if len(provs) == 1 else FallbackProvider(provs)

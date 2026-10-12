@@ -1,0 +1,346 @@
+<title>Ground Intel Early-Warning Roadmap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one reading column (~880px) with full-width tables/timeline; summary first, then the plan, then the evidence. Palette follows the Ground Intel app's own navy/green/cyan "Signal" theme. */
+:root{
+  --bg:#F4F7F9; --surface:#FFFFFF; --ink:#0E1B2C; --ink-2:#44546A; --muted:#6B7A8F; --line:#DFE6EE;
+  --navy:#0B1F3A; --green:#15803D; --cyan:#0E7490;
+  --red:#B42318; --red-bg:#FDECEA; --amber:#9A6700; --amber-bg:#FFF4D6; --ok:#15803D; --ok-bg:#E5F4EA; --blue-bg:#E3F2F6;
+  --f-display:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+  --f-body:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0A1220; --surface:#111C2E; --ink:#E6EDF5; --ink-2:#B4C2D3; --muted:#8696AB; --line:#22324A;
+  --navy:#9CC3FF; --green:#4ADE80; --cyan:#5ED3E8;
+  --red:#FF8A80; --red-bg:#3A1717; --amber:#F5C451; --amber-bg:#352A0E; --ok:#4ADE80; --ok-bg:#12301E; --blue-bg:#0F2A33;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0A1220; --surface:#111C2E; --ink:#E6EDF5; --ink-2:#B4C2D3; --muted:#8696AB; --line:#22324A;
+  --navy:#9CC3FF; --green:#4ADE80; --cyan:#5ED3E8;
+  --red:#FF8A80; --red-bg:#3A1717; --amber:#F5C451; --amber-bg:#352A0E; --ok:#4ADE80; --ok-bg:#12301E; --blue-bg:#0F2A33;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;margin:0}
+.wrap{max-width:960px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--f-display);line-height:1.2;text-wrap:balance;margin:0;color:var(--ink)}
+h1{font-size:clamp(1.8rem,4vw,2.5rem);letter-spacing:-.02em}
+h2{font-size:1.45rem;letter-spacing:-.01em}
+h3{font-size:1.05rem}
+p{margin:0;max-width:68ch}
+a{color:var(--cyan)}
+.eyebrow{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
+.lede{font-size:1.06rem;color:var(--ink-2)}
+section{display:flex;flex-direction:column;gap:14px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;color:var(--muted);font-size:.85rem}
+.meta b{color:var(--ink-2);font-weight:600}
+header{display:flex;flex-direction:column;gap:14px;padding-bottom:22px;border-bottom:1px solid var(--line)}
+.callout{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.callout.key{border-left:4px solid var(--green)}
+.callout.warn{border-left:4px solid var(--red)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.card h3{font-size:.98rem}
+.card p,.card li{font-size:.9rem;color:var(--ink-2)}
+ul,ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:.68rem;padding:2px 8px;border-radius:99px;white-space:nowrap;font-weight:500}
+.p-red{background:var(--red-bg);color:var(--red)}
+.p-amber{background:var(--amber-bg);color:var(--amber)}
+.p-ok{background:var(--ok-bg);color:var(--ok)}
+.p-blue{background:var(--blue-bg);color:var(--cyan)}
+.who{font-size:.78rem;color:var(--muted)}
+/* season calendar */
+.cal{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:14px}
+.cal-grid{display:grid;grid-template-columns:150px repeat(12,minmax(54px,1fr));row-gap:8px;min-width:820px;font-size:.78rem}
+.cal-h{font-family:var(--f-mono);font-size:.68rem;color:var(--muted);text-align:center;padding-bottom:4px;border-bottom:1px solid var(--line)}
+.cal-crop{font-weight:600;color:var(--ink);align-self:center;font-size:.85rem}
+.bar{border-radius:6px;padding:4px 7px;line-height:1.25;font-size:.72rem;align-self:center;min-width:0;overflow:hidden}
+.b-risk{background:var(--red-bg);color:var(--red)}
+.b-watch{background:var(--amber-bg);color:var(--amber)}
+.b-plan{background:var(--blue-bg);color:var(--cyan)}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.phase{display:grid;grid-template-columns:120px 1fr;gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.phase:first-of-type{border-top:0}
+.phase .when{font-family:var(--f-mono);font-size:.75rem;color:var(--green)}
+.phase .when b{display:block;font-family:var(--f-display);font-size:1rem;color:var(--ink)}
+@media (max-width:560px){.phase{grid-template-columns:1fr}}
+code{font-family:var(--f-mono);font-size:.82em;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.test{counter-reset:t;list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px}
+.test li{counter-increment:t;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 12px 9px 40px;position:relative;font-size:.88rem;color:var(--ink-2)}
+.test li::before{content:counter(t);position:absolute;left:12px;top:9px;font-family:var(--f-mono);font-size:.75rem;color:var(--green);font-weight:600}
+.small{font-size:.82rem;color:var(--muted)}
+footer{border-top:1px solid var(--line);padding-top:16px}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">OneRoot Ground Intel · Expert panel review · 12 Oct 2026</span>
+  <h1>From a map you open to a warning that reaches the village</h1>
+  <p class="lede">Nine practitioners with 25–35 years each in agro-meteorology, groundwater, soil and agronomy, horticulture and plant protection, spices and plantation crops, commodity trading, field extension, and agri-risk reviewed the app and the code, then debated each other. Every recommendation here costs nothing beyond the server you already run.</p>
+  <div class="meta">
+    <span><b>Priority crops</b> turmeric · maize · banana · chilli · tender coconut</span>
+    <span><b>Regions</b> Karnataka · Tamil Nadu</span>
+    <span><b>Users</b> field staff advising farmers, and the sourcing / input-sales table</span>
+    <span><b>Channel</b> WhatsApp</span>
+  </div>
+</header>
+
+<section id="answer">
+  <span class="eyebrow">The farmer's question</span>
+  <h2>"No one warned us about the failed rains." The warnings existed.</h2>
+  <p>Official, free warnings were issued from mid-April onward. They stayed in English PDFs and press releases. IMD closed its 199 District Agromet Units in 2024, the teams that used to turn these bulletins into block-level advice, and nobody filled that gap. OneRoot's field staff can.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Date (2026)</th><th>Issued by</th><th>What it said</th></tr></thead>
+    <tbody>
+      <tr><td class="num">13 Apr</td><td>IMD long-range forecast</td><td>Monsoon below normal, 92% of the long-period average, El Niño developing. IMD's first below-normal April call in 11 years.</td></tr>
+      <tr><td class="num">29 May</td><td>IMD update</td><td>Cut to 90%. 60% chance of a deficient season plus 24% below normal. South Peninsula likely below normal. <span class="pill p-red">A seasonal card would have turned red here</span></td></tr>
+      <tr><td class="num">May</td><td>TNAU</td><td>District forecasts for the SW monsoon, e.g. Coimbatore −15%, Erode −11%.</td></tr>
+      <tr><td class="num">17 Jun</td><td>ICAR-CRIDA</td><td>South Interior Karnataka −31%, Tamil Nadu −37% rainfall to date.</td></tr>
+      <tr><td class="num">29 Jun – 13 Jul</td><td>ICAR-CRIDA bulletins</td><td>South Interior Karnataka: postpone kharif sowing, soil moisture inadequate; mulch and protective irrigation.</td></tr>
+      <tr><td class="num">27 Aug</td><td>Govt of Karnataka</td><td>101 taluks declared drought-hit, 124 by 17 Sep, 177 by early October. Mysuru, Mandya and Chamarajanagar among the worst.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout key">
+    <h3>What a farmer in Chamarajanagar says he would have done with a May warning</h3>
+    <p>Not sown 4 acres of maize on the first June shower (about ₹25,000 an acre saved), and sown short-duration ragi or horse gram later. Planted half the turmeric, mulched, and fixed the drip lines in May. Skipped the new tissue-culture banana batch. Serviced the borewell motor early. Bought ragi straw for the cows before the price doubled. The FPO would have ordered 60% of its inputs, not 100%.</p>
+    <p class="who">Farmer and FPO president, 35 years, 12 acres, 900-member FPO</p>
+  </div>
+  <p><b>The panel's conclusion:</b> most of the harm could have been flagged by <i>measuring</i> what was already happening (rain to date against normal, dry-spell days, crop stage, tank and reservoir levels) plus rules that institutions have already written, such as CRIDA's district contingency plans. Long-range prediction plays a smaller, bounded role. The missing piece was delivery: in Kannada or Tamil, for a named hobli, carried by a person the farmer trusts.</p>
+</section>
+
+<section id="this-week">
+  <span class="eyebrow">Before any code</span>
+  <h2>Do these this week</h2>
+  <div class="grid2">
+    <div class="card"><span class="pill p-red">Continuity risk</span><h3>Resolve the two licences</h3><p>Verified: Google's free Earth Engine use covers nonprofits, academia, media, some government agencies and individuals, not private companies. The free Open-Meteo API is non-commercial only. Ask Google in writing, and talk to UAS or TNAU about a genuine research collaboration. Move the weather forecast to ECMWF open data or a self-hosted Open-Meteo, both free for commercial use. The plan keeps Earth Engine to one small monthly batch either way.</p></div>
+    <div class="card"><span class="pill p-red">Deadline</span><h3>Fix farmers' FRUITS IDs and crop-survey entries</h3><p>Drought relief only reaches farmers whose FRUITS ID and crop-survey records are correct. Kharif drought declarations are due by 31 October. Field staff can check this on every visit now.</p></div>
+    <div class="card"><span class="pill p-amber">Data loss risk</span><h3>Check that Google Sheets is switched on in the server</h3><p>The server's auto-deploy runs <code>git reset --hard</code> on every push. Ground-truth files are tracked in git, so if records are being written to local files rather than Sheets, each deploy wipes them. Confirm <code>GSHEET_ID</code> is set in the server's secrets.</p></div>
+    <div class="card"><span class="pill p-ok">Free, starts now</span><h3>Start four field logs</h3><ul><li>Competing buyers' rates: trader, price, day</li><li>Borewell depth, yield and failures</li><li>Tender-coconut harvest per farm: date, nut count, button shedding 0–3</li><li>GPS points of turmeric fields (and look-alikes: cassava, sugarcane) while the canopy peaks Oct–Dec</li></ul></div>
+  </div>
+</section>
+
+<section id="calendar">
+  <span class="eyebrow">Your crops, your next twelve months</span>
+  <h2>When each warning matters</h2>
+  <p>Windows the panel identified for the five priority crops, from now to next September. Red is a damage risk the app should warn about; amber is a scouting or watch period; blue is a planning decision.</p>
+  <div class="cal"><div class="cal-grid">
+    <div></div>
+    <div class="cal-h">Oct</div><div class="cal-h">Nov</div><div class="cal-h">Dec</div><div class="cal-h">Jan</div><div class="cal-h">Feb</div><div class="cal-h">Mar</div><div class="cal-h">Apr</div><div class="cal-h">May</div><div class="cal-h">Jun</div><div class="cal-h">Jul</div><div class="cal-h">Aug</div><div class="cal-h">Sep</div>
+
+    <div class="cal-crop" style="grid-column:1;grid-row:2">All areas</div>
+    <div class="bar b-watch" style="grid-column:2 / span 3;grid-row:2">NE-monsoon tracker (TN) from 1 Oct</div>
+    <div class="bar b-plan" style="grid-column:5 / span 2;grid-row:2">Rabi / summer water budget</div>
+    <div class="bar b-plan" style="grid-column:8 / span 2;grid-row:2">Seasonal odds card (IMD Apr–May)</div>
+    <div class="bar b-watch" style="grid-column:10 / span 4;grid-row:2">SW-monsoon tracker, sow / wait / switch</div>
+
+    <div class="cal-crop" style="grid-column:1;grid-row:3">Chilli</div>
+    <div class="bar b-watch" style="grid-column:2 / span 2;grid-row:3">Byadgi flowering: dry spell drops flowers</div>
+    <div class="bar b-risk" style="grid-column:4 / span 1;grid-row:3">Black thrips wk 47–50</div>
+    <div class="bar b-risk" style="grid-column:5 / span 3;grid-row:3">Drying rain → colour loss, aflatoxin</div>
+    <div class="bar b-plan" style="grid-column:11 / span 2;grid-row:3">Byadgi transplanting</div>
+
+    <div class="cal-crop" style="grid-column:1;grid-row:4 / span 2">Turmeric</div>
+    <div class="bar b-watch" style="grid-column:2 / span 2;grid-row:4">Leaf blotch 21–23 °C, RH 80%</div>
+    <div class="bar b-plan" style="grid-column:5 / span 2;grid-row:4">Harvest, Erode prices</div>
+    <div class="bar b-plan" style="grid-column:9 / span 2;grid-row:4">Planting area vs water</div>
+    <div class="bar b-risk" style="grid-column:11 / span 3;grid-row:4">Rhizome rot: wet + &gt;30 °C</div>
+    <div class="bar b-risk" style="grid-column:6 / span 3;grid-row:5">Curing rain risk</div>
+
+    <div class="cal-crop" style="grid-column:1;grid-row:6">Tender coconut</div>
+    <div class="bar b-ok" style="grid-column:2 / span 5;grid-row:6">Harvest every 30–45 days; log per farm</div>
+    <div class="bar b-risk" style="grid-column:7 / span 3;grid-row:6">Heat ≥37 °C · demand &amp; price peak</div>
+    <div class="bar b-watch" style="grid-column:13 / span 1;grid-row:6">Lagged dip</div>
+
+    <div class="cal-crop" style="grid-column:1;grid-row:7">Maize</div>
+    <div class="bar b-watch" style="grid-column:2 / span 2;grid-row:7">Kharif harvest &amp; drying window</div>
+    <div class="bar b-plan" style="grid-column:9 / span 2;grid-row:7">Sow or wait</div>
+    <div class="bar b-watch" style="grid-column:11 / span 2;grid-row:7">Fall armyworm 10–40 days after sowing</div>
+
+    <div class="cal-crop" style="grid-column:1;grid-row:8">Banana</div>
+    <div class="bar b-watch" style="grid-column:2 / span 2;grid-row:8">Sigatoka in wet spells</div>
+    <div class="bar b-plan" style="grid-column:5 / span 2;grid-row:8">Summer planting vs groundwater</div>
+    <div class="bar b-watch" style="grid-column:10 / span 4;grid-row:8">Sigatoka in wet spells</div>
+  </div></div>
+  <div class="legend"><span><i class="sw" style="background:var(--red-bg);border:1px solid var(--red)"></i>Damage risk</span><span><i class="sw" style="background:var(--amber-bg);border:1px solid var(--amber)"></i>Scout / watch</span><span><i class="sw" style="background:var(--blue-bg);border:1px solid var(--cyan)"></i>Planning decision</span><span><i class="sw" style="background:var(--ok-bg);border:1px solid var(--ok)"></i>Routine logging</span></div>
+  <p class="small">Tender coconut: heat or water stress at button stage shows up as fewer tender nuts 4–6 months later, so a hot April predicts a September–November dip. The 2026 drought also carries a longer 1–3 year coconut risk for 2027–28 supply.</p>
+</section>
+
+<section id="principles">
+  <span class="eyebrow">What all nine agreed</span>
+  <h2>Design principles</h2>
+  <div class="grid2">
+    <div class="card"><h3>Measure first, predict carefully</h3><p>About 80% of the work is monitoring: rain against normal, dry spells, crop stage, water, prices. Prediction appears in three places only: a seasonal odds card for the decision table, the 0–15 day forecast for sowing, spraying and drying, and crop lags such as coconut. District forecasts 3–4 weeks out score about as well as chance.</p></div>
+    <div class="card"><h3>Compute overnight, read instantly</h3><p>Background jobs on the existing server pre-compute every watched village. Opening a village card never triggers an Earth Engine run. One weekly batch uses far less quota than dozens of clicks.</p></div>
+    <div class="card"><h3>Say the odds, keep score</h3><p>"7 in 10 chance the season ends below normal; a usual year is 3 in 10", with the issue date and source. Never "it will". Every alert is logged permanently and checked afterwards. A monthly "we said / it happened" board at FPO meetings is how trust builds.</p></div>
+    <div class="card"><h3>Advice stays separate from sales</h3><p>Farmer-facing cards name practices and nutrients only: no brand, no product, no OneRoot price, with the source cited (CRIDA, UAS, TNAU, KVK). Input stocking and sourcing use the same signals on internal views only.</p></div>
+    <div class="card"><h3>Match the government's yardstick</h3><p>Drought alerts mirror the Drought Manual 2020: rainfall triggers shown separately from crop-impact triggers. In 2023 about 40 Karnataka taluks with a rain deficit were not declared because crops stayed green, so rain alone over-warns.</p></div>
+    <div class="card"><h3>Staff logs beat datasets</h3><p>Within two seasons, structured field logs (sowing dates, borewells, harvest counts, buyer rates) will be more accurate than any public dataset for your villages.</p></div>
+  </div>
+</section>
+
+<section id="whatsapp">
+  <span class="eyebrow">Delivery at zero cost</span>
+  <h2>How a warning reaches the farmer on WhatsApp</h2>
+  <p>The WhatsApp Business API charges per business-initiated message, so the app does not send to farmers itself. It prepares everything; a person sends it.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Step</th><th>What happens</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>05:30 daily</td><td>Each field officer receives a worst-first list of their villages by email.</td><td>Free</td></tr>
+      <tr><td>Share kit</td><td>For each alert the app makes a Kannada or Tamil image card, a "Share on WhatsApp" button with the text filled in, a printable A4 sheet with a QR code, and a 45-second script.</td><td>Free</td></tr>
+      <tr><td>Officer's own voice</td><td>The officer records the script as a WhatsApp voice note. Farmers trust a voice they know more than synthetic speech.</td><td>Free</td></tr>
+      <tr><td>Distribution</td><td>WhatsApp Business <i>app</i> broadcast lists (up to 256 people who have saved the officer's number), FPO and village groups, one WhatsApp Channel per region for season cards and price ranges, and the printed sheet on the FPO notice board and at the input shop.</td><td>Free</td></tr>
+      <tr><td>Check-back</td><td>Seven days later the officer marks the alert Right / Partly / Wrong. That builds the hit rate shown at FPO meetings.</td><td>Free</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">Manual forwarding works for roughly 30–50 villages, which also fits the Earth Engine quota. At several hundred villages the design needs revisiting.</p>
+</section>
+
+<section id="acceptance">
+  <span class="eyebrow">From the farmer and the field-ops head</span>
+  <h2>Every alert must pass these ten checks</h2>
+  <ol class="test">
+    <li>Names a hobli or village, not a district.</li>
+    <li>Gives one action for this week, its cost, and what happens if ignored.</li>
+    <li>States honest odds against the usual year, with issue date and source.</li>
+    <li>Fits one share card or a one-minute voice note, and opens offline.</li>
+    <li>The officer can explain why in one sentence, with three questions to ask.</li>
+    <li>No brand and no OneRoot sale in farmer-facing text.</li>
+    <li>The action is actually available: seed in stock, labour, water.</li>
+    <li>A named officer delivers it within 48 hours and logs the acknowledgement.</li>
+    <li>It is scored after 7 days; rules right less than about 60% of the time are retired.</li>
+    <li>Viewing it needs no button press and no Earth Engine run.</li>
+  </ol>
+</section>
+
+<section id="roadmap">
+  <span class="eyebrow">The consensus plan</span>
+  <h2>Top 15 improvements, in order</h2>
+  <p>Dev-days assume one developer. Audience: <span class="pill p-blue">Field</span> field staff advising farmers, <span class="pill p-amber">Table</span> sourcing and sales decisions, <span class="pill p-ok">Both</span>.</p>
+
+  <h3>Next 2 weeks: rabi and NE-monsoon decisions happening now (~12 dev-days)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Improvement</th><th>For</th><th>Days</th><th>Decision it changes</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Overnight jobs, daily digest and permanent forecast log.</b> Server cron pre-computes watched villages; the app reads results instead of computing on click.</td><td><span class="pill p-ok">Both</span></td><td class="num">4</td><td>Officers start each day with a worst-first list. Foundation for every alert.</td></tr>
+      <tr><td>2</td><td><b>Season tracker and dry-spell counter</b> per taluk / hobli: rain since 1 Oct (NE) or 1 Jun (SW) against a 45-year normal, IMD categories, consecutive dry days against crop stage. Amber at −20% or 10 dry days; red at −40% or 21.</td><td><span class="pill p-ok">Both</span></td><td class="num">4</td><td>Rabi sow or hold; protective irrigation for flowering Byadgi chilli; sourcing volume revisions.</td></tr>
+      <tr><td>3</td><td><b>Water status card:</b> weekly CWC reservoir figures (KRS, Kabini, Harangi, Hemavathi, Mettur, Bhavanisagar, Tungabhadra) against last year and normal, plus the official groundwater category of each block.</td><td><span class="pill p-ok">Both</span></td><td class="num">1</td><td>Steer away from water-hungry crops (banana needs 1,800–2,200 mm a season) where storage is low; shift tender-coconut sourcing toward canal areas.</td></tr>
+      <tr><td>4</td><td><b>WhatsApp share kit</b> (image card, prefilled share button, A4 sheet with QR, voice script). First ~15 template sentences from TNAU's NE-monsoon crop menus.</td><td><span class="pill p-blue">Field</span></td><td class="num">2</td><td>Whether a warning reaches the village at all.</td></tr>
+      <tr><td>5</td><td><b>Mandi quick fixes:</b> add Tender Coconut (Maddur, Malavalli, K.R. Pet, Srirangapatna) and Copra, fix the per-1,000-nuts unit label, add a "last reported" badge and the number of markets behind each trend point.</td><td><span class="pill p-amber">Table</span></td><td class="num">1</td><td>Stops buying decisions based on data errors.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Next 2–3 months: before chilli drying, turmeric curing and summer heat (~45 dev-days)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Improvement</th><th>For</th><th>Days</th><th>Decision it changes</th></tr></thead>
+    <tbody>
+      <tr><td>6</td><td><b>30-second field report</b> (GPS → village, event, crop, stage, photo) and the 7-day "was it right?" check-back.</td><td><span class="pill p-ok">Both</span></td><td class="num">6</td><td>Crop-stage clock per village, turmeric training points, competing buyer rates, the trust board.</td></tr>
+      <tr><td>7</td><td><b>Weather risk cards</b>, worded "conditions favour X, scout before spraying": chilli black thrips, leaf curl and anthracnose; turmeric leaf blotch; maize fall armyworm; banana Sigatoka; coconut mite and whitefly; chilli and turmeric drying and curing rain risk. <b>Chilli drying rules live by late November.</b></td><td><span class="pill p-blue">Field</span></td><td class="num">6–8</td><td>Scouting and spray timing; when to dig, boil, pick or cover; expected quality discounts.</td></tr>
+      <tr><td>8</td><td><b>Clean price archive and seasonal range:</b> fixed panel of named markets, arrival volumes from the CEDA-Ashoka archive, nightly archive, cleaning rules, then where today's price sits in its usual range for this week over 10 years, with a tested hit rate.</td><td><span class="pill p-amber">Table</span></td><td class="num">8</td><td>Buy or hold during the turmeric harvest and chilli arrivals; the farmer's "when to sell".</td></tr>
+      <tr><td>9</td><td><b>Tender-coconut supply outlook and heat alert:</b> per-farm harvest roster, pickable nuts for the next 4–8 weeks, a 4–6 month outlook, and an alert at ≥37 °C with irrigation and mulching advice.</td><td><span class="pill p-ok">Both</span></td><td class="num">8–10</td><td>Catchment buying for the March–May peak; anticipating the autumn dip; irrigating bearing palms first.</td></tr>
+      <tr><td>10</td><td><b>Water budget card per village:</b> crop water need from evapotranspiration against rain plus stored water.</td><td><span class="pill p-ok">Both</span></td><td class="num">5</td><td>Summer planting area for banana, maize and turmeric; drip and mulch advice; input mix.</td></tr>
+      <tr><td>11</td><td><b>Monday portfolio view:</b> one row per watched village with red/amber/green for rain, dry spell, crop-stage risk, price move and days since the last field report, worst first.</td><td><span class="pill p-amber">Table</span></td><td class="num">3</td><td>Where officers go this week; which store gets stock.</td></tr>
+      <tr><td>12</td><td><b>Deadline calendar</b> per hobli and crop: PMFBY enrolment (interim year, terms may change), 72-hour loss reporting and the new wild-animal damage cover, drought relief, MSP registration, RSK seed dates, with days left.</td><td><span class="pill p-blue">Field</span></td><td class="num">4</td><td>Fewer missed claims and missed relief.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Before Kharif 2027: ready by mid-April / mid-May (~30 dev-days)</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>#</th><th>Improvement</th><th>For</th><th>Days</th><th>Decision it changes</th></tr></thead>
+    <tbody>
+      <tr><td>13</td><td><b>Seasonal odds card</b> in Kannada and Tamil, entered about five times a year from IMD, NOAA ENSO and TNAU, with the public forecast-versus-outcome board.</td><td><span class="pill p-amber">Table</span> then FPOs</td><td class="num">2</td><td>Pre-season input mix (millet and short-duration seed vs maize hybrids), sourcing targets, insurance push.</td></tr>
+      <tr><td>14</td><td><b>Sow / Wait / Switch advisor</b> with CRIDA district contingency plans for ~15 districts (Chamarajanagar, Mysuru, Mandya, Hassan, Haveri, Erode, Karur …), checked against UAS and TNAU.</td><td><span class="pill p-blue">Field</span></td><td class="num">10 + 3–4 agronomist</td><td>"What do I sow now that the rain is X weeks late?"; seed dispatch timing.</td></tr>
+      <tr><td>15</td><td><b>Drought trigger panel and backtest:</b> SPI, satellite vegetation condition against a 2000–2025 baseline, sown area against normal, tested against Karnataka's 2016, 2018 and 2023 declarations and the normal years in between; plus the long-lag coconut flag.</td><td><span class="pill p-amber">Table</span></td><td class="num">15</td><td>Procurement cuts, credit stress, fodder and insurance claims, 4–8 weeks before the state declares.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">Deferred, not dropped: turmeric mapping (Jan–Apr, only if ~600 GPS-labelled fields are collected this season; chilli cannot be reliably separated from cotton yet), the fertiliser card from Soil Health Card data in bags per acre, the 1–3 year coconut model, market-spread board, NCDEX futures strip, and moving the forecast to ECMWF open data.</p>
+</section>
+
+<section id="build">
+  <span class="eyebrow">Engineering view</span>
+  <h2>How it gets built on the server you already have</h2>
+  <div class="callout">
+    <div class="phase"><div class="when"><b>Phase 0</b>this week</div><div><p>Job runner and a local SQLite store; watched-village list as a Google Sheet tab anyone can edit; nightly mandi archive switched on (every day it runs is history you can't get back); Tender Coconut and Copra added; first rules for the current season: TN NE-monsoon rain, chilli black thrips, turmeric leaf blotch, maize harvest drying. ~5 dev-days.</p></div></div>
+    <div class="phase"><div class="when"><b>Phase 1</b>by early Nov</div><div><p>IMD gridded rainfall tracker with a 45-year normal; rules engine and permanent alert log; Kannada/Tamil templates signed off by an agronomist; lightweight village pages under 50 KB that open on 2G; share cards; Monday portfolio; field report. ~10 dev-days.</p></div></div>
+    <div class="phase"><div class="when"><b>Phase 2</b>by Feb 2027</div><div><p>Weekly satellite batch for crop condition; turmeric curing rules; tender-coconut heat, roster and outlook; clean price archive with seasonal ranges; A4 sheet with Indic text; automatic scoring and the monthly board. ~12 dev-days.</p></div></div>
+    <div class="phase"><div class="when"><b>Phase 3</b>by mid-May 2027</div><div><p>Seasonal odds card; Sow / Wait / Switch with contingency plans; reservoir parser; optional synthetic voice notes; turmeric in the classifier if the labels exist. ~12 dev-days plus agronomist time.</p></div></div>
+  </div>
+  <h3>Problems in today's code that would make alerts wrong</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Where</th><th>Problem</th><th>Effect</th></tr></thead>
+    <tbody>
+      <tr><td><code>core/weather.py:186</code></td><td>Missing forecast values become 0.</td><td>False "no rain" or "cold" readings would trigger false alerts.</td></tr>
+      <tr><td><code>core/mandi.py:163, 216</code></td><td>Price history takes the first 6,000 rows of a feed sorted by market name.</td><td>Trend mostly reflects alphabetically-first markets; the mix shifts each month.</td></tr>
+      <tr><td><code>core/mandi.py:21–34, 91–101</code></td><td>No Tender Coconut or Copra; the government feed has no arrival volumes; almost no cleaning.</td><td>Priority crop missing; prices without volume (take volumes from the CEDA-Ashoka archive); unit errors pass through.</td></tr>
+      <tr><td><code>core/mandi.py:132–134</code></td><td>An empty but successful response overwrites the last good cache.</td><td>A blank day erases yesterday's prices.</td></tr>
+      <tr><td><code>gee/rainfall.py</code></td><td>Only 10 years of slow-arriving CHIRPS data.</td><td>Too short to define "normal" or compute SPI; weeks behind reality.</td></tr>
+      <tr><td><code>core/report.py</code></td><td>No Kannada or Tamil font registered.</td><td>Indic text cannot appear correctly in PDF reports or village sheets.</td></tr>
+      <tr><td><code>gee/classifier.py</code></td><td>Turmeric and chilli lumped into broad classes; trains on village centres.</td><td>No crop stage for two of the five priority crops; stage must come from field reports.</td></tr>
+      <tr><td><code>scripts/setup_lightsail.sh:78</code></td><td>Deploy does <code>git reset --hard</code>; ground-truth CSVs are tracked in git.</td><td>Local field records lost on deploy unless Sheets is on.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="verify">
+  <span class="eyebrow">Independent check</span>
+  <h2>Licences and facts, verified</h2>
+  <p>The licence pages were read directly on 12 Oct 2026; the 2026 facts and data sources were checked by an independent fact-checker against primary sources. Corrections are already reflected above.</p>
+  <h3>Licences: the two services the app runs on</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Service</th><th>Finding</th><th>Verdict</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td><b>Google Earth Engine</b><br><span class="small">all satellite layers</span></td><td>Free use is limited to nonprofits, academic institutions, news media, certain government agencies, trainers and individuals, all for noncommercial work. A private company is not on that list. Since 27 Apr 2026 noncommercial projects must also re-verify their status every year. <a href="https://earthengine.google.com/noncommercial/">earthengine.google.com/noncommercial</a></td><td><span class="pill p-red">Likely not eligible</span></td><td>This is the one place where zero spend may not hold. Options: ask Google for a written answer; explore a genuine research collaboration with UAS or TNAU (their project, their research, no fee-for-service); and keep shrinking Earth Engine use to one small monthly batch, as the plan already does, so a commercial plan stays cheap if it comes to that.</td></tr>
+      <tr><td><b>Open-Meteo</b><br><span class="small">live weather, 16-day forecast</span></td><td>The free API is "only for non-commercial purposes". Its own examples of commercial use include integrating it into commercial products and "undisclosed research at commercial entities". Paid plans start at 1M calls a month; the server is open source and can be self-hosted. <a href="https://open-meteo.com/en/terms">open-meteo.com/en/terms</a></td><td><span class="pill p-red">Commercial use</span></td><td>Self-host the open-source Open-Meteo server on your own machine, or fetch ECMWF open data directly. Both are free for commercial use.</td></tr>
+      <tr><td><b>ECMWF open data</b><br><span class="small">replacement forecast</span></td><td>IFS and AIFS real-time forecasts, free, under CC-BY-4.0: "may be redistributed and used commercially, subject to appropriate attribution". <a href="https://www.ecmwf.int/en/forecasts/datasets/open-data">ecmwf.int open data</a></td><td><span class="pill p-ok">Confirmed</span></td><td>Use for the 0–15 day forecast. Credit ECMWF on cards.</td></tr>
+      <tr><td><b>WhatsApp</b></td><td>Panel sources: Business API billed per message in India since 1 Jul 2025; the Business app's broadcast lists (256 people who saved your number), groups and Channels are free.</td><td><span class="pill p-amber">Panel-sourced</span></td><td>Use the share-kit design above; no API.</td></tr>
+    </tbody>
+  </table></div>
+  <h3>2026 facts and data sources</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Claim</th><th>Verdict</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>IMD 13 Apr: 92% of normal, below normal</td><td><span class="pill p-ok">Confirmed</span></td><td>IMD said El Niño was expected to develop during the season. <a href="https://mausam.imd.gov.in/Forecast/marquee_data/Long%20Range%20Forecast%20for%20Southwest%20Monsoon%20Season%20Rainfall_Press_release_13.4.2026.pdf">IMD press release</a></td></tr>
+      <tr><td>IMD 29 May: 90%, 60% chance deficient</td><td><span class="pill p-ok">Confirmed</span></td><td>60% deficient, 24% below normal, 14% normal.</td></tr>
+      <tr><td>CRIDA advised postponing kharif sowing</td><td><span class="pill p-ok">Confirmed</span></td><td>In the 6 and 13 July bulletins. <a href="https://www.icar-crida.res.in/WDU/2026/JULY_2026/NAAS-Bulletin-13-July-2026.pdf">13 July bulletin</a></td></tr>
+      <tr><td>IMD closed its District Agromet Units</td><td><span class="pill p-amber">Partly</span></td><td>Services stopped 1 Mar 2024. A revival was announced in Jan 2025; no evidence any units have reopened.</td></tr>
+      <tr><td>Karnataka drought taluks</td><td><span class="pill p-amber">Updated</span></td><td>101 on 27 Aug, 124 on 17 Sep, 177 by early October; one report puts it at 217. Check the latest Revenue Department order.</td></tr>
+      <tr><td>PMFBY interim year; wild-animal cover from Kharif 2026</td><td><span class="pill p-ok">Confirmed</span></td><td>Interim advisory to 30 Sep 2026; 2026–30 approval not yet confirmed.</td></tr>
+      <tr><td>Coconut yield and dry spells (CPCRI)</td><td><span class="pill p-amber">Corrected</span></td><td>About 60% of yield variation is explained by dry-spell length over the preceding two years (Mathew et al., 1988). The panel's "59–67%, March–May dry weeks" wording was not supported.</td></tr>
+      <tr><td>Government mandi feed includes arrival volumes</td><td><span class="pill p-red">Wrong</span></td><td>The data.gov.in feed the app uses has prices only. Volumes come from the free CEDA-Ashoka archive (daily, since 2001).</td></tr>
+      <tr><td>CWC weekly reservoir bulletin</td><td><span class="pill p-ok">Confirmed</span></td><td>Free PDF every Thursday, 166 reservoirs incl. all seven named (Bhavanisagar listed as Lower Bhawani). Hosted on rsms.cwc.gov.in.</td></tr>
+      <tr><td>CRIDA district contingency plans</td><td><span class="pill p-amber">Partly</span></td><td>Free for Chamarajanagar, Haveri, Mysuru and Erode, but all date from 2011, so check crops and varieties against current UAS / TNAU practice.</td></tr>
+      <tr><td>Groundwater block categories (INGRES)</td><td><span class="pill p-amber">Partly</span></td><td>The portal exists; public access without login not confirmed. National assessment reports are public.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="questions">
+  <span class="eyebrow">For the owner</span>
+  <h2>Eight questions that change the plan</h2>
+  <ol>
+    <li><b>Scale:</b> how many villages and officers in the first season? 30–50 fits manual WhatsApp forwarding and the Earth Engine quota; 500 needs a different design.</li>
+    <li><b>Earth Engine:</b> free use appears not to cover a private company. Would you pursue a research collaboration with UAS or TNAU, accept a small commercial plan for one monthly batch, or drop the satellite layers that need it?</li>
+    <li><b>When an alert fires, what can OneRoot actually offer?</b> Short-duration or millet seed in stock, credit, buy-back for alternative crops? And what does OneRoot do if a warning was wrong and a farmer lost a crop?</li>
+    <li><b>Sign-off:</b> does a OneRoot agronomist sign the advice alone, or with KVK / UAS / TNAU review and credit? Do you commit to no brand or sale in farmer-facing cards?</li>
+    <li><b>Tender coconut:</b> tall (Maddur type) or dwarf / hybrid palms? Do staff record each farm's harvest date and nut count today? Does OneRoot also trade copra?</li>
+    <li><b>Chilli:</b> which belt matters most (rainfed Byadgi, irrigated Ballari / Raichur, or Tamil Nadu mundu), and do you buy dry or green chilli?</li>
+    <li><b>Turmeric mapping:</b> can you commit about 20 field-days per region this October–December to label 600+ fields?</li>
+    <li><b>Continuity:</b> will the same officers cover the same villages next year, and will each FPO get its village data back? The farmer said a system that disappears after one season is worse than none.</li>
+  </ol>
+</section>
+
+<footer>
+  <p class="small">Panel: agro-meteorologist (ex-IMD agromet / UAS / TNAU) · hydrogeologist and irrigation engineer (ex-CGWB) · soil scientist and agronomist (UAS / TNAU / KVK) · horticulturist and plant pathologist (CPCRI / IIHR) · spices and plantation-crop scientist (IISR / TNAU / UAS Dharwad) · commodity trader and procurement head · extension and field-operations head (ex-Joint Director of Agriculture) · agri-risk, insurance and rural finance (NABARD / AIC) · farmer and FPO president, Chamarajanagar. The panel members are simulated expert perspectives; their sources were checked by web search, and the code findings were checked against the repository on 12 Oct 2026.</p>
+</footer>
+
+</div>

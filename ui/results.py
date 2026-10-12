@@ -2814,6 +2814,10 @@ def results():
 
     st.subheader("🌾 Analysis Results")
 
+    from ui import saved_results
+    saved_results.run_pending_refresh()
+    saved_banner = st.empty()     # filled once the tabs have run
+
     df = _landcover_df()
 
     _data_confidence_panel()
@@ -2880,6 +2884,8 @@ def results():
 
     with tab_downloads:
         _safe(_downloads_tab, df)
+
+    _safe(saved_results.banner, saved_banner)
 
 
 # ---------------------------------------------------------------------

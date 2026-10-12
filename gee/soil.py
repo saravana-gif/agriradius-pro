@@ -11,6 +11,7 @@ import ee
 import streamlit as st
 
 from gee.tiles import TILE_TTL
+from core.result_cache import saved_result
 
 # SoilGrids assets: per-property images with per-depth bands.
 # Units: phh2o = pH*10, soc = dg/kg, nitrogen = cg/kg,
@@ -38,6 +39,7 @@ def _rootzone(prop):
     return img.select(bands).reduce(ee.Reducer.mean()).rename(prop)
 
 
+@saved_result()
 @st.cache_data(show_spinner="Reading soil profile (SoilGrids)...")
 def soil_profile(lat, lon, radius_km):
     """Return dict of root-zone soil properties for the buffer."""
@@ -203,6 +205,7 @@ def soil_tile_url(lat, lon, radius_km, layer_id):
     return mapid["tile_fetcher"].url_format
 
 
+@saved_result()
 @st.cache_data(show_spinner="Computing per-village soil profile...")
 def village_soil(lat, lon, radius_km):
     """Soil profile per village. Returns a DataFrame."""

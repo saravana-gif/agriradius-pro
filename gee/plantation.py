@@ -20,6 +20,7 @@ from gee.dynamic_world import dw_class_image
 from gee.features import feature_stack
 
 from gee.tiles import TILE_TTL
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.8564224
 
@@ -213,6 +214,7 @@ def banana_tile_url(lat, lon, radius_km, year):
     return mapid["tile_fetcher"].url_format
 
 
+@saved_result()
 @st.cache_data(show_spinner="Measuring plantation area...")
 def plantation_stats(lat, lon, radius_km, year):
     """Plantation acres and share of tree cover in the buffer."""

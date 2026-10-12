@@ -2,8 +2,10 @@
 
 from gee.buffer import create_buffer
 from gee.landcover import get_landcover
+from core.result_cache import saved_result
 
 
+@saved_result()
 def analyze_landcover(latitude, longitude, radius_km, year=2025):
     """Run Dynamic World land-cover analysis around a point.
 

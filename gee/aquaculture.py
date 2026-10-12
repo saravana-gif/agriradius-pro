@@ -16,6 +16,7 @@ import ee
 import streamlit as st
 
 from gee.tiles import TILE_TTL
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.8564224
 
@@ -70,6 +71,7 @@ def aquaculture_tile_url(lat, lon, radius_km, year):
     return mapid["tile_fetcher"].url_format
 
 
+@saved_result()
 @st.cache_data(show_spinner="Measuring aquaculture area...")
 def aquaculture_stats(lat, lon, radius_km, year):
     """Pond acres inside the buffer."""

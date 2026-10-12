@@ -13,6 +13,7 @@ from core.crop_cycle import to_dataframe, analyze_series
 from gee.dynamic_world import dw_crops_mask
 from gee.ndvi import ndvi_monthly_stack
 from gis.spatial import villages_in_buffer
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.8564224
 
@@ -226,6 +227,7 @@ def _to_feature_collection(gdf, offset=0):
     return ee.FeatureCollection(slim.__geo_interface__)
 
 
+@saved_result()
 @st.cache_data(show_spinner="Computing village insights (1-3 min)...")
 def village_insights(lat, lon, radius_km, year):
     """Return a DataFrame: one row per village with crop insights."""

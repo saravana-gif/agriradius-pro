@@ -8,6 +8,7 @@ levels through the field team (soil card form).
 
 import ee
 import streamlit as st
+from core.result_cache import saved_result
 
 DATASET = "ECMWF/ERA5_LAND/MONTHLY_AGGR"
 
@@ -17,6 +18,7 @@ BANDS = {
 }
 
 
+@saved_result()
 @st.cache_data(show_spinner="Fetching soil temperature & moisture...")
 def soil_climate(lat, lon, radius_km, year):
     """Return [{month, soil_temp_c, moisture_pct}, ...] for the year."""

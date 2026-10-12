@@ -7,10 +7,12 @@ rainfall). Powers annual reliability metrics and monthly charts.
 
 import ee
 import streamlit as st
+from core.result_cache import saved_result
 
 YEARS_BACK = 10
 
 
+@saved_result()
 @st.cache_data(show_spinner="Fetching 10 years of rainfall (CHIRPS)...")
 def rainfall_monthly(lat, lon, radius_km, end_year):
     """Return [('YYYY-MM', rainfall_mm), ...] for the last 10 years."""

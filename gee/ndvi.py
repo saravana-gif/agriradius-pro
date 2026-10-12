@@ -8,6 +8,7 @@ import ee
 import streamlit as st
 
 from gee.dynamic_world import dw_crops_mask
+from core.result_cache import saved_result
 
 
 def _mask_clouds(img):
@@ -76,6 +77,7 @@ def ndvi_monthly_stack(buffer, start_year, end_year):
     return ee.Image.cat(images), months
 
 
+@saved_result()
 @st.cache_data(show_spinner="Computing NDVI time series (30-60s)...")
 def ndvi_monthly_series(lat, lon, radius_km, start_year, end_year):
     """Return [(month 'YYYY-MM', mean NDVI over cropland), ...]."""

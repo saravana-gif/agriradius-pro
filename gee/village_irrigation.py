@@ -23,6 +23,7 @@ neither has an open bulk API.
 
 import ee
 import streamlit as st
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.86
 
@@ -55,6 +56,7 @@ def _sum_ac(image, fc, scale=30):
     return vals
 
 
+@saved_result()
 @st.cache_data(show_spinner="Measuring irrigation village by village "
                             "(1-3 min)...", ttl=3600)
 def village_irrigation(lat, lon, radius_km, year):

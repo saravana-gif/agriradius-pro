@@ -27,7 +27,7 @@ from config import PROJECT_ROOT
 STORE_DIR = PROJECT_ROOT / "data" / "store"
 DB_PATH = STORE_DIR / "intel.sqlite"
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS job_runs (
@@ -115,6 +115,43 @@ CREATE TABLE IF NOT EXISTS forecast_hourly (
     wind          REAL,
     gust          REAL,
     PRIMARY KEY (village_id, issued_on, provider, time)
+);
+
+-- Observed daily rain per village (jobs/rain.py). One row per source,
+-- so a fallback value never hides behind an IMD one; readers prefer
+-- imd. IMD's rain day D is 08:30 IST on D to 08:30 IST on D+1.
+CREATE TABLE IF NOT EXISTS rain_daily (
+    village_id    TEXT NOT NULL,
+    date          TEXT NOT NULL,
+    source        TEXT NOT NULL,          -- imd | open_meteo
+    rain_mm       REAL,                   -- NULL = missing, NOT 0
+    fetched_at    TEXT NOT NULL,
+    PRIMARY KEY (village_id, date, source)
+);
+
+-- Monthly rain 1981-2025 per village for normals and SPI
+-- (jobs/rain_baseline.py, one-time fill). A month that could not be
+-- read has no row (retried next run); NULL = no data at that pixel.
+CREATE TABLE IF NOT EXISTS rain_monthly_baseline (
+    village_id    TEXT NOT NULL,
+    year          INTEGER NOT NULL,
+    month         INTEGER NOT NULL,
+    source        TEXT NOT NULL,          -- chirps
+    rain_mm       REAL,
+    fetched_at    TEXT NOT NULL,
+    PRIMARY KEY (village_id, year, month, source)
+);
+
+-- Per-village feature snapshots written by jobs, one row per day and
+-- kind ('rain', ...). vintage_json says which data they rest on.
+CREATE TABLE IF NOT EXISTS village_features (
+    village_id    TEXT NOT NULL,
+    as_of         TEXT NOT NULL,          -- IST date of the run
+    kind          TEXT NOT NULL,
+    features_json TEXT NOT NULL,
+    vintage_json  TEXT NOT NULL,
+    computed_at   TEXT NOT NULL,
+    PRIMARY KEY (village_id, as_of, kind)
 );
 """
 
@@ -224,3 +261,24 @@ def latest_forecast(village_id, path=None):
         "SELECT * FROM forecast_daily WHERE village_id=? AND issued_on="
         "(SELECT MAX(issued_on) FROM forecast_daily WHERE village_id=?) "
         "ORDER BY date", (village_id, village_id), path)
+
+
+def latest_features(kind, village_id=None, path=None):
+    """Newest feature snapshot of `kind` per village: DataFrame with
+    village_id, as_of, features (dict), vintage (dict)."""
+    import json
+    sql = ("SELECT f.village_id, f.as_of, f.features_json, f.vintage_json "
+           "FROM village_features f JOIN (SELECT village_id, "
+           "MAX(as_of) AS as_of FROM village_features WHERE kind=? "
+           "GROUP BY village_id) m ON f.village_id=m.village_id AND "
+           "f.as_of=m.as_of WHERE f.kind=?")
+    params = [kind, kind]
+    if village_id:
+        sql += " AND f.village_id=?"
+        params.append(village_id)
+    df = query(sql, params, path)
+    if df.empty:
+        return df
+    df["features"] = df.pop("features_json").map(json.loads)
+    df["vintage"] = df.pop("vintage_json").map(json.loads)
+    return df

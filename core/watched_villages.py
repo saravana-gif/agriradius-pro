@@ -119,3 +119,16 @@ def load():
                                 LOCAL_CSV.name)
                 return df, label
     return pd.DataFrame(columns=COLUMNS), "none"
+
+
+def load_and_sync(con, now):
+    """load(), and refresh the store's `villages` table so pages and
+    rules can read names and crops without the Sheet. Returns
+    (DataFrame[COLUMNS], source_label)."""
+    from core import store
+    villages, source = load()
+    if not villages.empty:
+        store.upsert(con, "villages", [
+            {**v, "source": source, "updated_at": now}
+            for v in villages.to_dict("records")], ["village_id"])
+    return villages, source

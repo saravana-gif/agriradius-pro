@@ -29,18 +29,14 @@ def _utc_now():
 
 
 def run(con):
-    villages, source = watched_villages.load()
+    now = _utc_now()
+    villages, source = watched_villages.load_and_sync(con, now)
     if villages.empty:
         return {"rows": 0, "status": "ok",
                 "detail": "no watched villages (add a 'Villages' Sheet "
                           "tab or data/watch_villages.csv)"}
 
-    now = _utc_now()
     issued_on = datetime.datetime.now(IST).date().isoformat()
-
-    store.upsert(con, "villages", [
-        {**v, "source": source, "updated_at": now}
-        for v in villages.to_dict("records")], ["village_id"])
 
     prov = get_provider()
     ids = villages["village_id"].tolist()

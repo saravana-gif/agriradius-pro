@@ -79,7 +79,7 @@ cat > /etc/cron.d/agriradius-deploy <<'EOF'
 EOF
 chmod 644 /etc/cron.d/agriradius-deploy
 
-echo "== [8/8] scheduled jobs (forecast + mandi archive) =="
+echo "== [8/8] scheduled jobs (forecast, rain, mandi archive) =="
 # Jobs write data/store/ (gitignored, so deploy resets leave it alone).
 sudo -u agri mkdir -p /home/agri/agriradius-pro/data/store
 # Vixie cron reads these times in the box's clock. Lightsail boxes run
@@ -97,7 +97,11 @@ cat > /etc/cron.d/agriradius-jobs <<'CRON'
 # AgriRadius scheduled jobs. Times are UTC (box clock).
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-# 05:15 IST = 23:45 UTC (previous day): morning forecast + late mandi rows
+# 04:30 IST = 23:00 UTC: one-time CHIRPS rain baseline, 20 min a night until
+# complete, then a few-second no-op (it also fills newly added villages)
+0 23 * * * root cd /home/agri/agriradius-pro && flock -n /run/agriradius-jobs.lock timeout 25m systemd-run --quiet --scope -p MemoryMax=400M -p MemorySwapMax=200M -- nice -n 10 runuser -u agri -- env RAIN_BASELINE_BUDGET_S=1200 .venv/bin/python -m jobs.run rain_baseline >> /var/log/agriradius-jobs.log 2>&1
+# 05:15 IST = 23:45 UTC (previous day): morning forecast, observed rain,
+# late mandi rows
 45 23 * * * root cd /home/agri/agriradius-pro && flock -n /run/agriradius-jobs.lock timeout 25m systemd-run --quiet --scope -p MemoryMax=400M -p MemorySwapMax=200M -- nice -n 10 runuser -u agri -- .venv/bin/python -m jobs.run daily >> /var/log/agriradius-jobs.log 2>&1
 # 21:30 IST = 16:00 UTC: archive today's mandi prices before they roll off
 0 16 * * * root cd /home/agri/agriradius-pro && flock -n /run/agriradius-jobs.lock timeout 25m systemd-run --quiet --scope -p MemoryMax=400M -p MemorySwapMax=200M -- nice -n 10 runuser -u agri -- .venv/bin/python -m jobs.run mandi_archive >> /var/log/agriradius-jobs.log 2>&1

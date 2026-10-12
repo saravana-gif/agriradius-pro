@@ -5,8 +5,9 @@ issue. Daily rows are kept per issue date so forecasts can later be
 scored against observed rain; hourly rows are pruned to the last few
 issues to keep the store small on the 1 GB box.
 
-The provider sits behind core.sources.forecast (Open-Meteo by default;
-its free API is non-commercial - see that module).
+The provider sits behind core.sources.forecast: ECMWF open data
+(CC-BY-4.0) by default, Open-Meteo as the fallback - see that module.
+ECMWF's hourly rows are 3-hourly and it stops at 15 days.
 """
 
 import datetime
@@ -66,6 +67,14 @@ def run(con):
     detail = (f"{len(ids)} villages from {source} via {prov.name}: "
               f"{n_daily} daily, {n_hourly} hourly rows (issue "
               f"{issued_on})")
+    if getattr(prov, "base_time", None):
+        detail += f", model run {prov.base_time:%Y-%m-%d %H}Z"
     if missing:
         detail += f"; {missing} daily rain values missing (stored NULL)"
-    return {"rows": n_daily + n_hourly, "detail": detail, "status": "ok"}
+    status = "ok"
+    errors = getattr(prov, "errors", None)
+    if errors:      # an earlier provider failed and a fallback was used
+        detail += "; fell back after: " + " | ".join(errors)
+        status = "partial"
+    return {"rows": n_daily + n_hourly, "detail": detail,
+            "status": status}

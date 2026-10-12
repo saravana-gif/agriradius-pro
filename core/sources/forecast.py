@@ -21,6 +21,7 @@ check memory on the 1 GB box before enabling it.
 """
 
 import logging
+import time
 
 import requests
 
@@ -50,6 +51,11 @@ class OpenMeteoProvider(ForecastProvider):
     FREE_API = "https://api.open-meteo.com/v1/forecast"
     PAID_API = "https://customer-api.open-meteo.com/v1/forecast"
     BATCH = 50            # locations per request
+    # Free tier: 600 calls/min, 5,000/h, 10,000/day, where one location
+    # with >10 variables or >14 days counts as more than one call (ours
+    # ~2). 50 locations every 15 s ~ 400 weighted calls/min; 1,000
+    # villages take ~5 min.
+    PAUSE_S = 15
     TZ = "Asia/Kolkata"   # dates are IST calendar days
 
     DAILY = {             # our field -> Open-Meteo daily variable
@@ -94,6 +100,8 @@ class OpenMeteoProvider(ForecastProvider):
         from core import usage
         locations = list(locations)
         for start in range(0, len(locations), self.BATCH):
+            if start:
+                time.sleep(self.PAUSE_S)
             chunk = locations[start:start + self.BATCH]
             params = {
                 "latitude": ",".join(f"{lat:.4f}" for lat, _ in chunk),
@@ -109,6 +117,10 @@ class OpenMeteoProvider(ForecastProvider):
                 url, params["apikey"] = self.PAID_API, self.api_key
             usage.bump("open_meteo", len(chunk))
             r = requests.get(url, params=params, timeout=self.timeout)
+            if r.status_code == 429:      # minutely limit: wait it out once
+                log.warning("open-meteo 429, retrying in 65 s")
+                time.sleep(65)
+                r = requests.get(url, params=params, timeout=self.timeout)
             r.raise_for_status()
             j = r.json()
             # One location -> a dict; several -> a list, same order.

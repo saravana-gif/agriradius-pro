@@ -8,6 +8,12 @@ Each job is a module in jobs/ with run(con) -> dict(rows=, detail=,
 status=). Every run is logged to the job_runs table with the git SHA
 it ran from and the API calls it made. Exit status is non-zero if any
 job failed, so cron mail / log watchers can see it.
+
+A group runs each job in its own Python process. Wheels bundle their
+own native libraries, and they clash in one process: after eccodes
+(forecast) loads its libcurl, GDAL's HTTP reader (rain_baseline)
+segfaults. Separate processes also hand memory back between jobs on
+the 1 GB box, and a crash stops one job, not the rest of the morning.
 """
 
 import argparse
@@ -92,6 +98,39 @@ def run_job(name, con, sha):
     return status in ("ok", "partial")
 
 
+def run_group(group):
+    """Run a group's jobs one after another, each in a fresh process.
+    Returns 0 only if every job succeeded."""
+    if not logging.root.handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    ok = True
+    for name in GROUPS[group]:
+        rc = subprocess.run([sys.executable, "-m", "jobs.run", name],
+                            cwd=PROJECT_ROOT).returncode
+        if rc not in (0, 1):
+            how = f"signal {-rc}" if rc < 0 else f"exit code {rc}"
+            log.error("%s crashed (%s)", name, how)
+            _mark_crashed(name, how)
+        ok = ok and rc == 0
+    return 0 if ok else 1
+
+
+def _mark_crashed(name, how):
+    """A child that died without finishing leaves its job_runs row
+    'running' - close it with the reason now."""
+    from core import store
+    con = store.connect()
+    try:
+        con.execute("UPDATE job_runs SET status='killed', finished_at=?, "
+                    "detail=? WHERE job=? AND status='running'",
+                    (_utc_now(), f"crashed ({how})", name))
+        con.commit()
+    finally:
+        con.close()
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="python -m jobs.run")
     ap.add_argument("target",
@@ -104,10 +143,11 @@ def main(argv=None):
                                     for g, j in GROUPS.items()))
         return 0
 
-    names = GROUPS.get(args.target) or (
-        [args.target] if args.target in JOBS else None)
-    if not names:
+    if args.target in GROUPS:
+        return run_group(args.target)
+    if args.target not in JOBS:
         ap.error(f"unknown job {args.target!r} (try 'list')")
+    names = [args.target]
 
     headless.setup()
     from core import store

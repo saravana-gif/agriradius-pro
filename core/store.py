@@ -27,7 +27,7 @@ from config import PROJECT_ROOT
 STORE_DIR = PROJECT_ROOT / "data" / "store"
 DB_PATH = STORE_DIR / "intel.sqlite"
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS job_runs (
@@ -153,6 +153,52 @@ CREATE TABLE IF NOT EXISTS village_features (
     computed_at   TEXT NOT NULL,
     PRIMARY KEY (village_id, as_of, kind)
 );
+
+-- Alert log (jobs/alerts.py). APPEND-ONLY: a row is never updated or
+-- deleted (the triggers below refuse it); what happens to an alert
+-- afterwards (shared, feedback, check-back, withdrawn) goes into
+-- alert_event. Each row keeps the features, data vintage, rule hash
+-- and git SHA it was made from, so it can be audited and scored.
+CREATE TABLE IF NOT EXISTS alert (
+    alert_id      TEXT PRIMARY KEY,       -- e.g. 1012-K7QF
+    created_at    TEXT NOT NULL,          -- UTC ISO
+    as_of         TEXT NOT NULL,          -- IST date
+    village_id    TEXT NOT NULL,
+    crop          TEXT NOT NULL,          -- '' = whole village
+    rule_id       TEXT NOT NULL,
+    rule_group    TEXT NOT NULL,
+    rule_hash     TEXT NOT NULL,
+    severity      TEXT NOT NULL,          -- red | amber | green
+    kind          TEXT NOT NULL,          -- weather | pest | disease | harvest
+    title         TEXT NOT NULL,
+    text_en       TEXT NOT NULL,          -- rendered English draft
+    source        TEXT NOT NULL,
+    approved_by   TEXT NOT NULL,          -- '' = draft, cannot be shared
+    shareable     INTEGER NOT NULL,
+    features_json TEXT NOT NULL,
+    trace_json    TEXT NOT NULL,          -- each condition and its value
+    vintage_json  TEXT NOT NULL,
+    git_sha       TEXT
+);
+CREATE INDEX IF NOT EXISTS alert_village ON alert (village_id, as_of);
+CREATE TRIGGER IF NOT EXISTS alert_no_update BEFORE UPDATE ON alert
+BEGIN SELECT RAISE(ABORT, 'alert is append-only: add an alert_event'); END;
+CREATE TRIGGER IF NOT EXISTS alert_no_delete BEFORE DELETE ON alert
+BEGIN SELECT RAISE(ABORT, 'alert is append-only'); END;
+
+CREATE TABLE IF NOT EXISTS alert_event (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_id      TEXT NOT NULL REFERENCES alert (alert_id),
+    at            TEXT NOT NULL,          -- UTC ISO
+    event         TEXT NOT NULL,          -- created | shared | feedback | checkback | withdrawn
+    actor         TEXT,
+    detail_json   TEXT
+);
+CREATE INDEX IF NOT EXISTS alert_event_alert ON alert_event (alert_id);
+CREATE TRIGGER IF NOT EXISTS alert_event_no_update BEFORE UPDATE ON
+alert_event BEGIN SELECT RAISE(ABORT, 'alert_event is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS alert_event_no_delete BEFORE DELETE ON
+alert_event BEGIN SELECT RAISE(ABORT, 'alert_event is append-only'); END;
 """
 
 
@@ -282,3 +328,17 @@ def latest_features(kind, village_id=None, path=None):
     df["features"] = df.pop("features_json").map(json.loads)
     df["vintage"] = df.pop("vintage_json").map(json.loads)
     return df
+
+
+def recent_alerts(since, village_id=None, path=None):
+    """Alerts with as_of >= since (newest first), plus their latest
+    check-back verdict if any."""
+    sql = ("SELECT a.*, (SELECT json_extract(e.detail_json, '$.verdict') "
+           "FROM alert_event e WHERE e.alert_id=a.alert_id AND "
+           "e.event='checkback' ORDER BY e.id DESC LIMIT 1) AS verdict "
+           "FROM alert a WHERE a.as_of>=?")
+    params = [str(since)]
+    if village_id:
+        sql += " AND a.village_id=?"
+        params.append(village_id)
+    return query(sql + " ORDER BY a.as_of DESC, a.severity", params, path)

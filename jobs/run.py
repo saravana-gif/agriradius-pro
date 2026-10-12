@@ -25,15 +25,18 @@ from jobs import headless
 JOBS = {
     "forecast": "jobs.forecast",
     "rain": "jobs.rain",
+    "alerts": "jobs.alerts",
     "mandi_archive": "jobs.mandi_archive",
     "rain_baseline": "jobs.rain_baseline",
 }
 
 GROUPS = {
-    # 05:15 IST: fresh forecast and observed rain for the morning, then
-    # sweep up mandi rows uploaded late the previous evening. The
-    # baseline goes last: it is time-boxed and a no-op once complete.
-    "daily": ["forecast", "rain", "mandi_archive", "rain_baseline"],
+    # 05:15 IST: fresh forecast and observed rain, then the morning's
+    # alerts, then sweep up mandi rows uploaded late the previous
+    # evening. The baseline goes last: it is time-boxed and a no-op
+    # once complete.
+    "daily": ["forecast", "rain", "alerts", "mandi_archive",
+              "rain_baseline"],
 }
 
 log = logging.getLogger("jobs.run")

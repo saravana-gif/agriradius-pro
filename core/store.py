@@ -27,7 +27,7 @@ from config import PROJECT_ROOT
 STORE_DIR = PROJECT_ROOT / "data" / "store"
 DB_PATH = STORE_DIR / "intel.sqlite"
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS job_runs (
@@ -199,6 +199,32 @@ CREATE TRIGGER IF NOT EXISTS alert_event_no_update BEFORE UPDATE ON
 alert_event BEGIN SELECT RAISE(ABORT, 'alert_event is append-only'); END;
 CREATE TRIGGER IF NOT EXISTS alert_event_no_delete BEFORE DELETE ON
 alert_event BEGIN SELECT RAISE(ABORT, 'alert_event is append-only'); END;
+
+-- Field reports copied from the Sheet tab FieldReports (or the local
+-- CSV) by jobs/field_reports.py. The Sheet stays the record staff edit.
+CREATE TABLE IF NOT EXISTS field_report (
+    report_id      TEXT PRIMARY KEY,
+    submitted_at   TEXT,
+    reported_on    TEXT NOT NULL,         -- IST date
+    officer        TEXT,
+    village_id     TEXT NOT NULL,
+    lat            REAL,
+    lon            REAL,
+    gps_accuracy_m REAL,
+    distance_km    REAL,
+    event          TEXT NOT NULL,         -- sown|rain|pest|harvest|price|borewell|feedback|checkback
+    crop           TEXT,
+    qty            REAL,
+    unit           TEXT,
+    alert_id       TEXT,
+    verdict        TEXT,                  -- yes | partly | no
+    note           TEXT,
+    photo          TEXT,
+    source         TEXT,
+    ingested_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS field_report_village
+    ON field_report (village_id, reported_on);
 """
 
 

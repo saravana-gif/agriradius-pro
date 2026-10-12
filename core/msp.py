@@ -26,6 +26,7 @@ APP_TO_MSP = {
     "Maize": ("Maize", True),
     "Paddy (Common)": ("Paddy (Common)", True),
     "Coconut": ("Copra (Ball)", False),
+    "Copra": ("Copra (Milling)", True),
 }
 
 

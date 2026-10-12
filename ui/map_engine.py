@@ -168,10 +168,18 @@ class MapEngine:
 
         return self
 
-    def add_choropleth(self, geojson, name, fill_opacity=0.55):
+    def add_choropleth(self, geojson, name, fill_opacity=0.55,
+                       tooltip_aliases=None):
         """District choropleth from a GeoJSON dict whose feature
         properties carry a precomputed `_fill` colour plus `district`
-        and `val` for the tooltip."""
+        and `val` for the tooltip.
+
+        tooltip_aliases overrides the two tooltip labels. Every layer
+        using this was a district or village choropleth, so the first
+        label was hardcoded to "Village / District" - which a field
+        parcel is not. Left alone, a parcel tooltip would have read
+        "Village / District: 0.29 ac".
+        """
 
         if not geojson:
             return self
@@ -192,7 +200,8 @@ class MapEngine:
             },
             tooltip=folium.GeoJsonTooltip(
                 fields=["district", "val"],
-                aliases=["Village / District", name],
+                aliases=(list(tooltip_aliases) if tooltip_aliases
+                         else ["Village / District", name]),
                 sticky=True,
                 # Fixed-width wrapping box: leaflet tooltips default
                 # to a single nowrap line that runs off the screen,

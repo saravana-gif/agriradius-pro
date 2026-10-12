@@ -154,7 +154,11 @@ def drying_assessment(cur):
 @st.cache_data(ttl=3600, show_spinner="Fetching weather forecast...")
 def get_forecast(lat, lon):
     """Return list of daily dicts: date, rain_mm, rain_prob,
-    tmax, tmin. Raises on network failure."""
+    tmax, tmin. Raises on network failure.
+
+    A value the provider did not send is None, never 0 - a missing
+    rain figure must not read as "no rain" (analyze_forecast skips
+    unknown days rather than counting them dry)."""
 
     params = {
         "latitude": round(lat, 4),
@@ -181,39 +185,53 @@ def get_forecast(lat, lon):
 
     for i, date in enumerate(times):
 
-        def val(key):
+        def val(key, cast=float, nd=1):
             arr = daily.get(key, [])
-            return arr[i] if i < len(arr) and arr[i] is not None else 0
+            v = arr[i] if i < len(arr) else None
+            if v is None:
+                return None
+            return round(cast(v), nd) if cast is float else cast(v)
 
         days.append({
             "date": date,
-            "rain_mm": round(float(val("precipitation_sum")), 1),
-            "rain_prob": int(val("precipitation_probability_max")),
-            "tmax": round(float(val("temperature_2m_max")), 1),
-            "tmin": round(float(val("temperature_2m_min")), 1),
+            "rain_mm": val("precipitation_sum"),
+            "rain_prob": val("precipitation_probability_max", int),
+            "tmax": val("temperature_2m_max"),
+            "tmin": val("temperature_2m_min"),
         })
 
     return days
 
 
 def analyze_forecast(days):
-    """Summary metrics + longest dry window. Returns dict."""
+    """Summary metrics + longest dry window. Returns dict.
+
+    Days with no rain figure (None) are left out of the sums and
+    break a dry window - an unknown day is not a dry day. The
+    `missing_*` counts let callers say the totals are partial."""
 
     if not days:
         return None
 
     week = days[:7]
 
-    rain_7d = round(sum(d["rain_mm"] for d in week), 1)
-    rain_16d = round(sum(d["rain_mm"] for d in days), 1)
-    rain_days_7d = sum(1 for d in week if d["rain_mm"] >= DRY_DAY_MM)
+    def known(rows, key):
+        return [d[key] for d in rows if d.get(key) is not None]
 
-    # Longest run of dry days in the 16-day window
+    rain_week = known(week, "rain_mm")
+    rain_all = known(days, "rain_mm")
+
+    rain_7d = round(sum(rain_week), 1) if rain_week else None
+    rain_16d = round(sum(rain_all), 1) if rain_all else None
+    rain_days_7d = sum(1 for r in rain_week if r >= DRY_DAY_MM)
+
+    # Longest run of known-dry days in the 16-day window
     best_start, best_len = None, 0
     cur_start, cur_len = None, 0
 
     for d in days:
-        if d["rain_mm"] < DRY_DAY_MM:
+        r = d.get("rain_mm")
+        if r is not None and r < DRY_DAY_MM:
             if cur_start is None:
                 cur_start = d["date"]
             cur_len += 1
@@ -222,15 +240,17 @@ def analyze_forecast(days):
         else:
             cur_start, cur_len = None, 0
 
-    tmax = max(d["tmax"] for d in days)
-    tmin = min(d["tmin"] for d in days)
+    tmaxs = known(days, "tmax")
+    tmins = known(days, "tmin")
 
     return {
         "rain_7d_mm": rain_7d,
         "rain_16d_mm": rain_16d,
         "rain_days_7d": rain_days_7d,
+        "missing_rain_7d": len(week) - len(rain_week),
+        "missing_rain_16d": len(days) - len(rain_all),
         "dry_window_start": best_start,
         "dry_window_days": best_len,
-        "tmax": tmax,
-        "tmin": tmin,
+        "tmax": max(tmaxs) if tmaxs else None,
+        "tmin": min(tmins) if tmins else None,
     }

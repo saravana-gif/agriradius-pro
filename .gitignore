@@ -77,3 +77,10 @@ reports/.build_in_progress
 watchlist.json
 kgis_service.json
 ftw_partitions.json
+
+# Job store (SQLite written by cron jobs) and published job outputs -
+# runtime data, must survive the deploy `git reset --hard`.
+data/store/
+data/public/
+# Local watched-village list (fallback when the Sheet isn't configured)
+data/watch_villages.csv

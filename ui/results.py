@@ -489,7 +489,8 @@ def _area_report_bytes(df, villages):
         soil_verdicts=st.session_state.get("soil_verdicts"),
         soil_profile=st.session_state.get("soil"),
         scores_df=st.session_state.get("sourcing_scores"),
-        mandi_df=st.session_state.get("mandi_df"),
+        mandi_df=_mandi_df_labelled(),
+        mandi_unit=_mandi_unit(),
         mandi_hist=st.session_state.get("mandi_hist"),
         mandi_var=st.session_state.get("mandi_var"),
         soil_climate_df=st.session_state.get("soil_climate"),
@@ -1159,14 +1160,26 @@ def _forecast_tab():
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Rain Next 7 Days", f"{r['rain_7d_mm']} mm")
+    # Missing provider values are None (not 0): show "n/a" and say
+    # the totals are partial instead of implying a dry day.
+    rain_7d = r["rain_7d_mm"]
+    c1.metric("Rain Next 7 Days",
+              "n/a" if rain_7d is None else f"{rain_7d} mm")
     c2.metric("Rainy Days (7d)", r["rain_days_7d"])
     c3.metric(
         "Longest Dry Window",
         f"{r['dry_window_days']} days",
         help="Best stretch for harvest / transport",
     )
-    c4.metric("Temp Range", f"{r['tmin']} - {r['tmax']} °C")
+    c4.metric("Temp Range",
+              "n/a" if r["tmin"] is None or r["tmax"] is None
+              else f"{r['tmin']} - {r['tmax']} °C")
+
+    if r.get("missing_rain_16d"):
+        st.warning(
+            f"Rain figure missing for {r['missing_rain_16d']} of "
+            f"{len(days)} days - totals cover only the days reported, "
+            "and missing days are not counted as dry.")
 
     if r["dry_window_days"] >= 3 and r["dry_window_start"]:
         st.success(
@@ -1174,7 +1187,7 @@ def _forecast_tab():
             f"{r['dry_window_start']} - good for harvest, drying "
             f"and transport."
         )
-    elif r["rain_7d_mm"] > 50:
+    elif rain_7d is not None and rain_7d > 50:
         st.warning(
             "Heavy rain expected this week - plan pickups around it."
         )
@@ -2088,14 +2101,26 @@ def _land_capability_section():
         "ground.")
 
 
+def _mandi_unit():
+    from core.mandi import price_unit
+    return price_unit(st.session_state.get("mandi_label") or "")
+
+
+def _mandi_df_labelled():
+    from core.mandi import label_columns
+    return label_columns(st.session_state.get("mandi_df"),
+                         st.session_state.get("mandi_label") or "")
+
+
 def _mandi_tab():
 
-    from core.mandi import COMMODITIES, STATES, get_prices
+    from core.mandi import (COMMODITIES, STATES, get_prices,
+                            label_columns, price_unit, unit_suffix)
 
     st.caption(
         "Live daily wholesale prices from APMC mandis (AGMARKNET / "
-        "data.gov.in). Prices are Rs per quintal; refreshed every "
-        "30 minutes."
+        "data.gov.in). Prices are Rs per quintal (tender coconut: Rs "
+        "per 1,000 nuts); refreshed every 30 minutes."
     )
     dv.st_caption("mandi")
 
@@ -2172,19 +2197,33 @@ def _mandi_tab():
     if note:
         st.warning(note)
 
+    # The feed is "daily" but a market can go quiet for weeks; say how
+    # old the newest price is so a stale one is never read as today's.
+    age = df.attrs.get("last_reported_days")
+    if age is not None and age > 1:
+        st.caption(f"⏱️ Newest price in this list was last reported "
+                   f"{age} days ago.")
+
+    unit = price_unit(commodity_label)
+    per = unit_suffix(commodity_label)
+    if unit != "Rs/qtl":
+        st.info(f"{commodity_label} is quoted **{unit}**, not per "
+                "quintal (the government feed labels every price "
+                "Rs/qtl).")
+
     modal = df["Modal (Rs/qtl)"].dropna()
 
     c1, c2, c3, c4 = st.columns(4)
 
     c1.metric("Markets Reporting", len(df))
-    c2.metric("Best Modal Price", f"₹{modal.max():,.0f}/qtl")
-    c3.metric("Average Modal", f"₹{modal.mean():,.0f}/qtl")
-    c4.metric("Lowest Modal", f"₹{modal.min():,.0f}/qtl")
+    c2.metric("Best Modal Price", f"₹{modal.max():,.0f}{per}")
+    c3.metric("Average Modal", f"₹{modal.mean():,.0f}{per}")
+    c4.metric("Lowest Modal", f"₹{modal.min():,.0f}{per}")
 
     best = df.iloc[0]
 
     st.success(
-        f"Best price: **₹{best['Modal (Rs/qtl)']:,.0f}/qtl** at "
+        f"Best price: **₹{best['Modal (Rs/qtl)']:,.0f}{per}** at "
         f"**{best['Market']}** ({best['District']}, {best['State']}) "
         f"on {best['Date']}"
     )
@@ -2221,12 +2260,13 @@ def _mandi_tab():
             f"₹{m['msp']:,.0f}/qtl** ({m['year']}) - the effective "
             "price support for coconut farmers who make copra.")
 
-    st.dataframe(df, use_container_width=True, hide_index=True,
+    shown = label_columns(df, commodity_label)
+    st.dataframe(shown, use_container_width=True, hide_index=True,
                  height=400)
 
     st.download_button(
         "📥 Mandi Prices (CSV)",
-        df.to_csv(index=False).encode("utf-8"),
+        shown.to_csv(index=False).encode("utf-8"),
         file_name=f"Mandi_{commodity_label.replace(' ', '_')}.csv",
         mime="text/csv",
         use_container_width=True,
@@ -2256,8 +2296,20 @@ def _mandi_tab():
     hist = st.session_state.get("mandi_hist")
     if hist is not None and not hist.empty:
         hk = st.session_state.get("mandi_hist_key", ("", ""))
+        hper = unit_suffix(hk[0]) if hk[0] else "/qtl"
         st.caption(f"{hk[0]} · {hk[1]} · {len(hist)} months "
-                   f"(₹/qtl, monthly median)")
+                   f"(₹{hper}, monthly median)")
+        h_age = hist.attrs.get("last_reported_days")
+        if h_age is not None and h_age > 7:
+            st.caption(f"⏱️ Last price in this history was reported "
+                       f"{h_age} days ago.")
+        if "Markets" in hist.columns:
+            thin = hist[hist["Markets"] < 3]
+            if len(thin):
+                st.caption(
+                    f"⚠️ {len(thin)} of {len(hist)} months rest on "
+                    "fewer than 3 reporting markets - read those "
+                    "points as indicative only.")
         st.line_chart(hist.set_index("Month")["Modal"],
                       height=260)
         recent = hist.iloc[-1]
@@ -2266,7 +2318,10 @@ def _mandi_tab():
         pctv = 100 * chg / first["Modal"] if first["Modal"] else 0
         h1, h2, h3 = st.columns(3)
         h1.metric("Latest month",
-                  f"₹{recent['Modal']:,.0f}/qtl")
+                  f"₹{recent['Modal']:,.0f}{hper}",
+                  help=(f"{int(recent['Markets'])} market(s) reported "
+                        "this month" if "Markets" in hist.columns
+                        else None))
         h2.metric("Range (period)",
                   f"₹{hist['Low'].min():,.0f}-{hist['High'].max():,.0f}")
         h3.metric("Since start", f"{pctv:+.0f}%")
@@ -2294,13 +2349,14 @@ def _mandi_tab():
     vdf = st.session_state.get("mandi_var")
     if vdf is not None and not vdf.empty:
         vk = st.session_state.get("mandi_var_key", ("", ""))
-        st.caption(f"{vk[0]} · {vk[1]} · ₹/qtl "
+        vper = unit_suffix(vk[0]) if vk[0] else "/qtl"
+        st.caption(f"{vk[0]} · {vk[1]} · ₹{vper} "
                    "(Latest = most recent reported day per variety)")
         st.dataframe(vdf, use_container_width=True, hide_index=True)
         top = vdf.iloc[0]
         st.success(
             f"Top grade: **{top['Variety']}** at "
-            f"**₹{top['Latest']:,}/qtl** (latest {top['Latest Date']})")
+            f"**₹{top['Latest']:,}{vper}** (latest {top['Latest Date']})")
 
 
 @st.cache_data(show_spinner="Reading livestock census for this area...")

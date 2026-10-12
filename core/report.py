@@ -143,6 +143,7 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                       mandi_df=None, soil_climate_df=None,
                       village_soil_df=None, allied=None,
                       mandi_hist=None, mandi_var=None,
+                      mandi_unit="Rs/qtl",
                       map_images=None,
                       ndvi_df=None, rain_df=None, forecast_days=None,
                       soil_profile=None, maize=None, aquaculture=None,
@@ -1024,10 +1025,19 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                    + (f" from {forecast['dry_window_start']}"
                       if forecast.get('dry_window_start') else "")
                    + ".")
+        rain7 = forecast.get("rain_7d_mm")
+        rain7 = "n/a" if rain7 is None else f"{rain7} mm"
+        tlo, thi = forecast.get("tmin"), forecast.get("tmax")
+        trange = "n/a" if tlo is None or thi is None else f"{tlo}-{thi} C"
+        gap = ""
+        if forecast.get("missing_rain_16d"):
+            gap = (f" Rain figure missing for "
+                   f"{forecast['missing_rain_16d']} days - not counted "
+                   "as dry.")
         story.append(Paragraph(
-            f"Rain next 7 days: <b>{forecast['rain_7d_mm']} mm</b> "
+            f"Rain next 7 days: <b>{rain7}</b> "
             f"over {forecast['rain_days_7d']} rainy days. "
-            f"Temp range {forecast['tmin']}-{forecast['tmax']} C.{dry}",
+            f"Temp range {trange}.{dry}{gap}",
             ss["Normal"]))
         story.append(Spacer(1, 6))
 
@@ -1177,7 +1187,7 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
     # ---------------- Mandi prices ----------------
     if mandi_df is not None and not mandi_df.empty:
         story.append(Paragraph(
-            "Mandi Prices (today, Rs/quintal)", ss["H2x"]))
+            f"Mandi Prices (today, {mandi_unit})", ss["H2x"]))
         _df_table(story, mandi_df, font_size=8)
         story.append(Spacer(1, 6))
 
@@ -1187,7 +1197,8 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
             chg = last["Modal"] - first["Modal"]
             pct = 100 * chg / first["Modal"] if first["Modal"] else 0
             story.append(Paragraph(
-                f"Price trend: latest <b>Rs{last['Modal']:,.0f}/qtl</b>, "
+                f"Price trend: latest <b>Rs{last['Modal']:,.0f} "
+                f"{mandi_unit.split('/', 1)[1]}</b>, "
                 f"period range Rs{h['Low'].min():,.0f}-"
                 f"{h['High'].max():,.0f}, {pct:+.0f}% since "
                 f"{first['Month'].strftime('%b %Y')}.", ss["Normal"]))
@@ -1201,7 +1212,7 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
                 ax.set_xticklabels([m.strftime("%b %y")
                                     for m in h["Month"]],
                                    rotation=60, fontsize=6)
-                ax.set_ylabel("Rs/qtl")
+                ax.set_ylabel(mandi_unit)
                 ax.grid(alpha=.3)
                 story.append(Spacer(1, 4))
                 story.append(_chart_image(fig, height=5.5 * cm))
@@ -1213,7 +1224,7 @@ def build_area_report(meta, landcover_df=None, crosscheck=None,
 
         if mandi_var is not None and not mandi_var.empty:
             story.append(Paragraph(
-                "Variety / grade breakdown (Rs/qtl):", ss["Normal"]))
+                f"Variety / grade breakdown ({mandi_unit}):", ss["Normal"]))
             _df_table(story, mandi_var, font_size=8)
         story.append(Spacer(1, 12))
 

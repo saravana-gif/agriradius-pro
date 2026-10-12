@@ -1,6 +1,7 @@
 """Live mandi (APMC) prices from AGMARKNET via data.gov.in.
 
-Daily wholesale prices per market. Prices are Rs per quintal.
+Daily wholesale prices per market. Prices are Rs per quintal, except
+the count-quoted commodities in UNITS (tender coconut: per 1,000 nuts).
 API key lives in .streamlit/secrets.toml (never committed to git).
 """
 
@@ -31,7 +32,50 @@ COMMODITIES = {
     "Ginger (Green)": "Ginger(Green)",
     "Tomato": "Tomato",
     "Onion": "Onion",
+    "Tender Coconut": "Tender Coconut",
+    "Copra": "Copra",
 }
+
+# The feed labels every price "Rs/qtl", but some commodities are
+# really quoted per count. Display label -> true unit; anything not
+# listed is Rs per quintal.
+# TODO: check whether plain "Coconut" is also per 1,000 nuts in the
+# KA/TN markets (it varies by market) once the archive has a few weeks.
+UNITS = {
+    "Tender Coconut": "Rs/1000 nuts",
+}
+
+
+def price_unit(label):
+    """True price unit for an app commodity label, e.g. 'Rs/qtl'."""
+    return UNITS.get(label, "Rs/qtl")
+
+
+def unit_suffix(label):
+    """Short suffix after a rupee figure: '/qtl' or '/1000 nuts'."""
+    return "/" + price_unit(label).split("/", 1)[1]
+
+
+def label_columns(df, label):
+    """Copy of a prices DataFrame with '(Rs/qtl)' column headers
+    relabelled to the commodity's true unit (for display/export)."""
+    unit = price_unit(label)
+    if unit == "Rs/qtl" or df is None:
+        return df
+    out = df.rename(columns=lambda c: str(c).replace("Rs/qtl", unit))
+    out.attrs = dict(df.attrs)
+    return out
+
+
+def days_since_latest(df, col="Date"):
+    """Days between today and the newest arrival date in `df`
+    (dd/mm/yyyy strings), or None if no date parses."""
+    if df is None or df.empty or col not in df.columns:
+        return None
+    d = pd.to_datetime(df[col], format="%d/%m/%Y", errors="coerce").max()
+    if pd.isna(d):
+        return None
+    return (pd.Timestamp.now().normalize() - d.normalize()).days
 
 STATES = ["All India", "Karnataka", "Tamil Nadu", "Kerala",
           "Andhra Pradesh", "Telangana", "Goa", "Maharashtra"]
@@ -128,30 +172,46 @@ def get_prices(commodity, state=None, limit=100):
     # Fail fast: one short attempt. data.gov.in either answers quickly
     # or is effectively down - a long wait just freezes the button.
     last_err = None
+    empty_live = False
     try:
         df = _fetch(commodity, state, limit, timeout=12)
-        try:
-            df.to_csv(cache, index=False)
-        except Exception:
-            pass
-        df.attrs["note"] = ""
-        return df
+        if not df.empty:
+            try:
+                df.to_csv(cache, index=False)
+            except Exception:
+                pass
+            df.attrs["note"] = ""
+            df.attrs["last_reported_days"] = days_since_latest(df)
+            return df
+        # Answered but empty: never let that overwrite the last good
+        # prices - fall through to the cache below.
+        empty_live = True
     except requests.exceptions.RequestException as e:
         last_err = e
 
-    # Live fetch failed - fall back to cached prices if we have them.
+    # Live fetch failed or came back empty - fall back to cached
+    # prices if we have them.
     if cache.exists():
         try:
             import datetime
-            df = pd.read_csv(cache)
+            cached = pd.read_csv(cache)
             when = datetime.datetime.fromtimestamp(
                 cache.stat().st_mtime).strftime("%d %b %H:%M")
-            df.attrs["note"] = (
+            cached.attrs["note"] = (
+                f"No prices reported in today's feed - showing the "
+                f"last prices received ({when})."
+                if empty_live else
                 f"Live server unavailable - showing cached prices "
                 f"from {when}.")
-            return df
+            cached.attrs["last_reported_days"] = days_since_latest(cached)
+            return cached
         except Exception:
             pass
+
+    if empty_live:
+        df.attrs["note"] = ""
+        df.attrs["last_reported_days"] = None
+        return df
 
     raise RuntimeError(
         "data.gov.in did not respond and no cached prices exist yet. "
@@ -201,15 +261,21 @@ def get_price_history(commodity, state, limit=6000, months=48):
         return pd.DataFrame()
 
     df["Month"] = df["date"].dt.to_period("M").dt.to_timestamp()
+    df["mkt"] = df["Market"] if "Market" in df.columns else ""
     g = (df.groupby("Month")
          .agg(Modal=("modal", "median"),
               Low=("modal", "min"),
               High=("modal", "max"),
+              Markets=("mkt", "nunique"),
               Records=("modal", "size"))
          .reset_index()
          .sort_values("Month"))
     g["Modal"] = g["Modal"].round(0)
-    return g.tail(months).reset_index(drop=True)
+    out = g.tail(months).reset_index(drop=True)
+    # A trend line that ends months ago looks current unless we say so.
+    out.attrs["last_reported_days"] = (
+        pd.Timestamp.now().normalize() - df["date"].max().normalize()).days
+    return out
 
 
 @st.cache_data(ttl=21600, show_spinner="Fetching variety prices...")

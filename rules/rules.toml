@@ -1,0 +1,183 @@
+# Ground Intel alert rules (read by jobs/alerts.py; check with
+#   python -m core.rules
+# ). Thresholds are the expert panel's starting points
+# (docs/expert-panel/roadmap.html) - tune them against the 7-day
+# "was it right?" check-backs; retire rules right < ~60% of the time.
+#
+# How a rule works
+#   all  = [[feature, op, value], ...]   every one must hold
+#   any  = [[feature, op, value], ...]   at least one must hold
+#   ops: <  <=  >  >=  ==  !=  in  not_in       (no code, no eval)
+#   A condition on missing data is false: no data, no alert.
+#   crops = [] means the whole village; else the village must grow it.
+#   months / std_weeks (IMD standard weeks 1-52) / dates ["MM-DD","MM-DD"]
+#   limit when a rule can fire. `group`: one alert per group per village
+#   and crop - the highest severity wins. cooldown_days: no repeat of the
+#   same group for that many days unless the severity goes up.
+#   At most 2 alerts per village per day (highest severity first).
+#
+# Sign-off: approved_by = "" keeps the alert an English-only DRAFT that
+# cannot be shared with farmers. An agronomist fills in approved_by
+# (name) and approved_on (date) after reading draft_en. Any edit to a
+# rule changes its hash, which is stored with every alert.
+#
+# Farmer text (draft_en) must: say "conditions favour ...", say "scout
+# before spraying" for pests/diseases, give odds not certainty (no
+# "will"), name no brand, product or price, and the rule must cite a
+# source. Slots like {season_dep_pct} are filled from the features.
+
+# ------------------------------------------------------------ season rain
+# Drought Manual 2020 Trigger 1 is rainfall (departure, dry spell);
+# impact triggers (crop condition) are separate, so this says "rain",
+# not "drought".
+
+[[rule]]
+id = "season_rain_red"
+title = "Season rain: large deficit or long dry spell"
+kind = "weather"
+severity = "red"
+group = "season_rain"
+crops = []
+all = [["season", "in", ["sw", "ne"]], ["obs_lag_days", "<=", 4]]
+any = [["season_dep_pct", "<=", -40], ["dry_days", ">=", 21], ["spi3", "<=", -1.5]]
+cooldown_days = 7
+priority = 10
+source = "IMD gridded rainfall (0.25 deg); normal from CHIRPS 1981-2025; IMD rainfall categories"
+draft_en = """{village}: {season_label} rain since {season_start_label} is {season_cum_mm} mm against a usual {season_normal_mm} mm ({season_dep_pct}, IMD: {season_category_label}). Days in a row without useful rain: {dry_days}. Conditions favour moisture stress in standing crops this week. Give protective irrigation to crops at flowering or grain filling first, mulch where you can, and hold new sowing until the soil is moist to a hand's depth."""
+approved_by = ""
+approved_on = ""
+
+[[rule]]
+id = "season_rain_amber"
+title = "Season rain: deficit or dry spell building"
+kind = "weather"
+severity = "amber"
+group = "season_rain"
+crops = []
+all = [["season", "in", ["sw", "ne"]], ["obs_lag_days", "<=", 4]]
+any = [["season_dep_pct", "<=", -20], ["dry_days", ">=", 10]]
+cooldown_days = 7
+priority = 10
+source = "IMD gridded rainfall (0.25 deg); normal from CHIRPS 1981-2025; IMD rainfall categories"
+draft_en = """{village}: {season_label} rain since {season_start_label} is {season_cum_mm} mm against a usual {season_normal_mm} mm ({season_dep_pct}). Days in a row without useful rain: {dry_days}. Conditions favour early moisture stress if the dry spell goes on. Check soil moisture at a hand's depth before sowing or applying fertiliser, and plan water for crops close to flowering."""
+approved_by = ""
+approved_on = ""
+
+# ------------------------------------------------------------------ chilli
+# Black thrips (Thrips parvispinus): peaks in standard weeks 47-50 at
+# Raichur, negatively correlated with rain; warm dry spells after rain
+# at flowering favour build-up (NBAIR 2023; Plant Archives).
+
+[[rule]]
+id = "chilli_black_thrips"
+title = "Chilli: dry warm spell after rain at flowering - black thrips"
+kind = "pest"
+severity = "amber"
+group = "chilli_thrips"
+crops = ["chilli"]
+std_weeks = [44, 45, 46, 47, 48, 49, 50]
+all = [
+  ["rain_8_28d_mm", ">=", 20],
+  ["dry_days", ">=", 5],
+  ["fc_rain_7d_mm", "<", 5],
+  ["fc_tmax_mean_7d", ">=", 30],
+]
+cooldown_days = 7
+priority = 8
+source = "ICAR-NBAIR black thrips report (2023); UAS Raichur seasonal counts"
+draft_en = """{village}: dry, warm days after the recent rain - conditions favour black thrips on flowering chilli in the coming week (forecast about {fc_rain_7d_mm} mm of rain, highs near {fc_tmax_mean_7d} C). Scout before spraying: shake the flowers of 10 plants over white paper and look under young leaves. Act only if thrips are found; blue sticky traps help to watch numbers."""
+approved_by = ""
+approved_on = ""
+
+# Rain on chilli drying in the open causes colour loss and mould
+# (aflatoxin); Byadgi is priced on colour. Live from 20 Nov so it is
+# running before the first pickings dry.
+
+[[rule]]
+id = "chilli_drying_rain_red"
+title = "Chilli drying: heavy rain likely in 3 days"
+kind = "harvest"
+severity = "red"
+group = "chilli_drying"
+crops = ["chilli"]
+dates = ["11-20", "03-31"]
+all = [["fc_rain_3d_mm", ">=", 10]]
+cooldown_days = 2
+priority = 9
+source = "TNAU / UAS Dharwad post-harvest guidance for chilli; forecast as cited on the card"
+draft_en = """{village}: the forecast shows about {fc_rain_3d_mm} mm of rain over the next 3 days. Conditions favour colour loss and mould on chilli drying in the open. Pick and dry under cover if you can, keep tarpaulins ready, and do not spread wet pods on bare ground. Forecasts can be wrong - check again tomorrow."""
+approved_by = ""
+approved_on = ""
+
+[[rule]]
+id = "chilli_drying_rain_amber"
+title = "Chilli drying: some rain possible in 3 days"
+kind = "harvest"
+severity = "amber"
+group = "chilli_drying"
+crops = ["chilli"]
+dates = ["11-20", "03-31"]
+all = [["fc_max_rain_3d_mm", ">=", 2.5]]
+cooldown_days = 2
+priority = 9
+source = "TNAU / UAS Dharwad post-harvest guidance for chilli; forecast as cited on the card"
+draft_en = """{village}: some rain is possible in the next 3 days (up to {fc_max_rain_3d_mm} mm in a day on the forecast). Conditions favour colour loss on chilli drying in the open if it gets wet. Keep covers at the drying yard and gather pods before evening showers. Forecasts can be wrong - check again tomorrow."""
+approved_by = ""
+approved_on = ""
+
+# ---------------------------------------------------------------- turmeric
+# Leaf blotch (Taphrina maculans): favoured by 21-23 C with RH >= 80%,
+# Oct-Nov (TNAU Agritech). fc_blotch_days_7d counts forecast days with
+# >= 6 such hours.
+
+[[rule]]
+id = "turmeric_leaf_blotch"
+title = "Turmeric: cool humid spell - leaf blotch"
+kind = "disease"
+severity = "amber"
+group = "turmeric_blotch"
+crops = ["turmeric"]
+months = [10, 11]
+all = [["fc_blotch_days_7d", ">=", 3]]
+cooldown_days = 7
+priority = 8
+source = "TNAU Agritech, turmeric diseases (leaf blotch: 21-23 C, RH 80%)"
+draft_en = """{village}: {fc_blotch_days_7d} of the next 7 days look cool and humid (21-23 C, humidity 80% or more for several hours). Conditions favour leaf blotch on turmeric. Scout before spraying: look for small brown spots on both sides of the lower leaves in 5 places in the field. Spray only if spots are spreading; remove badly spotted leaves."""
+approved_by = ""
+approved_on = ""
+
+# ------------------------------------------------------------------- maize
+# Kharif maize harvest and drying, Oct-Dec. Wet cobs mould (aflatoxin)
+# and lose grade; a run of dry days is the window to harvest and dry.
+
+[[rule]]
+id = "maize_drying_risk"
+title = "Maize: rain likely during harvest / drying"
+kind = "harvest"
+severity = "amber"
+group = "maize_drying"
+crops = ["maize"]
+months = [10, 11, 12]
+any = [["fc_rain_3d_mm", ">=", 10], ["fc_rainy_days_7d", ">=", 3]]
+cooldown_days = 3
+priority = 7
+source = "UAS Bangalore / TNAU maize post-harvest guidance; forecast as cited on the card"
+draft_en = """{village}: the forecast shows about {fc_rain_3d_mm} mm in the next 3 days and {fc_rainy_days_7d} rainy days this week. Conditions favour mould on maize cobs drying in the open. Delay harvest of standing dry cobs if you can, dry harvested cobs on a raised platform or tarpaulin under cover, and do not heap wet cobs. Forecasts can be wrong - check again tomorrow."""
+approved_by = ""
+approved_on = ""
+
+[[rule]]
+id = "maize_drying_window"
+title = "Maize: dry window to harvest and dry"
+kind = "harvest"
+severity = "green"
+group = "maize_drying"
+crops = ["maize"]
+months = [10, 11, 12]
+all = [["fc_dry_run_days", ">=", 5]]
+cooldown_days = 5
+priority = 3
+source = "UAS Bangalore / TNAU maize post-harvest guidance; forecast as cited on the card"
+draft_en = """{village}: the forecast shows {fc_dry_run_days} dry days in a row from today. Conditions favour harvesting mature maize and drying cobs in the sun. Dry cobs on a clean floor or tarpaulin until the grain is hard, and store only dry grain. Forecasts can be wrong - check again tomorrow."""
+approved_by = ""
+approved_on = ""

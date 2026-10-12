@@ -1,0 +1,242 @@
+# Farmer-facing advice text for the share kit (card, WhatsApp text,
+# 45-second voice script), one table per rule id in rules/rules.toml.
+#
+# SIGN-OFF. Each language block has its own approved_by / approved_on.
+# A share button appears only when BOTH the rule (rules/rules.toml) and
+# this language block are signed. Until then staff see a DRAFT card
+# that says "do not share". The Kannada and Tamil below were written
+# without a native-speaker agronomist: have one read every line, fix
+# it, then put their name in approved_by.
+#
+# Slots: {village} {season_label} {season_start_label} {season_cum_mm}
+# {season_normal_mm} {season_dep_pct} {season_category_label}
+# {dry_days} {fc_rain_3d_mm} {fc_max_rain_3d_mm} {fc_rain_7d_mm}
+# {fc_rainy_days_7d} {fc_dry_run_days} {fc_tmax_mean_7d}
+# {fc_blotch_days_7d} - filled from the alert's stored features.
+#
+# Every text must: say conditions favour (kn: ಅನುಕೂಲ, ta: சாதகம்);
+# for pests/diseases say scout before spraying (kn: ಸಿಂಪಡಿಸುವ ಮೊದಲು,
+# ta: தெளிப்பதற்கு முன்); give odds, not certainty; name no brand,
+# product or price. The source is added to every card automatically.
+# Voice scripts should read in about 45 seconds (checked by tests).
+
+# ------------------------------------------------- labels used in slots
+[_labels.kn]
+mm = "ಮಿ.ಮೀ."
+months = ["ಜನವರಿ", "ಫೆಬ್ರವರಿ", "ಮಾರ್ಚ್", "ಏಪ್ರಿಲ್", "ಮೇ", "ಜೂನ್", "ಜುಲೈ", "ಆಗಸ್ಟ್", "ಸೆಪ್ಟೆಂಬರ್", "ಅಕ್ಟೋಬರ್", "ನವೆಂಬರ್", "ಡಿಸೆಂಬರ್"]
+sw = "ಮುಂಗಾರು"
+ne = "ಹಿಂಗಾರು"
+no_rain = "ಮಳೆ ಇಲ್ಲ"
+large_deficient = "ಅತಿ ಕೊರತೆ"
+deficient = "ಕೊರತೆ"
+normal = "ಸಾಮಾನ್ಯ"
+excess = "ಹೆಚ್ಚು"
+large_excess = "ಅತಿ ಹೆಚ್ಚು"
+source = "ಮೂಲ"
+forecast = "ಮುನ್ಸೂಚನೆ"
+alert = "ಸೂಚನೆ"
+draft = "ಕರಡು - ಅನುಮೋದನೆ ಆಗಿಲ್ಲ - ಹಂಚಬೇಡಿ"
+
+[_labels.ta]
+mm = "மி.மீ."
+months = ["ஜனவரி", "பிப்ரவரி", "மார்ச்", "ஏப்ரல்", "மே", "ஜூன்", "ஜூலை", "ஆகஸ்ட்", "செப்டம்பர்", "அக்டோபர்", "நவம்பர்", "டிசம்பர்"]
+sw = "தென்மேற்கு பருவ"
+ne = "வடகிழக்கு பருவ"
+no_rain = "மழை இல்லை"
+large_deficient = "பெரும் பற்றாக்குறை"
+deficient = "பற்றாக்குறை"
+normal = "இயல்பு"
+excess = "அதிகம்"
+large_excess = "மிக அதிகம்"
+source = "ஆதாரம்"
+forecast = "முன்னறிவிப்பு"
+alert = "எச்சரிக்கை"
+draft = "வரைவு - ஒப்புதல் இல்லை - பகிர வேண்டாம்"
+
+[_labels.en]
+mm = "mm"
+months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+sw = "SW monsoon"
+ne = "NE monsoon"
+no_rain = "No rain"
+large_deficient = "Large deficient"
+deficient = "Deficient"
+normal = "Normal"
+excess = "Excess"
+large_excess = "Large excess"
+source = "Source"
+forecast = "Forecast"
+alert = "Alert"
+draft = "DRAFT - not approved - do not share"
+
+# ------------------------------------------------------------ season rain
+[season_rain_red.en]
+approved_by = ""
+approved_on = ""
+headline = "Rain far below normal - protect standing crops"
+text = "{village}: {season_label} rain since {season_start_label} is {season_cum_mm} mm; a usual year has {season_normal_mm} mm by now ({season_dep_pct}). {dry_days} days in a row without useful rain. Conditions favour moisture stress in standing crops this week. Water crops at flowering or grain filling first, mulch where you can, and hold new sowing until the soil is moist to a hand's depth."
+voice = "Namaskara. A rain update for {village}. Since {season_start_label}, {season_label} rain here is {season_cum_mm} millimetres. A usual year has about {season_normal_mm} by now. It has not rained properly for {dry_days} days. Conditions favour moisture stress in standing crops this week. So, water the crops that are flowering or filling grain first. Mulch with crop waste where you can. Wait to sow until the soil is moist to a hand's depth. Call me if you want to talk about your field."
+
+[season_rain_red.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಮಳೆ ಸಾಮಾನ್ಯಕ್ಕಿಂತ ಬಹಳ ಕಡಿಮೆ - ನಿಂತ ಬೆಳೆ ಉಳಿಸಿ"
+text = "{village}: {season_start_label}ರಿಂದ {season_label} ಮಳೆ {season_cum_mm} ಮಿ.ಮೀ.; ಸಾಮಾನ್ಯ ವರ್ಷದಲ್ಲಿ ಈ ವೇಳೆಗೆ {season_normal_mm} ಮಿ.ಮೀ. ({season_dep_pct}). ಸತತ {dry_days} ದಿನಗಳಿಂದ ಉಪಯುಕ್ತ ಮಳೆ ಇಲ್ಲ. ಈ ವಾರ ನಿಂತ ಬೆಳೆಗಳಲ್ಲಿ ತೇವಾಂಶ ಕೊರತೆಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಹೂ ಬಿಡುವ ಅಥವಾ ಕಾಳು ತುಂಬುವ ಬೆಳೆಗೆ ಮೊದಲು ನೀರು ಕೊಡಿ, ಸಾಧ್ಯವಿರುವಲ್ಲಿ ಹೊದಿಕೆ ಹಾಕಿ, ಮಣ್ಣು ಕೈ ಆಳದವರೆಗೆ ತೇವವಾಗುವವರೆಗೆ ಹೊಸ ಬಿತ್ತನೆ ಮುಂದೂಡಿ."
+voice = "ನಮಸ್ಕಾರ. {village} ಮಳೆ ಮಾಹಿತಿ. {season_start_label}ರಿಂದ ಇಲ್ಲಿ {season_label} ಮಳೆ {season_cum_mm} ಮಿಲಿಮೀಟರ್ ಆಗಿದೆ. ಸಾಮಾನ್ಯ ವರ್ಷದಲ್ಲಿ ಈ ವೇಳೆಗೆ ಸುಮಾರು {season_normal_mm} ಆಗಿರುತ್ತಿತ್ತು. {dry_days} ದಿನಗಳಿಂದ ಸರಿಯಾದ ಮಳೆ ಬಂದಿಲ್ಲ. ಈ ವಾರ ನಿಂತ ಬೆಳೆಗೆ ತೇವಾಂಶ ಕೊರತೆಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಹೂ ಬಿಡುವ, ಕಾಳು ತುಂಬುವ ಬೆಳೆಗೆ ಮೊದಲು ನೀರು ಕೊಡಿ. ಬೆಳೆ ಉಳಿಕೆಯಿಂದ ಹೊದಿಕೆ ಹಾಕಿ. ಮಣ್ಣು ಕೈ ಆಳದವರೆಗೆ ತೇವವಾದ ಮೇಲೆಯೇ ಬಿತ್ತನೆ ಮಾಡಿ. ನಿಮ್ಮ ಹೊಲದ ಬಗ್ಗೆ ಮಾತನಾಡಲು ನನಗೆ ಕರೆ ಮಾಡಿ."
+
+[season_rain_red.ta]
+approved_by = ""
+approved_on = ""
+headline = "மழை இயல்பை விட மிகக் குறைவு - நிற்கும் பயிரைக் காப்பாற்றுங்கள்"
+text = "{village}: {season_start_label} முதல் {season_label} மழை {season_cum_mm} மி.மீ.; வழக்கமான ஆண்டில் இந்நேரம் {season_normal_mm} மி.மீ. ({season_dep_pct}). தொடர்ந்து {dry_days} நாட்களாக பயனுள்ள மழை இல்லை. இந்த வாரம் நிற்கும் பயிர்களில் ஈரப்பதக் குறைவுக்குச் சூழல் சாதகமாக உள்ளது. பூக்கும் அல்லது மணி பிடிக்கும் பயிருக்கு முதலில் நீர் பாய்ச்சுங்கள், முடிந்த இடங்களில் மூடாக்கு இடுங்கள், மண் ஒரு கை ஆழம் ஈரமாகும் வரை புதிய விதைப்பைத் தள்ளிப்போடுங்கள்."
+voice = "வணக்கம். {village} மழை நிலவரம். {season_start_label} முதல் இங்கு {season_label} மழை {season_cum_mm} மில்லிமீட்டர். வழக்கமான ஆண்டில் இந்நேரம் சுமார் {season_normal_mm} பெய்திருக்கும். {dry_days} நாட்களாக சரியான மழை இல்லை. இந்த வாரம் நிற்கும் பயிருக்கு ஈரப்பதக் குறைவுக்குச் சூழல் சாதகமாக உள்ளது. பூக்கும், மணி பிடிக்கும் பயிருக்கு முதலில் நீர் கொடுங்கள். பயிர்க் கழிவால் மூடாக்கு இடுங்கள். மண் ஒரு கை ஆழம் ஈரமான பிறகே விதையுங்கள். உங்கள் வயல் பற்றிப் பேச என்னை அழையுங்கள்."
+
+[season_rain_amber.en]
+approved_by = ""
+approved_on = ""
+headline = "Rain below normal - watch soil moisture"
+text = "{village}: {season_label} rain since {season_start_label} is {season_cum_mm} mm; a usual year has {season_normal_mm} mm by now ({season_dep_pct}). {dry_days} days in a row without useful rain. Conditions favour early moisture stress if the dry spell goes on. Check soil moisture at a hand's depth before sowing or applying fertiliser, and plan water for crops close to flowering."
+voice = "Namaskara. A rain update for {village}. Since {season_start_label}, {season_label} rain here is {season_cum_mm} millimetres, against about {season_normal_mm} in a usual year. It has been dry for {dry_days} days. Conditions favour early moisture stress if this dry spell goes on. Before you sow or put fertiliser, dig a hand's depth and check that the soil is moist. Plan water for crops that are close to flowering. I will share the next update when the rain picture changes."
+
+[season_rain_amber.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಮಳೆ ಸಾಮಾನ್ಯಕ್ಕಿಂತ ಕಡಿಮೆ - ಮಣ್ಣಿನ ತೇವ ಗಮನಿಸಿ"
+text = "{village}: {season_start_label}ರಿಂದ {season_label} ಮಳೆ {season_cum_mm} ಮಿ.ಮೀ.; ಸಾಮಾನ್ಯ ವರ್ಷದಲ್ಲಿ ಈ ವೇಳೆಗೆ {season_normal_mm} ಮಿ.ಮೀ. ({season_dep_pct}). ಸತತ {dry_days} ದಿನಗಳಿಂದ ಉಪಯುಕ್ತ ಮಳೆ ಇಲ್ಲ. ಒಣ ಹವೆ ಮುಂದುವರಿದರೆ ಬೆಳೆಯಲ್ಲಿ ತೇವಾಂಶ ಕೊರತೆಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಬಿತ್ತನೆ ಅಥವಾ ಗೊಬ್ಬರ ಹಾಕುವ ಮೊದಲು ಕೈ ಆಳದಲ್ಲಿ ಮಣ್ಣಿನ ತೇವ ನೋಡಿ, ಹೂ ಬಿಡುವ ಹಂತದ ಬೆಳೆಗೆ ನೀರಿನ ಯೋಜನೆ ಮಾಡಿ."
+voice = "ನಮಸ್ಕಾರ. {village} ಮಳೆ ಮಾಹಿತಿ. {season_start_label}ರಿಂದ ಇಲ್ಲಿ {season_label} ಮಳೆ {season_cum_mm} ಮಿಲಿಮೀಟರ್, ಸಾಮಾನ್ಯ ವರ್ಷದಲ್ಲಿ ಸುಮಾರು {season_normal_mm}. {dry_days} ದಿನಗಳಿಂದ ಒಣ ಹವೆ ಇದೆ. ಇದು ಮುಂದುವರಿದರೆ ಬೆಳೆಗೆ ತೇವಾಂಶ ಕೊರತೆಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಬಿತ್ತನೆ ಅಥವಾ ಗೊಬ್ಬರ ಹಾಕುವ ಮೊದಲು ಕೈ ಆಳ ಅಗೆದು ಮಣ್ಣು ತೇವವಿದೆಯೇ ನೋಡಿ. ಹೂ ಬಿಡುವ ಹಂತದ ಬೆಳೆಗೆ ನೀರಿನ ವ್ಯವಸ್ಥೆ ಮಾಡಿಕೊಳ್ಳಿ."
+
+[season_rain_amber.ta]
+approved_by = ""
+approved_on = ""
+headline = "மழை இயல்பை விடக் குறைவு - மண் ஈரத்தைக் கவனியுங்கள்"
+text = "{village}: {season_start_label} முதல் {season_label} மழை {season_cum_mm} மி.மீ.; வழக்கமான ஆண்டில் இந்நேரம் {season_normal_mm} மி.மீ. ({season_dep_pct}). தொடர்ந்து {dry_days} நாட்களாக பயனுள்ள மழை இல்லை. வறட்சி தொடர்ந்தால் பயிரில் ஈரப்பதக் குறைவுக்குச் சூழல் சாதகமாக உள்ளது. விதைப்பு அல்லது உரமிடும் முன் ஒரு கை ஆழத்தில் மண் ஈரத்தைப் பாருங்கள், பூக்கும் பருவப் பயிருக்கு நீர்த் திட்டம் வையுங்கள்."
+voice = "வணக்கம். {village} மழை நிலவரம். {season_start_label} முதல் இங்கு {season_label} மழை {season_cum_mm} மில்லிமீட்டர், வழக்கமான ஆண்டில் சுமார் {season_normal_mm}. {dry_days} நாட்களாக வறண்ட வானிலை. இது தொடர்ந்தால் பயிருக்கு ஈரப்பதக் குறைவுக்குச் சூழல் சாதகமாக உள்ளது. விதைப்பு அல்லது உரமிடும் முன் ஒரு கை ஆழம் தோண்டி மண் ஈரமாக உள்ளதா எனப் பாருங்கள். பூக்கும் பருவப் பயிருக்கு நீர் ஏற்பாடு செய்து கொள்ளுங்கள்."
+
+# ------------------------------------------------------------------ chilli
+[chilli_black_thrips.en]
+approved_by = ""
+approved_on = ""
+headline = "Chilli: watch for black thrips this week"
+text = "{village}: dry, warm days after the recent rain. Conditions favour black thrips on flowering chilli this week (forecast about {fc_rain_7d_mm} mm of rain, highs near {fc_tmax_mean_7d} C). Scout before spraying: shake the flowers of 10 plants over white paper and look under young leaves. Act only if thrips are found; blue sticky traps help to watch numbers."
+voice = "Namaskara, chilli growers of {village}. After the recent rain, the coming week looks dry and warm, with highs near {fc_tmax_mean_7d} degrees. Conditions favour black thrips on flowering chilli. Please scout before spraying. Take 10 plants across the field, shake the flowers over a white paper, and look under the young leaves. If you find thrips, call me and we decide together. If you find none, there is no need to spray. Blue sticky traps help you watch the numbers."
+
+[chilli_black_thrips.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಮೆಣಸಿನಕಾಯಿ: ಈ ವಾರ ಕಪ್ಪು ಥ್ರಿಪ್ಸ್ ಗಮನಿಸಿ"
+text = "{village}: ಇತ್ತೀಚಿನ ಮಳೆಯ ನಂತರ ಒಣ, ಬಿಸಿಲಿನ ದಿನಗಳು. ಈ ವಾರ ಹೂ ಬಿಡುವ ಮೆಣಸಿನಕಾಯಿಯಲ್ಲಿ ಕಪ್ಪು ಥ್ರಿಪ್ಸ್‌ಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ (ಮುನ್ಸೂಚನೆ: ಸುಮಾರು {fc_rain_7d_mm} ಮಿ.ಮೀ. ಮಳೆ, ಗರಿಷ್ಠ ತಾಪಮಾನ ಸುಮಾರು {fc_tmax_mean_7d}°C). ಸಿಂಪಡಿಸುವ ಮೊದಲು ಹೊಲ ಪರಿಶೀಲಿಸಿ: 10 ಗಿಡಗಳ ಹೂಗಳನ್ನು ಬಿಳಿ ಕಾಗದದ ಮೇಲೆ ಅಲ್ಲಾಡಿಸಿ, ಎಳೆ ಎಲೆಗಳ ಕೆಳಭಾಗ ನೋಡಿ. ಥ್ರಿಪ್ಸ್ ಕಂಡರೆ ಮಾತ್ರ ಕ್ರಮ ಕೈಗೊಳ್ಳಿ; ನೀಲಿ ಅಂಟು ಬಲೆಗಳು ಸಂಖ್ಯೆ ಗಮನಿಸಲು ಸಹಾಯಕ."
+voice = "ನಮಸ್ಕಾರ, {village}ಯ ಮೆಣಸಿನಕಾಯಿ ಬೆಳೆಗಾರರೇ. ಇತ್ತೀಚಿನ ಮಳೆಯ ನಂತರ ಮುಂದಿನ ವಾರ ಒಣ ಮತ್ತು ಬಿಸಿಲು ಇರುವಂತಿದೆ, ಗರಿಷ್ಠ ತಾಪಮಾನ ಸುಮಾರು {fc_tmax_mean_7d} ಡಿಗ್ರಿ. ಹೂ ಬಿಡುವ ಮೆಣಸಿನಕಾಯಿಯಲ್ಲಿ ಕಪ್ಪು ಥ್ರಿಪ್ಸ್‌ಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಸಿಂಪಡಿಸುವ ಮೊದಲು ಹೊಲ ಪರಿಶೀಲಿಸಿ. ಹೊಲದ ಬೇರೆ ಬೇರೆ ಕಡೆ 10 ಗಿಡ ಆರಿಸಿ, ಹೂಗಳನ್ನು ಬಿಳಿ ಕಾಗದದ ಮೇಲೆ ಅಲ್ಲಾಡಿಸಿ, ಎಳೆ ಎಲೆಗಳ ಕೆಳಗೆ ನೋಡಿ. ಥ್ರಿಪ್ಸ್ ಕಂಡರೆ ನನಗೆ ಕರೆ ಮಾಡಿ. ಕಾಣದಿದ್ದರೆ ಸಿಂಪಡಣೆ ಬೇಡ."
+
+[chilli_black_thrips.ta]
+approved_by = ""
+approved_on = ""
+headline = "மிளகாய்: இந்த வாரம் கருப்பு இலைப்பேனைக் கவனியுங்கள்"
+text = "{village}: சமீபத்திய மழைக்குப் பின் வறண்ட, வெப்பமான நாட்கள். இந்த வாரம் பூக்கும் மிளகாயில் கருப்பு இலைப்பேனுக்குச் சூழல் சாதகமாக உள்ளது (முன்னறிவிப்பு: சுமார் {fc_rain_7d_mm} மி.மீ. மழை, அதிகபட்ச வெப்பம் சுமார் {fc_tmax_mean_7d}°C). தெளிப்பதற்கு முன் வயலை ஆய்வு செய்யுங்கள்: 10 செடிகளின் பூக்களை வெள்ளைத் தாளின் மேல் உதறி, இளம் இலைகளின் அடிப்பகுதியைப் பாருங்கள். இலைப்பேன் தென்பட்டால் மட்டும் நடவடிக்கை எடுங்கள்; நீல ஒட்டுப் பொறிகள் எண்ணிக்கையைக் கவனிக்க உதவும்."
+voice = "வணக்கம், {village} மிளகாய் விவசாயிகளே. சமீபத்திய மழைக்குப் பிறகு வரும் வாரம் வறண்டு வெப்பமாக இருக்கலாம், அதிகபட்சம் சுமார் {fc_tmax_mean_7d} டிகிரி. பூக்கும் மிளகாயில் கருப்பு இலைப்பேனுக்குச் சூழல் சாதகமாக உள்ளது. தெளிப்பதற்கு முன் வயலை ஆய்வு செய்யுங்கள். வயலின் பல இடங்களில் 10 செடிகளை எடுத்து, பூக்களை வெள்ளைத் தாளில் உதறி, இளம் இலைகளின் அடியில் பாருங்கள். இலைப்பேன் இருந்தால் என்னை அழையுங்கள். இல்லையென்றால் தெளிக்கத் தேவையில்லை."
+
+[chilli_drying_rain_red.en]
+approved_by = ""
+approved_on = ""
+headline = "Chilli drying: heavy rain possible in 3 days"
+text = "{village}: the forecast shows about {fc_rain_3d_mm} mm of rain over the next 3 days. Conditions favour colour loss and mould on chilli drying in the open. Pick and dry under cover if you can, keep tarpaulins ready, and do not spread wet pods on bare ground. Forecasts can be wrong - check again tomorrow."
+voice = "Namaskara, chilli growers of {village}. The forecast shows about {fc_rain_3d_mm} millimetres of rain over the next three days. Conditions favour colour loss and mould on chilli that is drying in the open. If you can, pick and dry under a roof or a shed. Keep tarpaulins ready to cover the heaps. Do not spread wet pods on bare ground. Forecasts can be wrong, so I will check again tomorrow and tell you."
+
+[chilli_drying_rain_red.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಮೆಣಸಿನಕಾಯಿ ಒಣಗಿಸುವಿಕೆ: 3 ದಿನದಲ್ಲಿ ಜೋರು ಮಳೆ ಸಾಧ್ಯ"
+text = "{village}: ಮುಂದಿನ 3 ದಿನಗಳಲ್ಲಿ ಸುಮಾರು {fc_rain_3d_mm} ಮಿ.ಮೀ. ಮಳೆ ಮುನ್ಸೂಚನೆ ಇದೆ. ಹೊರಗೆ ಒಣಗುತ್ತಿರುವ ಮೆಣಸಿನಕಾಯಿಯಲ್ಲಿ ಬಣ್ಣ ಕಳೆದುಕೊಳ್ಳುವಿಕೆ ಮತ್ತು ಬೂಸ್ಟ್‌ಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಸಾಧ್ಯವಾದರೆ ಮುಚ್ಚಿದ ಜಾಗದಲ್ಲಿ ಒಣಗಿಸಿ, ತಾಡಪತ್ರಿ ಸಿದ್ಧವಿಡಿ, ಒದ್ದೆ ಕಾಯಿಗಳನ್ನು ಬರಿ ನೆಲದ ಮೇಲೆ ಹರಡಬೇಡಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು - ನಾಳೆ ಮತ್ತೆ ನೋಡಿ."
+voice = "ನಮಸ್ಕಾರ, {village}ಯ ಮೆಣಸಿನಕಾಯಿ ಬೆಳೆಗಾರರೇ. ಮುಂದಿನ ಮೂರು ದಿನಗಳಲ್ಲಿ ಸುಮಾರು {fc_rain_3d_mm} ಮಿಲಿಮೀಟರ್ ಮಳೆ ಮುನ್ಸೂಚನೆ ಇದೆ. ಹೊರಗೆ ಒಣಗುತ್ತಿರುವ ಮೆಣಸಿನಕಾಯಿ ಬಣ್ಣ ಕಳೆದುಕೊಳ್ಳಲು ಮತ್ತು ಬೂಸ್ಟ್ ಬರಲು ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಸಾಧ್ಯವಾದರೆ ಶೆಡ್ ಅಥವಾ ಛಾವಣಿ ಕೆಳಗೆ ಒಣಗಿಸಿ. ರಾಶಿ ಮುಚ್ಚಲು ತಾಡಪತ್ರಿ ಸಿದ್ಧವಿಡಿ. ಒದ್ದೆ ಕಾಯಿಗಳನ್ನು ಬರಿ ನೆಲದ ಮೇಲೆ ಹರಡಬೇಡಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು, ನಾಳೆ ಮತ್ತೆ ನೋಡಿ ತಿಳಿಸುತ್ತೇನೆ."
+
+[chilli_drying_rain_red.ta]
+approved_by = ""
+approved_on = ""
+headline = "மிளகாய் உலர்த்தல்: 3 நாளில் கனமழை வாய்ப்பு"
+text = "{village}: அடுத்த 3 நாட்களில் சுமார் {fc_rain_3d_mm} மி.மீ. மழை முன்னறிவிப்பு உள்ளது. வெளியில் உலர்த்தும் மிளகாயில் நிறம் மங்குவதற்கும் பூஞ்சைக்கும் சூழல் சாதகமாக உள்ளது. முடிந்தால் கூரையின் கீழ் உலர்த்துங்கள், தார்ப்பாய் தயாராக வையுங்கள், ஈரமான காய்களை வெறும் தரையில் பரப்ப வேண்டாம். முன்னறிவிப்பு தவறலாம் - நாளை மீண்டும் பாருங்கள்."
+voice = "வணக்கம், {village} மிளகாய் விவசாயிகளே. அடுத்த மூன்று நாட்களில் சுமார் {fc_rain_3d_mm} மில்லிமீட்டர் மழை முன்னறிவிப்பு உள்ளது. வெளியில் உலரும் மிளகாயில் நிறம் மங்குவதற்கும் பூஞ்சைக்கும் சூழல் சாதகமாக உள்ளது. முடிந்தால் கொட்டகை அல்லது கூரையின் கீழ் உலர்த்துங்கள். குவியலை மூட தார்ப்பாய் தயாராக வையுங்கள். ஈரமான காய்களை வெறும் தரையில் பரப்ப வேண்டாம். முன்னறிவிப்பு தவறலாம், நாளை மீண்டும் பார்த்துச் சொல்கிறேன்."
+
+[chilli_drying_rain_amber.en]
+approved_by = ""
+approved_on = ""
+headline = "Chilli drying: keep covers ready"
+text = "{village}: some rain is possible in the next 3 days (up to {fc_max_rain_3d_mm} mm in a day on the forecast). Conditions favour colour loss on chilli drying in the open if it gets wet. Keep covers at the drying yard and gather pods before evening showers. Forecasts can be wrong - check again tomorrow."
+voice = "Namaskara, chilli growers of {village}. Some rain is possible in the next three days, up to {fc_max_rain_3d_mm} millimetres in a day on the forecast. Conditions favour colour loss on chilli drying in the open if it gets wet. Keep covers at the drying yard, and gather the pods into a heap before any evening shower. Forecasts can be wrong, so I will check again tomorrow."
+
+[chilli_drying_rain_amber.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಮೆಣಸಿನಕಾಯಿ ಒಣಗಿಸುವಿಕೆ: ಹೊದಿಕೆ ಸಿದ್ಧವಿಡಿ"
+text = "{village}: ಮುಂದಿನ 3 ದಿನಗಳಲ್ಲಿ ಸ್ವಲ್ಪ ಮಳೆ ಸಾಧ್ಯ (ಮುನ್ಸೂಚನೆಯಲ್ಲಿ ದಿನಕ್ಕೆ {fc_max_rain_3d_mm} ಮಿ.ಮೀ.ವರೆಗೆ). ಒದ್ದೆಯಾದರೆ ಹೊರಗೆ ಒಣಗುತ್ತಿರುವ ಮೆಣಸಿನಕಾಯಿ ಬಣ್ಣ ಕಳೆದುಕೊಳ್ಳಲು ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಒಣಗಿಸುವ ಅಂಗಳದಲ್ಲಿ ಹೊದಿಕೆ ಇಡಿ, ಸಂಜೆ ಮಳೆಗೆ ಮೊದಲು ಕಾಯಿಗಳನ್ನು ಒಟ್ಟುಗೂಡಿಸಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು - ನಾಳೆ ಮತ್ತೆ ನೋಡಿ."
+voice = "ನಮಸ್ಕಾರ, {village}ಯ ಮೆಣಸಿನಕಾಯಿ ಬೆಳೆಗಾರರೇ. ಮುಂದಿನ ಮೂರು ದಿನಗಳಲ್ಲಿ ಸ್ವಲ್ಪ ಮಳೆ ಸಾಧ್ಯ, ಮುನ್ಸೂಚನೆಯಲ್ಲಿ ದಿನಕ್ಕೆ {fc_max_rain_3d_mm} ಮಿಲಿಮೀಟರ್‌ವರೆಗೆ. ಒದ್ದೆಯಾದರೆ ಹೊರಗೆ ಒಣಗುತ್ತಿರುವ ಮೆಣಸಿನಕಾಯಿ ಬಣ್ಣ ಕಳೆದುಕೊಳ್ಳಲು ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಒಣಗಿಸುವ ಅಂಗಳದಲ್ಲಿ ಹೊದಿಕೆ ಇಟ್ಟುಕೊಳ್ಳಿ, ಸಂಜೆ ಮಳೆಗೆ ಮೊದಲು ಕಾಯಿಗಳನ್ನು ರಾಶಿ ಮಾಡಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು, ನಾಳೆ ಮತ್ತೆ ನೋಡುತ್ತೇನೆ."
+
+[chilli_drying_rain_amber.ta]
+approved_by = ""
+approved_on = ""
+headline = "மிளகாய் உலர்த்தல்: மூடுபொருள் தயாராக வையுங்கள்"
+text = "{village}: அடுத்த 3 நாட்களில் சிறிது மழை வாய்ப்பு (முன்னறிவிப்பில் ஒரு நாளில் {fc_max_rain_3d_mm} மி.மீ. வரை). நனைந்தால் வெளியில் உலரும் மிளகாயில் நிறம் மங்குவதற்குச் சூழல் சாதகமாக உள்ளது. உலர்த்தும் களத்தில் மூடுபொருள் வையுங்கள், மாலை மழைக்கு முன் காய்களைக் குவியுங்கள். முன்னறிவிப்பு தவறலாம் - நாளை மீண்டும் பாருங்கள்."
+voice = "வணக்கம், {village} மிளகாய் விவசாயிகளே. அடுத்த மூன்று நாட்களில் சிறிது மழை வாய்ப்பு உள்ளது, முன்னறிவிப்பில் ஒரு நாளில் {fc_max_rain_3d_mm} மில்லிமீட்டர் வரை. நனைந்தால் வெளியில் உலரும் மிளகாயில் நிறம் மங்குவதற்குச் சூழல் சாதகமாக உள்ளது. உலர்த்தும் களத்தில் மூடுபொருள் வைத்திருங்கள், மாலை மழைக்கு முன் காய்களைக் குவித்து விடுங்கள். முன்னறிவிப்பு தவறலாம், நாளை மீண்டும் பார்க்கிறேன்."
+
+# ---------------------------------------------------------------- turmeric
+[turmeric_leaf_blotch.en]
+approved_by = ""
+approved_on = ""
+headline = "Turmeric: cool, humid days - check for leaf blotch"
+text = "{village}: {fc_blotch_days_7d} of the next 7 days look cool and humid (21-23 C, humidity 80% or more for several hours). Conditions favour leaf blotch on turmeric. Scout before spraying: look for small brown spots on both sides of the lower leaves in 5 places in the field. Spray only if spots are spreading; remove badly spotted leaves."
+voice = "Namaskara, turmeric growers of {village}. {fc_blotch_days_7d} of the next seven days look cool and humid. Conditions favour leaf blotch on turmeric. Please scout before spraying. Walk to five places in your field and look at the lower leaves, on both sides, for small brown spots. If the spots are spreading, call me and we decide what to do. If there are only a few, pick off the badly spotted leaves. Do not spray if you see no spots."
+
+[turmeric_leaf_blotch.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಅರಿಶಿನ: ತಂಪು, ತೇವದ ದಿನಗಳು - ಎಲೆ ಚುಕ್ಕೆ ರೋಗ ಗಮನಿಸಿ"
+text = "{village}: ಮುಂದಿನ 7 ದಿನಗಳಲ್ಲಿ {fc_blotch_days_7d} ದಿನ ತಂಪು ಮತ್ತು ತೇವ ಇರುವಂತಿದೆ (21-23°C, ಹಲವು ಗಂಟೆ ಆರ್ದ್ರತೆ 80% ಅಥವಾ ಹೆಚ್ಚು). ಅರಿಶಿನದಲ್ಲಿ ಎಲೆ ಚುಕ್ಕೆ (ಲೀಫ್ ಬ್ಲಾಚ್) ರೋಗಕ್ಕೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಸಿಂಪಡಿಸುವ ಮೊದಲು ಹೊಲ ಪರಿಶೀಲಿಸಿ: ಹೊಲದ 5 ಕಡೆ ಕೆಳಗಿನ ಎಲೆಗಳ ಎರಡೂ ಬದಿಯಲ್ಲಿ ಸಣ್ಣ ಕಂದು ಚುಕ್ಕೆಗಳನ್ನು ನೋಡಿ. ಚುಕ್ಕೆ ಹರಡುತ್ತಿದ್ದರೆ ಮಾತ್ರ ಸಿಂಪಡಿಸಿ; ಹೆಚ್ಚು ಚುಕ್ಕೆಯ ಎಲೆಗಳನ್ನು ತೆಗೆಯಿರಿ."
+voice = "ನಮಸ್ಕಾರ, {village}ಯ ಅರಿಶಿನ ಬೆಳೆಗಾರರೇ. ಮುಂದಿನ ಏಳು ದಿನಗಳಲ್ಲಿ {fc_blotch_days_7d} ದಿನ ತಂಪು ಮತ್ತು ತೇವ ಇರುವಂತಿದೆ. ಅರಿಶಿನದಲ್ಲಿ ಎಲೆ ಚುಕ್ಕೆ ರೋಗಕ್ಕೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಸಿಂಪಡಿಸುವ ಮೊದಲು ಹೊಲ ಪರಿಶೀಲಿಸಿ. ಹೊಲದ ಐದು ಕಡೆ ಹೋಗಿ ಕೆಳಗಿನ ಎಲೆಗಳ ಎರಡೂ ಬದಿಯಲ್ಲಿ ಸಣ್ಣ ಕಂದು ಚುಕ್ಕೆಗಳಿವೆಯೇ ನೋಡಿ. ಚುಕ್ಕೆ ಹರಡುತ್ತಿದ್ದರೆ ನನಗೆ ಕರೆ ಮಾಡಿ. ಕೆಲವೇ ಇದ್ದರೆ ಆ ಎಲೆಗಳನ್ನು ತೆಗೆಯಿರಿ. ಚುಕ್ಕೆ ಕಾಣದಿದ್ದರೆ ಸಿಂಪಡಣೆ ಬೇಡ."
+
+[turmeric_leaf_blotch.ta]
+approved_by = ""
+approved_on = ""
+headline = "மஞ்சள்: குளிர்ந்த, ஈரமான நாட்கள் - இலைப்புள்ளி நோயைக் கவனியுங்கள்"
+text = "{village}: அடுத்த 7 நாட்களில் {fc_blotch_days_7d} நாட்கள் குளிர்ந்தும் ஈரமாகவும் இருக்கலாம் (21-23°C, பல மணி நேரம் ஈரப்பதம் 80% அல்லது அதற்கு மேல்). மஞ்சளில் இலைப்புள்ளி (இலைக் கருகல்) நோய்க்குச் சூழல் சாதகமாக உள்ளது. தெளிப்பதற்கு முன் வயலை ஆய்வு செய்யுங்கள்: வயலின் 5 இடங்களில் கீழ் இலைகளின் இருபுறமும் சிறிய பழுப்புப் புள்ளிகளைப் பாருங்கள். புள்ளிகள் பரவினால் மட்டும் தெளியுங்கள்; அதிகம் பாதித்த இலைகளை அகற்றுங்கள்."
+voice = "வணக்கம், {village} மஞ்சள் விவசாயிகளே. அடுத்த ஏழு நாட்களில் {fc_blotch_days_7d} நாட்கள் குளிர்ந்தும் ஈரமாகவும் இருக்கலாம். மஞ்சளில் இலைப்புள்ளி நோய்க்குச் சூழல் சாதகமாக உள்ளது. தெளிப்பதற்கு முன் வயலை ஆய்வு செய்யுங்கள். வயலின் ஐந்து இடங்களுக்குச் சென்று கீழ் இலைகளின் இருபுறமும் சிறிய பழுப்புப் புள்ளிகள் உள்ளனவா எனப் பாருங்கள். புள்ளிகள் பரவினால் என்னை அழையுங்கள். சில மட்டும் இருந்தால் அந்த இலைகளை அகற்றுங்கள். புள்ளிகள் இல்லையென்றால் தெளிக்க வேண்டாம்."
+
+# ------------------------------------------------------------------- maize
+[maize_drying_risk.en]
+approved_by = ""
+approved_on = ""
+headline = "Maize: rain likely while cobs dry"
+text = "{village}: the forecast shows about {fc_rain_3d_mm} mm in the next 3 days and {fc_rainy_days_7d} rainy days this week. Conditions favour mould on maize cobs drying in the open. Delay harvest of standing dry cobs if you can, dry harvested cobs on a raised platform or tarpaulin under cover, and do not heap wet cobs. Forecasts can be wrong - check again tomorrow."
+voice = "Namaskara, maize growers of {village}. The forecast shows about {fc_rain_3d_mm} millimetres of rain in the next three days, and {fc_rainy_days_7d} rainy days this week. Conditions favour mould on cobs drying in the open. If the crop is standing and dry, you can wait a few days to harvest. Dry the cobs you have already harvested on a raised platform or a tarpaulin, under cover. Do not heap wet cobs. Forecasts can be wrong, so I will check again tomorrow."
+
+[maize_drying_risk.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಮೆಕ್ಕೆಜೋಳ: ತೆನೆ ಒಣಗುವಾಗ ಮಳೆ ಸಾಧ್ಯ"
+text = "{village}: ಮುಂದಿನ 3 ದಿನಗಳಲ್ಲಿ ಸುಮಾರು {fc_rain_3d_mm} ಮಿ.ಮೀ. ಮತ್ತು ಈ ವಾರ {fc_rainy_days_7d} ಮಳೆ ದಿನಗಳ ಮುನ್ಸೂಚನೆ ಇದೆ. ಹೊರಗೆ ಒಣಗುತ್ತಿರುವ ಮೆಕ್ಕೆಜೋಳದ ತೆನೆಗಳಲ್ಲಿ ಬೂಸ್ಟ್‌ಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಸಾಧ್ಯವಾದರೆ ಒಣಗಿ ನಿಂತ ಬೆಳೆಯ ಕೊಯ್ಲು ಮುಂದೂಡಿ, ಕೊಯ್ದ ತೆನೆಗಳನ್ನು ಎತ್ತರದ ಅಟ್ಟ ಅಥವಾ ತಾಡಪತ್ರಿಯ ಮೇಲೆ ಮುಚ್ಚಿದ ಜಾಗದಲ್ಲಿ ಒಣಗಿಸಿ, ಒದ್ದೆ ತೆನೆಗಳನ್ನು ರಾಶಿ ಮಾಡಬೇಡಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು - ನಾಳೆ ಮತ್ತೆ ನೋಡಿ."
+voice = "ನಮಸ್ಕಾರ, {village}ಯ ಮೆಕ್ಕೆಜೋಳ ಬೆಳೆಗಾರರೇ. ಮುಂದಿನ ಮೂರು ದಿನಗಳಲ್ಲಿ ಸುಮಾರು {fc_rain_3d_mm} ಮಿಲಿಮೀಟರ್ ಮಳೆ, ಈ ವಾರ {fc_rainy_days_7d} ಮಳೆ ದಿನಗಳ ಮುನ್ಸೂಚನೆ ಇದೆ. ಹೊರಗೆ ಒಣಗುವ ತೆನೆಗಳಲ್ಲಿ ಬೂಸ್ಟ್‌ಗೆ ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಬೆಳೆ ಒಣಗಿ ನಿಂತಿದ್ದರೆ ಕೆಲವು ದಿನ ಕಾದು ಕೊಯ್ಲು ಮಾಡಬಹುದು. ಕೊಯ್ದ ತೆನೆಗಳನ್ನು ಅಟ್ಟ ಅಥವಾ ತಾಡಪತ್ರಿಯ ಮೇಲೆ, ಛಾವಣಿ ಕೆಳಗೆ ಒಣಗಿಸಿ. ಒದ್ದೆ ತೆನೆಗಳನ್ನು ರಾಶಿ ಮಾಡಬೇಡಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು, ನಾಳೆ ಮತ್ತೆ ನೋಡುತ್ತೇನೆ."
+
+[maize_drying_risk.ta]
+approved_by = ""
+approved_on = ""
+headline = "மக்காச்சோளம்: கதிர் உலரும் போது மழை வாய்ப்பு"
+text = "{village}: அடுத்த 3 நாட்களில் சுமார் {fc_rain_3d_mm} மி.மீ. மழையும் இந்த வாரம் {fc_rainy_days_7d} மழை நாட்களும் முன்னறிவிப்பில் உள்ளன. வெளியில் உலரும் மக்காச்சோளக் கதிர்களில் பூஞ்சைக்குச் சூழல் சாதகமாக உள்ளது. முடிந்தால் காய்ந்து நிற்கும் பயிரின் அறுவடையைத் தள்ளிப்போடுங்கள், அறுத்த கதிர்களை உயர்ந்த மேடை அல்லது தார்ப்பாயில் கூரையின் கீழ் உலர்த்துங்கள், ஈரமான கதிர்களைக் குவிக்க வேண்டாம். முன்னறிவிப்பு தவறலாம் - நாளை மீண்டும் பாருங்கள்."
+voice = "வணக்கம், {village} மக்காச்சோள விவசாயிகளே. அடுத்த மூன்று நாட்களில் சுமார் {fc_rain_3d_mm} மில்லிமீட்டர் மழையும், இந்த வாரம் {fc_rainy_days_7d} மழை நாட்களும் முன்னறிவிப்பில் உள்ளன. வெளியில் உலரும் கதிர்களில் பூஞ்சைக்குச் சூழல் சாதகமாக உள்ளது. பயிர் காய்ந்து நின்றால் சில நாட்கள் காத்திருந்து அறுவடை செய்யலாம். அறுத்த கதிர்களை மேடை அல்லது தார்ப்பாயில், கூரையின் கீழ் உலர்த்துங்கள். ஈரமான கதிர்களைக் குவிக்க வேண்டாம். முன்னறிவிப்பு தவறலாம், நாளை மீண்டும் பார்க்கிறேன்."
+
+[maize_drying_window.en]
+approved_by = ""
+approved_on = ""
+headline = "Maize: a dry spell to harvest and dry"
+text = "{village}: the forecast shows {fc_dry_run_days} dry days in a row from today. Conditions favour harvesting mature maize and drying cobs in the sun. Dry cobs on a clean floor or tarpaulin until the grain is hard, and store only dry grain. Forecasts can be wrong - check again tomorrow."
+voice = "Namaskara, maize growers of {village}. The forecast shows {fc_dry_run_days} dry days in a row from today. Conditions favour harvesting mature maize and drying the cobs in the sun. Dry them on a clean floor or a tarpaulin until the grain is hard when you bite it. Store only dry grain, in clean bags, off the floor. Forecasts can be wrong, so I will check again tomorrow."
+
+[maize_drying_window.kn]
+approved_by = ""
+approved_on = ""
+headline = "ಮೆಕ್ಕೆಜೋಳ: ಕೊಯ್ಲು ಮತ್ತು ಒಣಗಿಸಲು ಒಣ ಹವೆ"
+text = "{village}: ಇಂದಿನಿಂದ ಸತತ {fc_dry_run_days} ಒಣ ದಿನಗಳ ಮುನ್ಸೂಚನೆ ಇದೆ. ಬಲಿತ ಮೆಕ್ಕೆಜೋಳ ಕೊಯ್ಲು ಮಾಡಿ ತೆನೆಗಳನ್ನು ಬಿಸಿಲಿನಲ್ಲಿ ಒಣಗಿಸಲು ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಕಾಳು ಗಟ್ಟಿಯಾಗುವವರೆಗೆ ಸ್ವಚ್ಛ ನೆಲ ಅಥವಾ ತಾಡಪತ್ರಿಯ ಮೇಲೆ ಒಣಗಿಸಿ, ಒಣ ಕಾಳನ್ನು ಮಾತ್ರ ಸಂಗ್ರಹಿಸಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು - ನಾಳೆ ಮತ್ತೆ ನೋಡಿ."
+voice = "ನಮಸ್ಕಾರ, {village}ಯ ಮೆಕ್ಕೆಜೋಳ ಬೆಳೆಗಾರರೇ. ಇಂದಿನಿಂದ ಸತತ {fc_dry_run_days} ಒಣ ದಿನಗಳ ಮುನ್ಸೂಚನೆ ಇದೆ. ಬಲಿತ ಬೆಳೆ ಕೊಯ್ಲು ಮಾಡಿ ತೆನೆಗಳನ್ನು ಬಿಸಿಲಿನಲ್ಲಿ ಒಣಗಿಸಲು ಪರಿಸ್ಥಿತಿ ಅನುಕೂಲವಾಗಿದೆ. ಕಾಳು ಕಚ್ಚಿದಾಗ ಗಟ್ಟಿಯಾಗುವವರೆಗೆ ಸ್ವಚ್ಛ ನೆಲ ಅಥವಾ ತಾಡಪತ್ರಿಯ ಮೇಲೆ ಒಣಗಿಸಿ. ಒಣ ಕಾಳನ್ನು ಮಾತ್ರ ಸ್ವಚ್ಛ ಚೀಲಗಳಲ್ಲಿ, ನೆಲದಿಂದ ಮೇಲೆ ಇಡಿ. ಮುನ್ಸೂಚನೆ ತಪ್ಪಾಗಬಹುದು, ನಾಳೆ ಮತ್ತೆ ನೋಡುತ್ತೇನೆ."
+
+[maize_drying_window.ta]
+approved_by = ""
+approved_on = ""
+headline = "மக்காச்சோளம்: அறுவடை, உலர்த்தலுக்கு வறண்ட வானிலை"
+text = "{village}: இன்று முதல் தொடர்ந்து {fc_dry_run_days} வறண்ட நாட்கள் முன்னறிவிப்பில் உள்ளன. முற்றிய மக்காச்சோளத்தை அறுவடை செய்து கதிர்களை வெயிலில் உலர்த்தச் சூழல் சாதகமாக உள்ளது. மணிகள் கடினமாகும் வரை சுத்தமான தரை அல்லது தார்ப்பாயில் உலர்த்துங்கள், உலர்ந்த மணிகளை மட்டும் சேமியுங்கள். முன்னறிவிப்பு தவறலாம் - நாளை மீண்டும் பாருங்கள்."
+voice = "வணக்கம், {village} மக்காச்சோள விவசாயிகளே. இன்று முதல் தொடர்ந்து {fc_dry_run_days} வறண்ட நாட்கள் முன்னறிவிப்பில் உள்ளன. முற்றிய பயிரை அறுவடை செய்து கதிர்களை வெயிலில் உலர்த்தச் சூழல் சாதகமாக உள்ளது. மணியைக் கடித்தால் கடினமாக இருக்கும் வரை சுத்தமான தரை அல்லது தார்ப்பாயில் உலர்த்துங்கள். உலர்ந்த மணிகளை மட்டும் சுத்தமான பைகளில், தரையிலிருந்து உயர்த்தி வையுங்கள். முன்னறிவிப்பு தவறலாம், நாளை மீண்டும் பார்க்கிறேன்."

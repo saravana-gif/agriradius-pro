@@ -19,6 +19,9 @@ fi
 echo "== [2/8] packages =="
 apt-get update -y
 apt-get install -y python3-venv python3-pip git curl
+# Share cards: Kannada/Tamil fonts and complex-script shaping (libraqm,
+# which Pillow loads at run time - without it Indic letters break).
+apt-get install -y fonts-noto-core libraqm0
 
 echo "== [3/8] caddy =="
 if ! command -v caddy >/dev/null 2>&1; then
@@ -44,6 +47,11 @@ sudo -u agri bash -ec '
     .venv/bin/pip install --upgrade pip wheel
     .venv/bin/pip install -r requirements.txt
     mkdir -p .streamlit
+    if .venv/bin/python -c "from PIL import features; raise SystemExit(0 if features.check(\"raqm\") else 1)"; then
+        echo "Pillow raqm: OK (Kannada/Tamil share cards)"
+    else
+        echo "WARNING: Pillow has no raqm - Kannada/Tamil share cards are disabled"
+    fi
 '
 
 echo "== [5/8] systemd service =="

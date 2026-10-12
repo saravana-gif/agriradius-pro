@@ -341,4 +341,28 @@ def recent_alerts(since, village_id=None, path=None):
     if village_id:
         sql += " AND a.village_id=?"
         params.append(village_id)
-    return query(sql + " ORDER BY a.as_of DESC, a.severity", params, path)
+    return query(sql + " ORDER BY a.as_of DESC, CASE a.severity WHEN "
+                 "'red' THEN 0 WHEN 'amber' THEN 1 ELSE 2 END", params,
+                 path)
+
+
+def add_alert_event(alert_id, event, actor=None, detail=None, path=None):
+    """Append one alert_event (shared / feedback / checkback / withdrawn)
+    from the app. The only write the app makes to the store: a single
+    append, never an update."""
+    import datetime
+    import json
+    con = connect(path)
+    try:
+        if not con.execute("SELECT 1 FROM alert WHERE alert_id=?",
+                           (alert_id,)).fetchone():
+            raise ValueError(f"no alert {alert_id}")
+        con.execute(
+            "INSERT INTO alert_event (alert_id, at, event, actor, "
+            "detail_json) VALUES (?, ?, ?, ?, ?)",
+            (alert_id, datetime.datetime.now(datetime.timezone.utc)
+             .isoformat(timespec="seconds"), event, actor,
+             json.dumps(detail or {})))
+        con.commit()
+    finally:
+        con.close()

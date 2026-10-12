@@ -1,0 +1,8 @@
+village_id,village,district,state,lat,lon,crops,active
+erode-town,Erode (town centre - example),Erode,Tamil Nadu,11.3410,77.7172,turmeric,yes
+chamarajanagar-town,Chamarajanagar (town centre - example),Chamarajanagar,Karnataka,11.9261,76.9400,turmeric;banana,yes
+davanagere-town,Davanagere (town centre - example),Davanagere,Karnataka,14.4644,75.9218,maize,yes
+byadgi-town,Byadgi (town centre - example),Haveri,Karnataka,14.6733,75.4868,chilli,yes
+theni-town,Theni (town centre - example),Theni,Tamil Nadu,10.0104,77.4768,banana,yes
+pollachi-town,Pollachi (town centre - example),Coimbatore,Tamil Nadu,10.6581,77.0085,tender coconut,yes
+tiptur-town,Tiptur (town centre - example),Tumakuru,Karnataka,13.2563,76.4777,coconut,yes

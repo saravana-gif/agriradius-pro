@@ -114,3 +114,17 @@ def read_records(sheet_name, columns):
         return pd.DataFrame(columns=columns)
 
     return pd.DataFrame(records)
+
+
+def read_existing(sheet_name):
+    """A worksheet as a DataFrame, or None if the tab doesn't exist.
+
+    Unlike read_records this never creates the tab, so scheduled jobs
+    can read config tabs without side effects on the shared Sheet."""
+    import gspread
+    try:
+        ws = _spreadsheet().worksheet(sheet_name)
+    except gspread.WorksheetNotFound:
+        return None
+    records = ws.get_all_records()
+    return pd.DataFrame(records)

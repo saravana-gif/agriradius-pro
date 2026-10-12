@@ -60,9 +60,20 @@ BANNED_TERMS = [
 ]
 _BANNED_RE = re.compile(r"\b(" + "|".join(map(re.escape, BANNED_TERMS))
                         + r")\b|₹|\brs\.?\s*\d", re.I)
-# Odds, not certainty.
-_CERTAIN_RE = re.compile(r"\b(will|certain(ly)?|guarantee[ds]?|"
-                         r"definitely|surely|100\s*%)\b", re.I)
+# Odds, not certainty. "I will / we will" (the officer's own promise,
+# e.g. "I will check again tomorrow") is allowed; Kannada and Tamil
+# words for "definitely / surely" are not.
+_CERTAIN_RE = re.compile(r"(?<!\bI )(?<!\bwe )\b(will|certain(ly)?|"
+                         r"guarantee[ds]?|definitely|surely|100\s*%)\b"
+                         r"|ಖಂಡಿತ|ಖಚಿತವಾಗಿ|ನಿಶ್ಚಿತ|நிச்சயம்|உறுதியாக", re.I)
+
+
+# The phrases every farmer text must carry, per language.
+LINT_PHRASES = {
+    "en": ("conditions favour", "scout before spraying"),
+    "kn": ("ಅನುಕೂಲ", "ಸಿಂಪಡಿಸುವ ಮೊದಲು"),
+    "ta": ("சாதகமா", "தெளிப்பதற்கு முன்"),
+}
 
 
 class RuleError(ValueError):
@@ -150,16 +161,15 @@ def lint_text(text, kind, lang="en"):
     """Problems with a farmer-facing text (empty list = fine)."""
     probs = []
     low = text.lower()
-    if lang == "en":
-        if "conditions favour" not in low:
-            probs.append('must say "conditions favour ..."')
-        if kind in ("pest", "disease") and "scout before spraying" \
-                not in low:
-            probs.append('pest/disease text must say "scout before '
-                         'spraying"')
-        if _CERTAIN_RE.search(text):
-            probs.append("certainty wording (will / certain / "
-                         "guaranteed ...) - state odds instead")
+    favour, scout = LINT_PHRASES[lang]
+    if favour not in low:
+        probs.append(f'must say "{favour} ..." (conditions favour)')
+    if kind in ("pest", "disease") and scout not in low:
+        probs.append(f'pest/disease text must say "{scout}" (scout '
+                     'before spraying)')
+    if _CERTAIN_RE.search(text):
+        probs.append("certainty wording (will / certain / guaranteed "
+                     "...) - state odds instead")
     m = _BANNED_RE.search(text)
     if m:
         probs.append(f"brand / product / price term: {m.group(0)!r}")

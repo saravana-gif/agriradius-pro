@@ -16,6 +16,7 @@ on None is never true - missing data cannot fire an alert.
 
 import datetime
 import json
+import sqlite3
 
 from core import rain_stats
 
@@ -184,12 +185,31 @@ def build(con, village_id, as_of):
     rain, rain_v = _latest_rain(con, village_id, as_of)
     feats.update(rain)
     vintage = dict(rain_v)
+    feats["sown_days"] = sown_days(con, village_id, as_of)
     fc = _latest_forecast(con, village_id, as_of)
     if fc:
         issued, prov, daily, hourly = fc
         feats.update(forecast_features(daily, hourly, as_of))
         vintage.update(forecast_issued_on=issued, forecast_provider=prov)
     return feats, vintage
+
+
+def sown_days(con, village_id, as_of, max_days=240):
+    """{crop: days since the latest 'sown' field report} - the crop-stage
+    clock. Rules see it as days_since_sown for the crop they test."""
+    try:
+        rows = con.execute(
+            "SELECT crop, MAX(reported_on) FROM field_report WHERE "
+            "village_id=? AND event='sown' AND reported_on<=? AND crop!='' "
+            "GROUP BY crop", (village_id, as_of.isoformat())).fetchall()
+    except sqlite3.OperationalError:   # store from before field reports
+        return {}
+    out = {}
+    for crop, day in rows:
+        n = (as_of - datetime.date.fromisoformat(day[:10])).days
+        if n <= max_days:
+            out[crop] = n
+    return out
 
 
 def village_crops(con, village_id):

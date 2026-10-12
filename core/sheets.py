@@ -72,11 +72,14 @@ def _worksheet(name, columns):
     return ws
 
 
-def append_row(sheet_name, row_dict, columns):
-    """Append one record to a worksheet, in the given column order."""
+def append_row(sheet_name, row_dict, columns,
+               value_input_option="USER_ENTERED"):
+    """Append one record to a worksheet, in the given column order.
+    Pass value_input_option="RAW" to stop Sheets turning text such as
+    "2026-10-09" into locale-formatted dates."""
     ws = _worksheet(sheet_name, columns)
     ws.append_row([str(row_dict.get(c, "")) for c in columns],
-                  value_input_option="USER_ENTERED")
+                  value_input_option=value_input_option)
 
 
 def append_rows(sheet_name, rows, columns):

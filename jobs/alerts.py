@@ -55,8 +55,9 @@ def _recent(con, village_id, since):
 def candidates(rule_list, feats, crops, as_of):
     """Fired (rule, crop, trace), highest severity per (group, crop)."""
     best = {}
+    sown = feats.get("sown_days") or {}
     for crop in [""] + crops:
-        f = dict(feats, crop=crop)
+        f = dict(feats, crop=crop, days_since_sown=sown.get(crop))
         for r in rule_list:
             if not r.applies_to(crop) or not r.active_on(as_of):
                 continue
@@ -75,6 +76,7 @@ def candidates(rule_list, feats, crops, as_of):
 def run_village(con, vid, rule_list, as_of, now, sha):
     feats, vintage = features.build(con, vid, as_of)
     crops = features.village_crops(con, vid)
+    sown_days = feats.get("sown_days") or {}
     cands = candidates(rule_list, feats, crops, as_of)
     made_today = con.execute(
         "SELECT COUNT(*) FROM alert WHERE village_id=? AND as_of=?",
@@ -91,7 +93,7 @@ def run_village(con, vid, rule_list, as_of, now, sha):
     kept = kept[:max(0, MAX_PER_VILLAGE_DAY - made_today)]
     n = 0
     for r, crop, trace in kept:
-        f = dict(feats, crop=crop)
+        f = dict(feats, crop=crop, days_since_sown=sown_days.get(crop))
         aid = alert_id(as_of, vid, crop, r.id)
         cur = con.execute(
             "INSERT OR IGNORE INTO alert (alert_id, created_at, as_of, "

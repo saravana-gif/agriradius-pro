@@ -11,6 +11,7 @@ import streamlit as st
 from gee.dynamic_world import dw_crops_mask
 
 from gee.tiles import TILE_TTL
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.8564224
 
@@ -56,6 +57,7 @@ def confidence_tile_url(lat, lon, radius_km, year):
     return mapid["tile_fetcher"].url_format
 
 
+@saved_result()
 @st.cache_data(show_spinner="Cross-checking cropland (two datasets)...")
 def cropland_crosscheck(lat, lon, radius_km, year):
     """Compare cropland area between the two datasets. Returns dict."""

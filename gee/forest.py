@@ -42,6 +42,7 @@ import ee
 import streamlit as st
 
 from gee.tiles import TILE_TTL
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.86
 
@@ -206,6 +207,7 @@ def _acres(mask, buffer):
     return round((area.get("area") or 0) / SQM_PER_ACRE, 1)
 
 
+@saved_result()
 @st.cache_data(show_spinner="Separating forest from plantations...",
                ttl=3600)
 def forest_stats(lat, lon, radius_km, year):

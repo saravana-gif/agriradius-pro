@@ -9,12 +9,14 @@ import ee
 import streamlit as st
 
 from gee.dynamic_world import dw_crops_mask
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.8564224
 
 N_YEARS = 3
 
 
+@saved_result()
 @st.cache_data(show_spinner="Checking 3-year cropland stability...")
 def cropland_stability(lat, lon, radius_km, end_year):
     """Cropland acres for the last 3 years + stability verdict."""

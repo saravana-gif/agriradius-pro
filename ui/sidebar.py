@@ -141,6 +141,13 @@ def sidebar():
                      help="Compute land cover for the buffer around "
                           "the selected point"):
 
+            from core.result_cache import end_refresh_if_moved
+            end_refresh_if_moved(st.session_state.lat,
+                                 st.session_state.lon,
+                                 st.session_state.radius)
+
+            # Saved results for this area come back instantly (see
+            # core/result_cache); only a new area hits Earth Engine.
             with st.spinner("Analyzing..."):
 
                 st.session_state.results = analyze_landcover(
@@ -149,6 +156,11 @@ def sidebar():
                     st.session_state.radius,
                     st.session_state.year
                 )
+
+            # Bring back every section saved for this area, and clear
+            # sections left over from the previous area.
+            from ui.saved_results import prefill_sections
+            prefill_sections()
 
             from core.session_store import save_last
             save_last(st.session_state)

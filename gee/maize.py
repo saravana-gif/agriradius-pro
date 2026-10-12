@@ -19,6 +19,7 @@ import streamlit as st
 from gee.ndvi import _mask_clouds
 
 from gee.tiles import TILE_TTL
+from core.result_cache import saved_result
 
 SQM_PER_ACRE = 4046.8564224
 
@@ -184,6 +185,7 @@ def maize_tile_url(lat, lon, radius_km, year):
     return mapid["tile_fetcher"].url_format
 
 
+@saved_result()
 @st.cache_data(show_spinner="Measuring maize area...")
 def maize_stats(lat, lon, radius_km, year):
     """Maize acres in the buffer."""

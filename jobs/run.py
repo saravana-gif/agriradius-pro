@@ -104,6 +104,11 @@ def main(argv=None):
     headless.setup()
     from core import store
     con = store.connect()
+    # Cron wraps runs in flock, so a row still 'running' now is from a
+    # run that was killed (timeout, OOM, reboot) - say so.
+    con.execute("UPDATE job_runs SET status='killed', finished_at=? "
+                "WHERE status='running'", (_utc_now(),))
+    con.commit()
     sha = git_sha()
     ok = True
     try:

@@ -47,6 +47,7 @@ MAX_PAGES = 40      # safety stop per state x commodity
 TIMEOUT = 40        # the government server is slow; this is a cron job
 PAUSE_S = 1.0       # be polite between requests
 RETRIES = 2
+GIVE_UP_AFTER = 3   # straight failures with no success = server down
 
 _UNIT_BY_NAME = {v: mandi.price_unit(k) for k, v in mandi.COMMODITIES.items()}
 
@@ -76,8 +77,10 @@ def _get_page(key, state, commodity, offset):
             last = e
             time.sleep(5 * (attempt + 1))
     # Never let the API key leak into logs / job_runs via the URL.
-    raise RuntimeError(f"{type(last).__name__}: "
-                       f"{str(last).replace(key, '***')[:300]}")
+    msg = str(last)
+    for k in {key, requests.utils.quote(key, safe="")}:
+        msg = msg.replace(k, "***")
+    raise RuntimeError(f"{type(last).__name__}: {msg[:300]}")
 
 
 def fetch_all(key, state, commodity):
@@ -171,6 +174,7 @@ def run(con):
     now = _utc_now()
     written = dropped = flagged = 0
     failed, empty = [], []
+    succeeded = 0
     for state in STATES:
         for commodity in COMMODITIES:
             try:
@@ -178,7 +182,12 @@ def run(con):
             except Exception as e:
                 log.warning("%s/%s failed: %s", state, commodity, e)
                 failed.append(f"{state}/{commodity}")
+                if not succeeded and len(failed) >= GIVE_UP_AFTER:
+                    raise RuntimeError(
+                        f"data.gov.in unreachable - first "
+                        f"{len(failed)} requests failed ({e})")
                 continue
+            succeeded += 1
             rows, d = clean(recs, now)
             dropped += d
             flagged += sum(r["qc"] != "ok" for r in rows)
@@ -190,9 +199,6 @@ def run(con):
                      len(recs), len(rows))
             time.sleep(PAUSE_S)
 
-    total = len(STATES) * len(COMMODITIES)
-    if len(failed) == total:
-        raise RuntimeError(f"every request failed ({failed[0]} ...)")
     detail = (f"{written} rows upserted, {dropped} dropped (no date/"
               f"price), {flagged} flagged modal_outside_range; "
               f"{len(empty)} empty, {len(failed)} failed")

@@ -15,6 +15,12 @@ module docstrings in `jobs/` and `core/` have the details.
 | Publish | Writes one small page per village and the weekly portfolio | links on the Alerts page |
 | Mandi | Archives today's market prices | portfolio price column |
 
+Once a month the same morning run also measures the crop maps on
+villages they have never seen (one small Earth Engine batch) and adds
+the result to the **How often are we right?** page. The app's old
+"Training accuracy" is now labelled "Training fit" - it is scored on
+the points the model learned from and always looks better than reality.
+
 At 04:30 IST a separate job fills the 1981-2025 rain normal, a few
 minutes a night until complete (about a week the first time). Until it
 finishes, "rain vs normal" shows "?" - never a guess.

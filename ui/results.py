@@ -1353,6 +1353,36 @@ def _ground_truth_tab():
         _classifier_section()
 
 
+def _held_out_metric(col, res):
+    """The monthly held-out accuracy (jobs/crop_accuracy) for the model
+    on screen, or a pointer to it."""
+    try:
+        from core import store
+        on, snap = store.latest_accuracy("crop_map")
+    except Exception:
+        on, snap = None, None
+    legend = res.get("legend") or {}
+    want = ("Coconut map" if len(legend) == 1
+            and any("Coconut" in k for k in legend)
+            else "Annual field crops (trained crop map)")
+    model = next((m for m in (snap or {}).get("models", [])
+                  if m.get("name") == want and m.get("metrics")), None)
+    if not model:
+        col.metric("Held-out accuracy", "not yet",
+                   help="Measured monthly on villages the model never "
+                        "saw (see 'How often are we right?').")
+        return
+    m = model["metrics"]
+    if want == "Coconut map":
+        p = m["per_class"].get("Coconut", {}).get("producers") or {}
+        label, val = "Coconut found (held-out)", p.get("value")
+    else:
+        label, val = "Held-out accuracy", m["overall"]["value"]
+    col.metric(label, "-" if val is None else f"{val:.0%}",
+               help=f"Spatially blocked cross-validation, measured {on}"
+                    f" on {m['n']} points.")
+
+
 CAPTURE_CROPS = [
     "Coconut", "Arecanut", "Banana", "Maize", "Paddy", "Sugarcane",
     "Turmeric", "Chilli", "Vegetables", "Fruits/Orchard", "Other tree",
@@ -1701,10 +1731,13 @@ def _classifier_section():
     if not res:
         return
 
-    a, b = st.columns(2)
+    a, b, c = st.columns(3)
     a.metric("Training Points", res["n_points"])
     if res.get("train_accuracy") is not None:
-        b.metric("Training Accuracy", f"{res['train_accuracy']}%")
+        b.metric("Training fit", f"{res['train_accuracy']}%",
+                 help="Scored on the same points it learned from - "
+                      "always flattering. Use the held-out figure.")
+    _held_out_metric(c, res)
 
     st.caption("Legend: " + "  ".join(
         f"{g}" for g in res["classes"]))

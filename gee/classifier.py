@@ -255,6 +255,33 @@ def coconut_points_in_view(lat, lon, radius_km, margin_km=6, cap=250):
     return list(zip(sub["lat"].tolist(), sub["lon"].tolist()))
 
 
+NEGATIVE_CLASSES = {2: "Cropland", 3: "Forest", 4: "Water",
+                    5: "Built-up", 6: "OpenLand"}
+
+
+def negative_classes(region, year):
+    """'cls' band of confidently non-coconut land (2-6, see
+    NEGATIVE_CLASSES) from Dynamic World, 0 elsewhere. These are NOT
+    ground truth - they are Dynamic World's opinion - which is why the
+    coconut model's precision cannot be measured, only its recall."""
+    dw = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
+          .filterBounds(region)
+          .filterDate(f"{year}-01-01", f"{year}-12-31")
+          .select(["water", "trees", "crops", "grass", "built", "bare"])
+          .mean())
+    slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
+    return (ee.Image(0)
+            .where(dw.select("crops").gt(0.5)
+                   .And(dw.select("trees").lt(0.12)), 2)   # Cropland
+            .where(dw.select("trees").gt(0.6)
+                   .And(slope.gt(15)), 3)                  # Forest
+            .where(dw.select("water").gt(0.6), 4)          # Water
+            .where(dw.select("built").gt(0.5), 5)          # Built-up
+            .where(dw.select("grass").gt(0.5)
+                   .Or(dw.select("bare").gt(0.5)), 6)       # OpenLand
+            .rename("cls").toInt())
+
+
 @st.cache_data(show_spinner="Training coconut model on ground truth...")
 def train_coconut_classifier(lat, lon, radius_km, year):
     """Train an RF: bundled coconut labels vs auto-sampled non-coconut
@@ -288,23 +315,7 @@ def train_coconut_classifier(lat, lon, radius_km, year):
     # land cover - sampled, never hand-labelled. Forest is taken on
     # steep ground and cropland where tree-prob is low, so real
     # (flat, woody) coconut is not sampled as a negative.
-    dw = (ee.ImageCollection("GOOGLE/DYNAMICWORLD/V1")
-          .filterBounds(region)
-          .filterDate(f"{year}-01-01", f"{year}-12-31")
-          .select(["water", "trees", "crops", "grass", "built", "bare"])
-          .mean())
-    slope = ee.Terrain.slope(ee.Image("USGS/SRTMGL1_003"))
-
-    negband = (ee.Image(0)
-               .where(dw.select("crops").gt(0.5)
-                      .And(dw.select("trees").lt(0.12)), 2)   # Cropland
-               .where(dw.select("trees").gt(0.6)
-                      .And(slope.gt(15)), 3)                  # Forest
-               .where(dw.select("water").gt(0.6), 4)          # Water
-               .where(dw.select("built").gt(0.5), 5)          # Built-up
-               .where(dw.select("grass").gt(0.5)
-                      .Or(dw.select("bare").gt(0.5)), 6)       # OpenLand
-               .rename("cls").toInt())
+    negband = negative_classes(region, year)
 
     neg = feats.addBands(negband).stratifiedSample(
         numPoints=50, classBand="cls", region=buffer, scale=30,

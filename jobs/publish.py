@@ -82,6 +82,10 @@ def portfolio_url():
     return f"{base_url()}/p/{token('portfolio', 'all')}"
 
 
+def accuracy_url():
+    return f"{base_url()}/p/{token('accuracy', 'all')}"
+
+
 # ---------------------------------------------------------------- files
 
 def _write(path, data, public=True):
@@ -269,6 +273,22 @@ def portfolio(rows, as_of, updated):
     return _page("Weekly portfolio", "".join(b), updated)
 
 
+def accuracy(con, as_of, updated):
+    """The public "How often are we right?" page."""
+    from core import accuracy_page
+
+    def snap(kind):
+        row = con.execute("SELECT computed_on, json FROM accuracy_snapshot "
+                          "WHERE kind=? ORDER BY computed_on DESC LIMIT 1",
+                          (kind,)).fetchone()
+        return (row[0], json.loads(row[1])) if row else (None, None)
+    a_on, a = snap("alerts")
+    _, f = snap("forecast")
+    c_on, c = snap("crop_map")
+    return _page("How often are we right?", accuracy_page.body(
+        a, f, c, c_on, a_on or as_of.isoformat()), updated)
+
+
 # ------------------------------------------------------------------ run
 
 def _cards_for(con, r, out_dir):
@@ -319,6 +339,10 @@ def run(con):
     if len(page.encode()) > MAX_PAGE_BYTES:
         too_big.append("portfolio")
     _write(PUBLIC_DIR / "p" / f"{token('portfolio', 'all')}.html", page)
+    page = accuracy(con, as_of, updated)
+    if len(page.encode()) > MAX_PAGE_BYTES:
+        too_big.append("accuracy")
+    _write(PUBLIC_DIR / "p" / f"{token('accuracy', 'all')}.html", page)
 
     # Pages of villages no longer watched: replace, never delete.
     keep = {f"{token('village', r['village_id'])}.html" for r in rows}
@@ -333,6 +357,7 @@ def run(con):
             gone += 1
 
     _write(INDEX_FILE, json.dumps({"portfolio": portfolio_url(),
+                                   "accuracy": accuracy_url(),
                                    "villages": index}, indent=1),
            public=False)
     detail = f"{len(rows)} village cards + portfolio written"

@@ -10,6 +10,7 @@ module docstrings in `jobs/` and `core/` have the details.
 | Forecast | ECMWF 15-day forecast for every watched village (Open-Meteo if ECMWF is down) | village pages, alerts |
 | Rain | Yesterday's rain from IMD's gridded data; season total vs a 1981-2025 normal, dry days, SPI | village pages, portfolio, alerts |
 | Field reports | Copies officers' reports from the Sheet tab **FieldReports** | portfolio, alerts, hit rate |
+| Verify | Scores past alerts and forecasts against IMD rain and officers' check-backs | **How often are we right?** page |
 | Alerts | Checks the rules (`rules/rules.toml`) and logs alerts - at most 2 per village per day | **📣 Alerts & share kit** page |
 | Publish | Writes one small page per village and the weekly portfolio | links on the Alerts page |
 | Mandi | Archives today's market prices | portfolio price column |
@@ -33,6 +34,11 @@ finishes, "rain vs normal" shows "?" - never a guess.
   6 times in 10 get changed or retired.
 - **Weekly portfolio** - one row per village, worst first. It is
   internal (it shows drafts and mandi prices): do not forward it.
+- **How often are we right?** - every alert's 7-day verdict, every
+  forecast warning checked against IMD rain, and the forecast's daily
+  hit and false-alarm rates, with 95% ranges. A rule is marked "retire
+  or change" only when even the top of its range is below 6 in 10.
+  Fine to show at FPO meetings (no prices, no draft text).
 - **Village pages** - open on a basic phone without signing in. They
   show only signed-off advice. Anyone with the link can read it, so
   send a village's link only to that village.

@@ -85,6 +85,11 @@ def _links():
         st.markdown(
             f"**[Weekly portfolio]({idx['portfolio']})** - internal: "
             "includes drafts and mandi prices, don't forward.")
+        if idx.get("accuracy"):
+            st.markdown(
+                f"**[How often are we right?]({idx['accuracy']})** - "
+                "alert and forecast scorecard; fine to show at FPO "
+                "meetings.")
         st.caption("Village pages open on 2G without signing in and show "
                    "only signed-off advice. Anyone with a link can read "
                    "it - share a village's link with that village only.")

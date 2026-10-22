@@ -16,6 +16,11 @@
 #   same group for that many days unless the severity goes up.
 #   At most 2 alerts per village per day (highest severity first).
 #
+# Scoring: `verify` / `verify_any` say how to check a forecast-based
+# alert afterwards against OBSERVED IMD rain (obs_rain_3d_mm,
+# obs_max_rain_3d_mm, obs_rainy_days_7d, obs_dry_run_days ...). Every
+# alert is also scored by the officers' 7-day check-back.
+#
 # Sign-off: approved_by = "" keeps the alert an English-only DRAFT that
 # cannot be shared with farmers. An agronomist fills in approved_by
 # (name) and approved_on (date) after reading draft_en. Any edit to a
@@ -102,6 +107,7 @@ group = "chilli_drying"
 crops = ["chilli"]
 dates = ["11-20", "03-31"]
 all = [["fc_rain_3d_mm", ">=", 10]]
+verify = [["obs_rain_3d_mm", ">=", 10]]
 cooldown_days = 2
 priority = 9
 source = "TNAU / UAS Dharwad post-harvest guidance for chilli; forecast as cited on the card"
@@ -118,6 +124,7 @@ group = "chilli_drying"
 crops = ["chilli"]
 dates = ["11-20", "03-31"]
 all = [["fc_max_rain_3d_mm", ">=", 2.5]]
+verify = [["obs_max_rain_3d_mm", ">=", 2.5]]
 cooldown_days = 2
 priority = 9
 source = "TNAU / UAS Dharwad post-harvest guidance for chilli; forecast as cited on the card"
@@ -159,6 +166,7 @@ group = "maize_drying"
 crops = ["maize"]
 months = [10, 11, 12]
 any = [["fc_rain_3d_mm", ">=", 10], ["fc_rainy_days_7d", ">=", 3]]
+verify_any = [["obs_rain_3d_mm", ">=", 10], ["obs_rainy_days_7d", ">=", 3]]
 cooldown_days = 3
 priority = 7
 source = "UAS Bangalore / TNAU maize post-harvest guidance; forecast as cited on the card"
@@ -175,6 +183,7 @@ group = "maize_drying"
 crops = ["maize"]
 months = [10, 11, 12]
 all = [["fc_dry_run_days", ">=", 5]]
+verify = [["obs_dry_run_days", ">=", 5]]
 cooldown_days = 5
 priority = 3
 source = "UAS Bangalore / TNAU maize post-harvest guidance; forecast as cited on the card"

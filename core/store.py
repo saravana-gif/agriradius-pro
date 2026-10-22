@@ -27,7 +27,7 @@ from config import PROJECT_ROOT
 STORE_DIR = PROJECT_ROOT / "data" / "store"
 DB_PATH = STORE_DIR / "intel.sqlite"
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS job_runs (
@@ -225,6 +225,17 @@ CREATE TABLE IF NOT EXISTS field_report (
 );
 CREATE INDEX IF NOT EXISTS field_report_village
     ON field_report (village_id, reported_on);
+
+-- Daily accuracy snapshots (jobs/verify.py, monthly crop-map check):
+-- kind 'alerts' | 'forecast' | 'crop_map'. Kept, not replaced, so the
+-- hit rate can be shown over time.
+CREATE TABLE IF NOT EXISTS accuracy_snapshot (
+    computed_on   TEXT NOT NULL,          -- IST date
+    kind          TEXT NOT NULL,
+    json          TEXT NOT NULL,
+    computed_at   TEXT NOT NULL,
+    PRIMARY KEY (computed_on, kind)
+);
 """
 
 
@@ -392,3 +403,14 @@ def add_alert_event(alert_id, event, actor=None, detail=None, path=None):
         con.commit()
     finally:
         con.close()
+
+
+def latest_accuracy(kind, path=None):
+    """(computed_on, dict) of the newest accuracy snapshot of a kind, or
+    (None, None)."""
+    import json
+    df = query("SELECT computed_on, json FROM accuracy_snapshot WHERE "
+               "kind=? ORDER BY computed_on DESC LIMIT 1", (kind,), path)
+    if df.empty:
+        return None, None
+    return df.iloc[0, 0], json.loads(df.iloc[0, 1])

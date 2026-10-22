@@ -37,16 +37,19 @@ JOBS = {
     "publish": "jobs.publish",
     "mandi_archive": "jobs.mandi_archive",
     "rain_baseline": "jobs.rain_baseline",
+    "crop_accuracy": "jobs.crop_accuracy",
 }
 
 GROUPS = {
     # 05:15 IST: fresh forecast and observed rain, yesterday's field
     # reports, score past alerts and forecasts, the morning's alerts,
     # the pages, then sweep up mandi rows uploaded late the previous
-    # evening. The baseline goes last: it is time-boxed and a no-op
-    # once complete.
+    # evening. The baseline is time-boxed and a no-op once complete;
+    # the crop-map accuracy check uses Earth Engine once a month and is
+    # a no-op on other days.
     "daily": ["forecast", "rain", "field_reports", "verify", "alerts",
-              "publish", "mandi_archive", "rain_baseline"],
+              "publish", "mandi_archive", "rain_baseline",
+              "crop_accuracy"],
 }
 
 log = logging.getLogger("jobs.run")

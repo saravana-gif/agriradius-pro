@@ -195,3 +195,21 @@ def verdict_for_rate(p, threshold=0.6):
     if p["value"] < threshold:
         return "watch"
     return "ok"
+
+
+def cross_validate(rows, folds, fit_predict):
+    """Held-out predictions for every row: for each fold, train on the
+    other folds only and predict this one. `rows` carry a "label";
+    fit_predict(train_rows, test_rows) returns predicted labels for
+    test_rows in order. Returns (y_true, y_pred), row order kept."""
+    pred = [None] * len(rows)
+    for f in sorted(set(folds)):
+        test_i = [i for i, x in enumerate(folds) if x == f]
+        train = [rows[i] for i, x in enumerate(folds) if x != f]
+        if not train or not test_i:
+            continue
+        out = fit_predict(train, [rows[i] for i in test_i])
+        for i, p in zip(test_i, out):
+            pred[i] = p
+    keep = [i for i, p in enumerate(pred) if p is not None]
+    return [rows[i]["label"] for i in keep], [pred[i] for i in keep]

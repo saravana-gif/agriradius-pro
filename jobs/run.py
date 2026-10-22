@@ -32,6 +32,7 @@ JOBS = {
     "forecast": "jobs.forecast",
     "rain": "jobs.rain",
     "field_reports": "jobs.field_reports",
+    "verify": "jobs.verify",
     "alerts": "jobs.alerts",
     "publish": "jobs.publish",
     "mandi_archive": "jobs.mandi_archive",
@@ -40,11 +41,12 @@ JOBS = {
 
 GROUPS = {
     # 05:15 IST: fresh forecast and observed rain, yesterday's field
-    # reports, the morning's alerts, the village pages, then sweep up
-    # mandi rows uploaded late the previous evening. The baseline goes
-    # last: it is time-boxed and a no-op once complete.
-    "daily": ["forecast", "rain", "field_reports", "alerts", "publish",
-              "mandi_archive", "rain_baseline"],
+    # reports, score past alerts and forecasts, the morning's alerts,
+    # the pages, then sweep up mandi rows uploaded late the previous
+    # evening. The baseline goes last: it is time-boxed and a no-op
+    # once complete.
+    "daily": ["forecast", "rain", "field_reports", "verify", "alerts",
+              "publish", "mandi_archive", "rain_baseline"],
 }
 
 log = logging.getLogger("jobs.run")

@@ -40,7 +40,7 @@ RULE_KEYS = {
     "id", "title", "kind", "severity", "group", "crops", "months",
     "std_weeks", "dates", "all", "any", "cooldown_days", "priority",
     "approved_by", "approved_on", "source", "draft_en", "template",
-    "notes",
+    "notes", "verify", "verify_any",
 }
 REQUIRED = {"id", "title", "kind", "severity", "draft_en", "source"}
 
@@ -95,6 +95,11 @@ class Rule:
     dates: list = field(default_factory=list)       # ["MM-DD", "MM-DD"]
     all: list = field(default_factory=list)
     any: list = field(default_factory=list)
+    # How to check afterwards, against OBSERVED data (jobs/verify.py):
+    # same [feature, op, value] form on obs_* features. Empty = can only
+    # be scored by the officers' 7-day check-back.
+    verify: list = field(default_factory=list)
+    verify_any: list = field(default_factory=list)
     cooldown_days: int = 7
     priority: int = 0
     approved_by: str = ""
@@ -188,8 +193,13 @@ def _parse(raw):
         raise RuleError(f"{rid}: severity must be red/amber/green")
     if raw["kind"] not in KINDS:
         raise RuleError(f"{rid}: kind must be one of {sorted(KINDS)}")
-    for c in raw.get("all", []) + raw.get("any", []):
+    for c in (raw.get("all", []) + raw.get("any", [])
+              + raw.get("verify", []) + raw.get("verify_any", [])):
         _check_cond(c, rid)
+    for c in raw.get("verify", []) + raw.get("verify_any", []):
+        if not c[0].startswith("obs_"):
+            raise RuleError(f"{rid}: verify conditions test observed "
+                            f"features (obs_...), not {c[0]!r}")
     if not raw.get("all") and not raw.get("any"):
         raise RuleError(f"{rid}: needs `all` or `any` conditions")
     d = raw.get("dates")
@@ -225,6 +235,22 @@ def load(path=None):
         except (RuleError, TypeError) as e:
             errors.append(str(e))
     return rules, errors
+
+
+def check_outcome(rule, obs):
+    """Did what the rule warned about happen? Returns (outcome, trace):
+    outcome 'hit' / 'false_alarm', or None while any needed observation
+    is still missing (never guessed)."""
+    conds = rule.verify + rule.verify_any
+    if not conds:
+        return None, {}
+    if any(obs.get(c[0]) is None for c in conds):
+        return None, {}
+    probe = Rule(id=rule.id, title="", kind=rule.kind, severity="green",
+                 draft_en="", source="", all=rule.verify,
+                 any=rule.verify_any)
+    ok, trace = evaluate(probe, obs)
+    return ("hit" if ok else "false_alarm"), trace
 
 
 def evaluate(rule, feats):
